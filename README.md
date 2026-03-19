@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/timethrottle-banner.png" width="900">
+  <img src="Assets/timethrottle-banner.png" width="900">
 </p>
 
 <h1 align="center">TimeThrottle</h1>
