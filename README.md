@@ -1,7 +1,12 @@
 <p align="center">
-  <img src="assets/timethrottle-banner.png" width="900">
+  <img src="./assets/timethrottle-banner.png" width="900">
 </p>
 
+<h1 align="center">TimeThrottle</h1>
+
+<p align="center">
+How much time did speed really buy you?
+</p>
 # TimeThrottle
 
 **TimeThrottle** is an iPhone pace-analysis app that helps drivers understand what faster driving actually buys them.
