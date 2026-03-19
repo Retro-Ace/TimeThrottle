@@ -9,7 +9,7 @@ public enum CalculationMode: String, CaseIterable, Identifiable, Sendable {
     public var footnote: String {
         switch self {
         case .simple:
-            return "Counts time above the limit as time saved, and time below as traffic."
+            return "Counts time above the limit as time saved, and time below as time under target pace."
         case .speedAdjusted:
             return "Compares each segment to the time the same distance would take at the speed limit."
         }
@@ -30,18 +30,18 @@ public struct DriveSegment: Identifiable, Equatable, Sendable {
 
 public struct CalculationSummary: Equatable, Sendable {
     public var speedingMinutes: Double
-    public var trafficMinutes: Double
+    public var timeUnderTargetPaceMinutes: Double
     public var savedMinutes: Double
     public var lostMinutes: Double
 
     public init(
         speedingMinutes: Double = 0,
-        trafficMinutes: Double = 0,
+        timeUnderTargetPaceMinutes: Double = 0,
         savedMinutes: Double = 0,
         lostMinutes: Double = 0
     ) {
         self.speedingMinutes = speedingMinutes
-        self.trafficMinutes = trafficMinutes
+        self.timeUnderTargetPaceMinutes = timeUnderTargetPaceMinutes
         self.savedMinutes = savedMinutes
         self.lostMinutes = lostMinutes
     }
@@ -98,7 +98,7 @@ public enum TimeThrottleCalculator {
             if segment.speed > speedLimit {
                 summary.speedingMinutes += segment.minutes
             } else if segment.speed < speedLimit {
-                summary.trafficMinutes += segment.minutes
+                summary.timeUnderTargetPaceMinutes += segment.minutes
             }
 
             let delta: Double

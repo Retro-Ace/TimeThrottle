@@ -39,7 +39,7 @@ public enum TicketRiskLevel: String, Equatable, Sendable {
 
 public struct SpeedCostSummary: Equatable, Sendable {
     public var timeSavedMinutes: Double
-    public var trafficDelayMinutes: Double
+    public var timeUnderTargetPaceMinutes: Double
     public var baselineFuelUsedGallons: Double
     public var actualFuelUsedGallons: Double
     public var extraFuelUsedGallons: Double
@@ -48,7 +48,7 @@ public struct SpeedCostSummary: Equatable, Sendable {
 
     public init(
         timeSavedMinutes: Double = 0,
-        trafficDelayMinutes: Double = 0,
+        timeUnderTargetPaceMinutes: Double = 0,
         baselineFuelUsedGallons: Double = 0,
         actualFuelUsedGallons: Double = 0,
         extraFuelUsedGallons: Double = 0,
@@ -56,7 +56,7 @@ public struct SpeedCostSummary: Equatable, Sendable {
         ticketRisk: TicketRiskLevel = .low
     ) {
         self.timeSavedMinutes = timeSavedMinutes
-        self.trafficDelayMinutes = trafficDelayMinutes
+        self.timeUnderTargetPaceMinutes = timeUnderTargetPaceMinutes
         self.baselineFuelUsedGallons = baselineFuelUsedGallons
         self.actualFuelUsedGallons = actualFuelUsedGallons
         self.extraFuelUsedGallons = extraFuelUsedGallons
@@ -65,7 +65,7 @@ public struct SpeedCostSummary: Equatable, Sendable {
     }
 
     public var netBenefitMinutes: Double {
-        timeSavedMinutes - trafficDelayMinutes
+        timeSavedMinutes - timeUnderTargetPaceMinutes
     }
 }
 
@@ -86,7 +86,7 @@ public enum SpeedCostCalculator {
 
         let timeDeltaMinutes = input.baselineTravelMinutes - input.actualTravelMinutes
         let timeSavedMinutes = max(timeDeltaMinutes, 0)
-        let trafficDelayMinutes = max(-timeDeltaMinutes, 0)
+        let timeUnderTargetPaceMinutes = max(-timeDeltaMinutes, 0)
 
         let baselineFuelUsedGallons = input.distanceMiles / input.ratedMPG
         let actualFuelUsedGallons = input.distanceMiles / input.observedMPG
@@ -95,7 +95,7 @@ public enum SpeedCostCalculator {
 
         return SpeedCostSummary(
             timeSavedMinutes: timeSavedMinutes,
-            trafficDelayMinutes: trafficDelayMinutes,
+            timeUnderTargetPaceMinutes: timeUnderTargetPaceMinutes,
             baselineFuelUsedGallons: baselineFuelUsedGallons,
             actualFuelUsedGallons: actualFuelUsedGallons,
             extraFuelUsedGallons: extraFuelUsedGallons,

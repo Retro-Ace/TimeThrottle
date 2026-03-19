@@ -14,7 +14,7 @@ final class TimeThrottleCoreTests: XCTestCase {
         )
 
         XCTAssertEqual(summary.speedingMinutes, 20)
-        XCTAssertEqual(summary.trafficMinutes, 15)
+        XCTAssertEqual(summary.timeUnderTargetPaceMinutes, 15)
         XCTAssertEqual(summary.savedMinutes, 20)
         XCTAssertEqual(summary.lostMinutes, 15)
         XCTAssertEqual(summary.netMinutes, 5)

@@ -4,18 +4,34 @@
     "Localizable": [
       {
         "comment": "",
-        "key": "Workflow",
+        "key": "Mode",
         "location": {
-          "startingColumn": 16,
-          "startingLine": 792
+          "startingColumn": 18,
+          "startingLine": 1096
         }
       },
       {
         "comment": "",
-        "key": "Route comparison",
+        "key": "Mode",
         "location": {
-          "startingColumn": 22,
-          "startingLine": 766
+          "startingColumn": 20,
+          "startingLine": 1100
+        }
+      },
+      {
+        "comment": "",
+        "key": "Drive in progress",
+        "location": {
+          "startingColumn": 53,
+          "startingLine": 1116
+        }
+      },
+      {
+        "comment": "",
+        "key": "Trip complete",
+        "location": {
+          "startingColumn": 75,
+          "startingLine": 1116
         }
       },
       {
@@ -23,7 +39,7 @@
         "key": "How much did speeding really buy you?",
         "location": {
           "startingColumn": 22,
-          "startingLine": 811
+          "startingLine": 1135
         }
       },
       {
@@ -31,7 +47,7 @@
         "key": "Posted speed limit",
         "location": {
           "startingColumn": 22,
-          "startingLine": 870
+          "startingLine": 1187
         }
       },
       {
@@ -39,7 +55,7 @@
         "key": "mph",
         "location": {
           "startingColumn": 26,
-          "startingLine": 884
+          "startingLine": 1201
         }
       },
       {
@@ -47,7 +63,7 @@
         "key": "Calculation mode",
         "location": {
           "startingColumn": 22,
-          "startingLine": 895
+          "startingLine": 1212
         }
       },
       {
@@ -55,7 +71,7 @@
         "key": "Calculation mode",
         "location": {
           "startingColumn": 24,
-          "startingLine": 899
+          "startingLine": 1216
         }
       },
       {
@@ -63,7 +79,7 @@
         "key": "Distance basis",
         "location": {
           "startingColumn": 22,
-          "startingLine": 1016
+          "startingLine": 1330
         }
       },
       {
@@ -71,7 +87,7 @@
         "key": "Distance basis",
         "location": {
           "startingColumn": 24,
-          "startingLine": 1020
+          "startingLine": 1334
         }
       },
       {
@@ -79,7 +95,7 @@
         "key": "Input style",
         "location": {
           "startingColumn": 22,
-          "startingLine": 1039
+          "startingLine": 1353
         }
       },
       {
@@ -87,7 +103,7 @@
         "key": "Input style",
         "location": {
           "startingColumn": 24,
-          "startingLine": 1043
+          "startingLine": 1357
         }
       },
       {
@@ -95,7 +111,7 @@
         "key": "Posted speed limit",
         "location": {
           "startingColumn": 18,
-          "startingLine": 1061
+          "startingLine": 1375
         }
       },
       {
@@ -103,7 +119,7 @@
         "key": "Miles driven",
         "location": {
           "startingColumn": 18,
-          "startingLine": 1080
+          "startingLine": 1394
         }
       },
       {
@@ -111,7 +127,7 @@
         "key": "mph",
         "location": {
           "startingColumn": 22,
-          "startingLine": 1075
+          "startingLine": 1389
         }
       },
       {
@@ -119,7 +135,55 @@
         "key": "miles",
         "location": {
           "startingColumn": 22,
-          "startingLine": 1094
+          "startingLine": 1408
+        }
+      },
+      {
+        "comment": "",
+        "key": "Distance",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 1417
+        }
+      },
+      {
+        "comment": "",
+        "key": "Speed A",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 1436
+        }
+      },
+      {
+        "comment": "",
+        "key": "Speed B",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 1455
+        }
+      },
+      {
+        "comment": "",
+        "key": "miles",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 1431
+        }
+      },
+      {
+        "comment": "",
+        "key": "mph",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 1450
+        }
+      },
+      {
+        "comment": "",
+        "key": "mph",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 1469
         }
       },
       {
@@ -127,7 +191,7 @@
         "key": "From",
         "location": {
           "startingColumn": 18,
-          "startingLine": 1103
+          "startingLine": 1478
         }
       },
       {
@@ -135,7 +199,7 @@
         "key": "To",
         "location": {
           "startingColumn": 18,
-          "startingLine": 1115
+          "startingLine": 1490
         }
       },
       {
@@ -143,7 +207,7 @@
         "key": "Calculating route",
         "location": {
           "startingColumn": 40,
-          "startingLine": 1140
+          "startingLine": 1515
         }
       },
       {
@@ -151,7 +215,7 @@
         "key": "Calculate route",
         "location": {
           "startingColumn": 62,
-          "startingLine": 1140
+          "startingLine": 1515
         }
       },
       {
@@ -159,7 +223,7 @@
         "key": "Your average speed",
         "location": {
           "startingColumn": 22,
-          "startingLine": 1157
+          "startingLine": 1532
         }
       },
       {
@@ -167,7 +231,7 @@
         "key": "Your trip time",
         "location": {
           "startingColumn": 22,
-          "startingLine": 1176
+          "startingLine": 1551
         }
       },
       {
@@ -175,7 +239,7 @@
         "key": "Compared against the same route distance at the posted speed. Average trip speed comes from the speed field or the derived duration.",
         "location": {
           "startingColumn": 62,
-          "startingLine": 1198
+          "startingLine": 1573
         }
       },
       {
@@ -183,7 +247,7 @@
         "key": "Compared against the Apple Maps route distance and ETA. Average trip speed comes from the speed field or the derived duration.",
         "location": {
           "startingColumn": 199,
-          "startingLine": 1198
+          "startingLine": 1573
         }
       },
       {
@@ -191,7 +255,7 @@
         "key": "mph",
         "location": {
           "startingColumn": 26,
-          "startingLine": 1171
+          "startingLine": 1546
         }
       },
       {
@@ -199,7 +263,7 @@
         "key": "minutes",
         "location": {
           "startingColumn": 26,
-          "startingLine": 1190
+          "startingLine": 1565
         }
       },
       {
@@ -207,7 +271,7 @@
         "key": "Vehicle rated MPG",
         "location": {
           "startingColumn": 18,
-          "startingLine": 1206
+          "startingLine": 1581
         }
       },
       {
@@ -215,7 +279,7 @@
         "key": "Observed MPG at your pace",
         "location": {
           "startingColumn": 18,
-          "startingLine": 1225
+          "startingLine": 1600
         }
       },
       {
@@ -223,7 +287,7 @@
         "key": "Fuel price",
         "location": {
           "startingColumn": 18,
-          "startingLine": 1244
+          "startingLine": 1619
         }
       },
       {
@@ -231,7 +295,7 @@
         "key": "Fuel penalty compares your baseline rated efficiency against the MPG you actually see at the faster pace.",
         "location": {
           "startingColumn": 18,
-          "startingLine": 1263
+          "startingLine": 1638
         }
       },
       {
@@ -239,7 +303,7 @@
         "key": "mpg",
         "location": {
           "startingColumn": 22,
-          "startingLine": 1220
+          "startingLine": 1595
         }
       },
       {
@@ -247,7 +311,7 @@
         "key": "mpg",
         "location": {
           "startingColumn": 22,
-          "startingLine": 1239
+          "startingLine": 1614
         }
       },
       {
@@ -255,7 +319,87 @@
         "key": "/ gallon",
         "location": {
           "startingColumn": 22,
-          "startingLine": 1258
+          "startingLine": 1633
+        }
+      },
+      {
+        "comment": "",
+        "key": "Vehicle assumptions",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 1646
+        }
+      },
+      {
+        "comment": "",
+        "key": "Target speed",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 1707
+        }
+      },
+      {
+        "comment": "",
+        "key": "MPG",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 1726
+        }
+      },
+      {
+        "comment": "",
+        "key": "Fuel price",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 1745
+        }
+      },
+      {
+        "comment": "",
+        "key": "mph",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 1721
+        }
+      },
+      {
+        "comment": "",
+        "key": "mpg",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 1740
+        }
+      },
+      {
+        "comment": "",
+        "key": "/ gallon",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 1759
+        }
+      },
+      {
+        "comment": "",
+        "key": "Start Drive",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 1769
+        }
+      },
+      {
+        "comment": "",
+        "key": "Stop Drive",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 2005
+        }
+      },
+      {
+        "comment": "",
+        "key": "End Trip",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 2019
         }
       },
       {
@@ -263,7 +407,7 @@
         "key": "Trip balance",
         "location": {
           "startingColumn": 18,
-          "startingLine": 1298
+          "startingLine": 2035
         }
       },
       {
@@ -271,7 +415,7 @@
         "key": "Drive segments",
         "location": {
           "startingColumn": 18,
-          "startingLine": 1571
+          "startingLine": 2310
         }
       },
       {
@@ -279,7 +423,7 @@
         "key": "Each row is a chunk of the drive at a roughly steady speed.",
         "location": {
           "startingColumn": 18,
-          "startingLine": 1574
+          "startingLine": 2313
         }
       },
       {
@@ -287,7 +431,7 @@
         "key": "Add segment",
         "location": {
           "startingColumn": 19,
-          "startingLine": 1584
+          "startingLine": 2323
         }
       },
       {
@@ -295,7 +439,7 @@
         "key": "Comparison details",
         "location": {
           "startingColumn": 26,
-          "startingLine": 1594
+          "startingLine": 2333
         }
       },
       {
@@ -303,7 +447,7 @@
         "key": "Was it worth it?",
         "location": {
           "startingColumn": 34,
-          "startingLine": 1794
+          "startingLine": 2535
         }
       },
       {
@@ -311,7 +455,7 @@
         "key": "Was it worth it?",
         "location": {
           "startingColumn": 34,
-          "startingLine": 1809
+          "startingLine": 2550
         }
       },
       {
@@ -319,7 +463,7 @@
         "key": "Verdict",
         "location": {
           "startingColumn": 18,
-          "startingLine": 1867
+          "startingLine": 2608
         }
       },
       {
@@ -327,7 +471,7 @@
         "key": "%@:",
         "location": {
           "startingColumn": 18,
-          "startingLine": 1880
+          "startingLine": 2621
         }
       },
       {
@@ -335,7 +479,23 @@
         "key": "Share Result",
         "location": {
           "startingColumn": 19,
-          "startingLine": 1894
+          "startingLine": 2635
+        }
+      },
+      {
+        "comment": "",
+        "key": "Live Drive needs location access",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 2704
+        }
+      },
+      {
+        "comment": "",
+        "key": "Open Settings",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 2716
         }
       },
       {
@@ -343,7 +503,7 @@
         "key": "Route options",
         "location": {
           "startingColumn": 22,
-          "startingLine": 1989
+          "startingLine": 2758
         }
       },
       {
@@ -351,7 +511,7 @@
         "key": "Select which Apple Maps route to compare against.",
         "location": {
           "startingColumn": 22,
-          "startingLine": 1992
+          "startingLine": 2761
         }
       },
       {
@@ -359,7 +519,7 @@
         "key": "Route preview",
         "location": {
           "startingColumn": 22,
-          "startingLine": 2008
+          "startingLine": 2777
         }
       },
       {
@@ -367,7 +527,7 @@
         "key": "Time comparison",
         "location": {
           "startingColumn": 18,
-          "startingLine": 2291
+          "startingLine": 3206
         }
       }
     ]

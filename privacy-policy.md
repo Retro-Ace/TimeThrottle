@@ -1,38 +1,113 @@
 # Privacy Policy for TimeThrottle
 
-Last updated: March 2026
+**Effective date:** March 18, 2026
 
-TimeThrottle respects your privacy.
+TimeThrottle (“the app”) is designed to help users compare driving pace against a selected baseline using manual entry, Apple Maps route information, and optional live trip tracking.
 
-## Information We Collect
-TimeThrottle does **not collect, store, or share any personal data**.
+This Privacy Policy explains what information the app uses, how it is used, and what choices users have.
 
-All calculations performed in the app (such as trip distance, speed comparisons, and fuel cost estimates) are processed **locally on your device only**.
+---
 
-The app does not require user accounts, logins, or personal information.
+## Information the App Uses
 
-## Location Data
-If location features are used, location data is used **only on-device** to calculate trip distance and route comparisons.
-Location data is **not stored, transmitted, or shared**.
+### 1. Location Data
+If you use **Live Drive**, TimeThrottle may request access to your device location.
 
-## Analytics
-TimeThrottle does **not use analytics services**, tracking tools, or third-party data collection.
+Location is used to:
+- Measure current speed
+- Measure distance traveled
+- Track trip progress during a live drive
+- Compare the live trip against the selected route baseline
 
-## Third-Party Services
-TimeThrottle may use Apple system services such as Apple Maps to display route information. These services are governed by Apple’s own privacy policies.
+Location access is optional, but Live Drive will not function properly without it.
+
+### 2. Route Information
+If you use **Route** or **Live Drive** setup, the app may use:
+- Start address
+- Destination
+- Apple Maps route options
+- Route distance
+- Estimated travel time
+
+This information is used only to calculate and display trip comparisons.
+
+### 3. Manual Inputs
+The app may use information you enter manually, such as:
+- Distance
+- Speed
+- Trip duration
+- MPG
+- Fuel price
+
+This information is used only to perform trip calculations inside the app.
+
+---
+
+## How Information Is Used
+
+TimeThrottle uses information only to:
+- Calculate trip comparisons
+- Display route-based baselines
+- Track live drive progress when enabled
+- Show time, fuel, and pace-related summaries
+
+---
+
+## Data Collection and Sharing
+
+TimeThrottle is intended **not to sell your personal data** and **not to track you across other companies’ apps or websites**.
+
+At the current stage of the app:
+
+- No user account is required
+- No advertising profile is created
+- No personal data is sold
+- No in-app chat or public posting exists
+
+If analytics, crash reporting, cloud sync, or additional services are added in a future version, this policy should be updated before release of those changes.
+
+---
 
 ## Data Storage
-All inputs entered by users remain on the device and are not transmitted to any servers.
+
+TimeThrottle’s calculations and live drive features are intended to operate primarily on-device.
+
+If the app stores settings or recent inputs on your device for convenience, that storage remains local to the device unless a future version adds cloud features.
+
+---
+
+## Your Choices
+
+You can:
+- Deny location access
+- Turn off location access later in iPhone Settings
+- Use Manual mode without Live Drive
+- Stop an active drive at any time
+
+If you deny location access, Live Drive will not be available.
+
+---
 
 ## Children’s Privacy
-TimeThrottle does not knowingly collect data from children under 13.
+
+TimeThrottle is not directed to children under 13, and the app is not intended to knowingly collect personal information from children.
+
+---
+
+## Security
+
+Reasonable efforts should be made to keep app behavior limited to the features described above. However, no method of electronic storage or transmission is guaranteed to be completely secure.
+
+---
 
 ## Changes to This Policy
-This privacy policy may be updated in the future. Updates will be posted on this page.
+
+This Privacy Policy may be updated from time to time as the app changes.
+
+If material changes are made, the updated version should be posted with a new effective date.
+
+---
 
 ## Contact
-If you have questions about this policy, you can contact:
 
-Anthony
-MisAdventure Lab
-misadventurelabs@gmail.com
+For privacy questions or support requests, contact the app publisher using the support contact provided with the app listing.

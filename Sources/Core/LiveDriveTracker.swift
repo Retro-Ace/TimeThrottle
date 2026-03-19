@@ -1,0 +1,345 @@
+#if os(iOS)
+import Combine
+import CoreLocation
+import Foundation
+
+public struct LiveDriveConfiguration: Equatable, Sendable {
+    public var baselineRouteETAMinutes: Double
+    public var baselineRouteDistanceMiles: Double
+    public var targetSpeed: Double
+    public var fuelModel: TripFuelModel?
+    public var locationUpdateThrottleSeconds: TimeInterval
+    public var summaryUpdateIntervalSeconds: TimeInterval
+    public var distanceFilterMeters: CLLocationDistance
+    public var desiredAccuracy: CLLocationAccuracy
+
+    public init(
+        baselineRouteETAMinutes: Double = 0,
+        baselineRouteDistanceMiles: Double = 0,
+        targetSpeed: Double = 0,
+        fuelModel: TripFuelModel? = nil,
+        locationUpdateThrottleSeconds: TimeInterval = 1,
+        summaryUpdateIntervalSeconds: TimeInterval = 2,
+        distanceFilterMeters: CLLocationDistance = 10,
+        desiredAccuracy: CLLocationAccuracy = kCLLocationAccuracyBestForNavigation
+    ) {
+        self.baselineRouteETAMinutes = baselineRouteETAMinutes
+        self.baselineRouteDistanceMiles = baselineRouteDistanceMiles
+        self.targetSpeed = targetSpeed
+        self.fuelModel = fuelModel
+        self.locationUpdateThrottleSeconds = locationUpdateThrottleSeconds
+        self.summaryUpdateIntervalSeconds = min(max(summaryUpdateIntervalSeconds, 1), 3)
+        self.distanceFilterMeters = distanceFilterMeters
+        self.desiredAccuracy = desiredAccuracy
+    }
+}
+
+public struct LiveDriveSnapshot: Equatable, Sendable {
+    public var currentSpeed: Double
+    public var distanceTraveled: Double
+    public var tripDuration: Double
+    public var timeAboveTargetSpeed: Double
+    public var timeBelowTargetSpeed: Double
+    public var estimatedTimeLostBelowTargetPace: Double
+    public var expectedArrivalTime: Date?
+    public var tripSummary: TripSummary
+    public var sampleCount: Int
+
+    public init(
+        currentSpeed: Double = 0,
+        distanceTraveled: Double = 0,
+        tripDuration: Double = 0,
+        timeAboveTargetSpeed: Double = 0,
+        timeBelowTargetSpeed: Double = 0,
+        estimatedTimeLostBelowTargetPace: Double = 0,
+        expectedArrivalTime: Date? = nil,
+        tripSummary: TripSummary = TripSummary(),
+        sampleCount: Int = 0
+    ) {
+        self.currentSpeed = currentSpeed
+        self.distanceTraveled = distanceTraveled
+        self.tripDuration = tripDuration
+        self.timeAboveTargetSpeed = timeAboveTargetSpeed
+        self.timeBelowTargetSpeed = timeBelowTargetSpeed
+        self.estimatedTimeLostBelowTargetPace = estimatedTimeLostBelowTargetPace
+        self.expectedArrivalTime = expectedArrivalTime
+        self.tripSummary = tripSummary
+        self.sampleCount = sampleCount
+    }
+}
+
+public enum LiveDrivePermissionState: Equatable, Sendable {
+    case notDetermined
+    case authorized
+    case denied
+    case restricted
+
+    var requiresSettingsAction: Bool {
+        self == .denied
+    }
+}
+
+@MainActor
+public final class LiveDriveTracker: NSObject, ObservableObject {
+    @Published public private(set) var currentSpeed: Double = 0
+    @Published public private(set) var distanceTraveled: Double = 0
+    @Published public private(set) var tripDuration: Double = 0
+    @Published public private(set) var timeAboveTargetSpeed: Double = 0
+    @Published public private(set) var timeBelowTargetSpeed: Double = 0
+    @Published public private(set) var estimatedTimeLostBelowTargetPace: Double = 0
+    @Published public private(set) var expectedArrivalTime: Date?
+    @Published public private(set) var tripSummary: TripSummary = TripSummary()
+    @Published public private(set) var analysisResult: TripAnalysisResult = TripAnalysisResult()
+    @Published public private(set) var isTracking = false
+    @Published public private(set) var permissionState: LiveDrivePermissionState
+
+    public var configuration: LiveDriveConfiguration {
+        didSet {
+            applyConfiguration()
+            recomputeSummary(force: true)
+        }
+    }
+
+    private let locationManager = CLLocationManager()
+    private var analysisState = TripAnalysisState()
+    private var tripStartTimestamp: Date?
+    private var lastAcceptedLocation: CLLocation?
+    private var lastAcceptedSampleTimestamp: Date?
+    private var lastSummaryComputation: Date?
+    private var pendingTripStart = false
+    private var acceptedLocationCount = 0
+
+    public init(configuration: LiveDriveConfiguration = LiveDriveConfiguration()) {
+        self.configuration = configuration
+        self.permissionState = .notDetermined
+        super.init()
+        locationManager.delegate = self
+        applyConfiguration()
+        permissionState = Self.permissionState(for: locationManager.authorizationStatus)
+    }
+
+    public func startTrip() {
+        pendingTripStart = true
+
+        switch locationManager.authorizationStatus {
+        case .authorizedAlways, .authorizedWhenInUse:
+            permissionState = .authorized
+            beginTrackingUpdates()
+        case .notDetermined:
+            permissionState = .notDetermined
+            locationManager.requestWhenInUseAuthorization()
+        case .denied:
+            permissionState = .denied
+            pendingTripStart = false
+            isTracking = false
+        case .restricted:
+            permissionState = .restricted
+            pendingTripStart = false
+            isTracking = false
+        @unknown default:
+            permissionState = .notDetermined
+            pendingTripStart = false
+            isTracking = false
+        }
+    }
+
+    public func stopTrip() {
+        guard isTracking else { return }
+        pendingTripStart = false
+        isTracking = false
+        currentSpeed = 0
+        locationManager.stopUpdatingLocation()
+        recomputeSummary(force: true)
+    }
+
+    public func resetTrip() {
+        locationManager.stopUpdatingLocation()
+        pendingTripStart = false
+        isTracking = false
+        currentSpeed = 0
+        distanceTraveled = 0
+        tripDuration = 0
+        timeAboveTargetSpeed = 0
+        timeBelowTargetSpeed = 0
+        estimatedTimeLostBelowTargetPace = 0
+        expectedArrivalTime = nil
+        tripSummary = TripSummary()
+        analysisResult = TripAnalysisResult()
+        analysisState = TripAnalysisState()
+        tripStartTimestamp = nil
+        lastAcceptedLocation = nil
+        lastAcceptedSampleTimestamp = nil
+        lastSummaryComputation = nil
+        acceptedLocationCount = 0
+    }
+
+    public var snapshot: LiveDriveSnapshot {
+        LiveDriveSnapshot(
+            currentSpeed: currentSpeed,
+            distanceTraveled: distanceTraveled,
+            tripDuration: tripDuration,
+            timeAboveTargetSpeed: timeAboveTargetSpeed,
+            timeBelowTargetSpeed: timeBelowTargetSpeed,
+            estimatedTimeLostBelowTargetPace: estimatedTimeLostBelowTargetPace,
+            expectedArrivalTime: expectedArrivalTime,
+            tripSummary: tripSummary,
+            sampleCount: acceptedLocationCount
+        )
+    }
+
+    private func applyConfiguration() {
+        locationManager.activityType = .automotiveNavigation
+        locationManager.desiredAccuracy = configuration.desiredAccuracy
+        locationManager.distanceFilter = configuration.distanceFilterMeters
+        locationManager.pausesLocationUpdatesAutomatically = false
+    }
+
+    private func beginTrackingUpdates() {
+        isTracking = true
+        pendingTripStart = false
+        locationManager.startUpdatingLocation()
+    }
+
+    private func handleLocation(_ location: CLLocation) {
+        guard isTracking else { return }
+        guard location.horizontalAccuracy >= 0, location.horizontalAccuracy <= 100 else { return }
+
+        if let lastAcceptedSampleTimestamp {
+            let updateInterval = location.timestamp.timeIntervalSince(lastAcceptedSampleTimestamp)
+            if updateInterval < configuration.locationUpdateThrottleSeconds {
+                return
+            }
+        }
+
+        let speedMilesPerHour = resolvedSpeedMilesPerHour(for: location)
+        let previousLocation = lastAcceptedLocation
+
+        if tripStartTimestamp == nil {
+            tripStartTimestamp = location.timestamp
+        }
+
+        if let previousLocation {
+            let elapsedMinutes = max(location.timestamp.timeIntervalSince(previousLocation.timestamp) / 60, 0)
+            let distanceIncrementMiles = max(previousLocation.distance(from: location) / 1_609.344, 0)
+
+            analysisState = TripAnalysisEngine.applying(
+                update: TripAnalysisUpdate(
+                    deltaDistanceMiles: distanceIncrementMiles,
+                    deltaTimeMinutes: elapsedMinutes,
+                    speedMilesPerHour: speedMilesPerHour
+                ),
+                to: analysisState,
+                targetSpeed: configuration.targetSpeed
+            )
+
+            distanceTraveled = analysisState.distanceTraveledMiles
+            timeAboveTargetSpeed = analysisState.timeAboveTargetSpeed
+            timeBelowTargetSpeed = analysisState.timeBelowTargetSpeed
+        }
+
+        currentSpeed = speedMilesPerHour
+        tripDuration = max(location.timestamp.timeIntervalSince(tripStartTimestamp ?? location.timestamp) / 60, 0)
+        lastAcceptedLocation = location
+        lastAcceptedSampleTimestamp = location.timestamp
+        acceptedLocationCount += 1
+
+        recomputeSummary(force: false)
+    }
+
+    private func resolvedSpeedMilesPerHour(for location: CLLocation) -> Double {
+        if location.speed >= 0 {
+            return location.speed * 2.2369362920544
+        }
+
+        guard
+            let previousLocation = lastAcceptedLocation,
+            location.timestamp > previousLocation.timestamp
+        else {
+            return 0
+        }
+
+        let elapsedHours = location.timestamp.timeIntervalSince(previousLocation.timestamp) / 3_600
+        guard elapsedHours > 0 else { return 0 }
+        let miles = previousLocation.distance(from: location) / 1_609.344
+        return max(miles / elapsedHours, 0)
+    }
+
+    private func recomputeSummary(force: Bool) {
+        let now = lastAcceptedSampleTimestamp ?? Date()
+
+        if !force,
+           let lastSummaryComputation,
+           now.timeIntervalSince(lastSummaryComputation) < configuration.summaryUpdateIntervalSeconds {
+            return
+        }
+
+        let result = TripAnalysisEngine.summarize(
+            state: analysisState,
+            baselineRouteETAMinutes: configuration.baselineRouteETAMinutes,
+            baselineRouteDistanceMiles: configuration.baselineRouteDistanceMiles,
+            targetSpeed: configuration.targetSpeed,
+            fuelModel: configuration.fuelModel
+        )
+
+        analysisResult = result
+        tripSummary = result.summary
+        estimatedTimeLostBelowTargetPace = result.timeLostBelowTargetPace
+        expectedArrivalTime = result.actualTravelMinutes > 0 && configuration.baselineRouteDistanceMiles > 0
+            ? now.addingTimeInterval(result.remainingTravelMinutes * 60)
+            : nil
+        lastSummaryComputation = now
+    }
+
+    private static func permissionState(for status: CLAuthorizationStatus) -> LiveDrivePermissionState {
+        switch status {
+        case .authorizedAlways, .authorizedWhenInUse:
+            return .authorized
+        case .denied:
+            return .denied
+        case .restricted:
+            return .restricted
+        case .notDetermined:
+            return .notDetermined
+        @unknown default:
+            return .notDetermined
+        }
+    }
+}
+
+extension LiveDriveTracker: CLLocationManagerDelegate {
+    nonisolated public func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+
+            for location in locations {
+                self.handleLocation(location)
+            }
+        }
+    }
+
+    nonisolated public func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        let status = manager.authorizationStatus
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+
+            self.permissionState = Self.permissionState(for: status)
+
+            switch status {
+            case .authorizedAlways, .authorizedWhenInUse:
+                if self.pendingTripStart {
+                    self.beginTrackingUpdates()
+                }
+            case .denied, .restricted:
+                self.pendingTripStart = false
+                self.isTracking = false
+                self.locationManager.stopUpdatingLocation()
+            case .notDetermined:
+                break
+            @unknown default:
+                break
+            }
+        }
+    }
+}
+#endif

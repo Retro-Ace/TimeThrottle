@@ -15,22 +15,6 @@ public struct RouteCoordinate: Sendable, Equatable {
     }
 }
 
-enum Workflow: String, CaseIterable, Identifiable {
-    case tripCompare = "Trip Compare"
-    case segments = "Segments"
-
-    var id: String { rawValue }
-
-    var description: String {
-        switch self {
-        case .segments:
-            return "Track stretches above and below the limit by segment."
-        case .tripCompare:
-            return "Compare a full route using manual miles or an Apple Maps route."
-        }
-    }
-}
-
 enum TripCompareEntryStyle: String, CaseIterable, Identifiable {
     case averageSpeed = "Average speed"
     case tripDuration = "Trip duration"
@@ -60,6 +44,44 @@ enum TripCompareDistanceSource: String, CaseIterable, Identifiable {
         case .appleMapsRoute:
             return "Look up a route by address and use Apple Maps distance and ETA as the baseline."
         }
+    }
+}
+
+public enum Mode: String, CaseIterable, Identifiable, Sendable {
+    case liveDrive = "Live Drive"
+    case route = "Route"
+    case manual = "Manual"
+
+    public var id: String { rawValue }
+
+    public var description: String {
+        switch self {
+        case .liveDrive:
+            return "Track a drive live with GPS speed, distance, and trip analysis."
+        case .route:
+            return "Compare a trip against an Apple Maps route distance and ETA."
+        case .manual:
+            return "Compare a trip against a hand-entered route distance and target speed."
+        }
+    }
+
+    var tripCompareDistanceSource: TripCompareDistanceSource? {
+        switch self {
+        case .liveDrive:
+            return nil
+        case .route:
+            return .appleMapsRoute
+        case .manual:
+            return .manualMiles
+        }
+    }
+}
+
+public struct RouteComparisonConfiguration: Equatable, Sendable {
+    public var initialMode: Mode
+
+    public init(initialMode: Mode = .liveDrive) {
+        self.initialMode = initialMode
     }
 }
 
@@ -157,8 +179,6 @@ enum RouteGeometry {
 }
 
 enum RouteLookupService {
-    // Platform parity requirement:
-    // If route lookup behavior changes, keep the same result ordering and math for macOS and iOS.
     static func fetchRouteOptions(
         sourceQuery: String,
         destinationQuery: String

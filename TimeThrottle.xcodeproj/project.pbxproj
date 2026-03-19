@@ -19,6 +19,8 @@
 		A1000000000000000000000A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000C /* Assets.xcassets */; };
 		A1000000000000000000000B /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000D /* LaunchScreen.storyboard */; };
 		A1000000000000000000000C /* TimeThrottleLogo/TimeThrottle.png in Resources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000E /* TimeThrottleLogo/TimeThrottle.png */; };
+		A1000000000000000000000D /* TripAnalysisEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000010 /* TripAnalysisEngine.swift */; };
+		A1000000000000000000000E /* LiveDriveTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000011 /* LiveDriveTracker.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -36,6 +38,8 @@
 		A2000000000000000000000D /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		A2000000000000000000000E /* TimeThrottleLogo/TimeThrottle.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = TimeThrottleLogo/TimeThrottle.png; sourceTree = "<group>"; };
 		A2000000000000000000000F /* iOS/Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = iOS/Info.plist; sourceTree = "<group>"; };
+		A20000000000000000000010 /* TripAnalysisEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripAnalysisEngine.swift; sourceTree = "<group>"; };
+		A20000000000000000000011 /* LiveDriveTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveDriveTracker.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -92,6 +96,8 @@
 			children = (
 				A20000000000000000000006 /* TimeThrottleCalculator.swift */,
 				A20000000000000000000007 /* SpeedCostCalculator.swift */,
+				A20000000000000000000010 /* TripAnalysisEngine.swift */,
+				A20000000000000000000011 /* LiveDriveTracker.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -198,6 +204,8 @@
 				A10000000000000000000007 /* RouteModels.swift in Sources */,
 				A10000000000000000000008 /* SharedComponents.swift in Sources */,
 				A10000000000000000000009 /* PlatformLayout.swift in Sources */,
+				A1000000000000000000000D /* TripAnalysisEngine.swift in Sources */,
+				A1000000000000000000000E /* LiveDriveTracker.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -307,7 +315,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.timethrottle.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -332,7 +340,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.timethrottle.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;

@@ -17,7 +17,7 @@ final class SpeedCostCalculatorTests: XCTestCase {
         )
 
         XCTAssertEqual(summary.timeSavedMinutes, 30, accuracy: 0.0001)
-        XCTAssertEqual(summary.trafficDelayMinutes, 0, accuracy: 0.0001)
+        XCTAssertEqual(summary.timeUnderTargetPaceMinutes, 0, accuracy: 0.0001)
         XCTAssertEqual(summary.baselineFuelUsedGallons, 4, accuracy: 0.0001)
         XCTAssertEqual(summary.actualFuelUsedGallons, 5, accuracy: 0.0001)
         XCTAssertEqual(summary.extraFuelUsedGallons, 1, accuracy: 0.0001)
@@ -26,7 +26,7 @@ final class SpeedCostCalculatorTests: XCTestCase {
         XCTAssertEqual(summary.ticketRisk, .high)
     }
 
-    func testSpeedCostSummaryTracksTrafficDelayWhenTripIsSlower() {
+    func testSpeedCostSummaryTracksTimeUnderTargetPaceWhenTripIsSlower() {
         let summary = SpeedCostCalculator.summarize(
             input: SpeedCostInput(
                 distanceMiles: 90,
@@ -41,7 +41,7 @@ final class SpeedCostCalculatorTests: XCTestCase {
         )
 
         XCTAssertEqual(summary.timeSavedMinutes, 0, accuracy: 0.0001)
-        XCTAssertEqual(summary.trafficDelayMinutes, 18, accuracy: 0.0001)
+        XCTAssertEqual(summary.timeUnderTargetPaceMinutes, 18, accuracy: 0.0001)
         XCTAssertEqual(summary.netBenefitMinutes, -18, accuracy: 0.0001)
         XCTAssertEqual(summary.ticketRisk, .low)
     }
