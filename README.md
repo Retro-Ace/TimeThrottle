@@ -123,12 +123,17 @@ TimeThrottle
 ├── privacy-policy.md
 ├── Assets.xcassets
 ├── Resources
+│   ├── iOS
+│   ├── LaunchScreen.storyboard
+│   └── TimeThrottleLogo
 ├── Sources
 │   ├── Core
 │   ├── SharedUI
 │   └── iOS
 ├── Tests
-└── dist
+│   └── CoreTests
+├── scripts
+└── dist-ios
 ```
 
 ## Build Notes
@@ -136,6 +141,7 @@ TimeThrottle
 - Main iOS app scheme: `TimeThrottle`
 - Simulator packaging script: `./dist-ios`
 - Current packaging path: `dist/iOSSimulator/TimeThrottle.app`
+- Generated build outputs live in `build/` and `dist/` and are intentionally git-ignored
 
 ## Support
 
