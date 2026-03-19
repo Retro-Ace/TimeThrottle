@@ -49,7 +49,7 @@ struct SectionCard<Content: View>: View {
                 RoundedRectangle(cornerRadius: Layout.cardCorner, style: .continuous)
                     .stroke(Palette.surfaceBorder, lineWidth: 1)
             }
-            .shadow(color: .black.opacity(0.08), radius: 25, y: 10)
+            .shadow(color: .black.opacity(0.05), radius: 18, y: 8)
     }
 }
 
@@ -71,7 +71,7 @@ struct InsetPanel<Content: View>: View {
             RoundedRectangle(cornerRadius: Layout.innerCorner, style: .continuous)
                 .stroke(Palette.surfaceBorder, lineWidth: 1)
         }
-        .shadow(color: .black.opacity(0.06), radius: 18, y: 8)
+        .shadow(color: .black.opacity(0.04), radius: 12, y: 6)
     }
 }
 
@@ -105,14 +105,15 @@ struct BrandedTextField: View {
         TextField(placeholder, text: $text)
             .textFieldStyle(.plain)
             .font(.system(size: resolvedFontSize, weight: fontWeight, design: .rounded))
-            .foregroundStyle(Palette.ivory)
-            .padding(.horizontal, 12)
-            .frame(width: width, height: 42, alignment: .leading)
-            .background(Palette.ink, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .foregroundStyle(Palette.ink)
+            .padding(.horizontal, compact ? 14 : 13)
+            .frame(width: width, height: compact ? 46 : 44, alignment: .leading)
+            .background(Color.white.opacity(0.97), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(Palette.redGlow.opacity(0.30), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(Palette.surfaceBorder, lineWidth: 1)
             }
+            .shadow(color: .black.opacity(0.03), radius: compact ? 10 : 8, y: compact ? 4 : 3)
     }
 }
 
@@ -134,7 +135,7 @@ struct SummaryCard: View {
     var body: some View {
         let titleFontSize: CGFloat = compact ? 12 : 13
         let valueFontSize: CGFloat = compact ? (isProminent ? 28 : 20) : (isProminent ? 32 : 23)
-        let paddingValue: CGFloat = compact ? (isProminent ? 16 : 14) : (isProminent ? 18 : 16)
+        let paddingValue: CGFloat = compact ? (isProminent ? 15 : 13) : (isProminent ? 18 : 16)
 
         VStack(alignment: .leading, spacing: 7) {
             Text(title)
@@ -152,7 +153,7 @@ struct SummaryCard: View {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .stroke(isProminent ? tint.opacity(0.18) : Palette.surfaceBorder, lineWidth: isProminent ? 1.5 : 1)
         }
-        .shadow(color: .black.opacity(0.08), radius: isProminent ? 28 : 25, y: isProminent ? 12 : 10)
+        .shadow(color: .black.opacity(0.05), radius: isProminent ? 18 : 14, y: isProminent ? 8 : 6)
     }
 }
 
@@ -218,7 +219,7 @@ struct DetailRow: View {
         let titleFontSize: CGFloat = compact ? 13 : 14
         let subtitleFontSize: CGFloat = compact ? 11 : 12
         let valueFontSize: CGFloat = compact ? 17 : 19
-        let minHeight: CGFloat = compact ? 84 : 96
+        let minHeight: CGFloat = compact ? 76 : 96
 
         VStack(alignment: .leading, spacing: 7) {
             VStack(alignment: .leading, spacing: 4) {
@@ -236,13 +237,13 @@ struct DetailRow: View {
                 .padding(.top, 4)
         }
         .frame(maxWidth: .infinity, minHeight: minHeight, alignment: .leading)
-        .padding(14)
+        .padding(compact ? 12 : 14)
         .background(Palette.panel, in: RoundedRectangle(cornerRadius: Layout.innerCorner, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: Layout.innerCorner, style: .continuous)
                 .stroke(Palette.surfaceBorder, lineWidth: 1)
         }
-        .shadow(color: .black.opacity(0.06), radius: 20, y: 8)
+        .shadow(color: .black.opacity(0.05), radius: compact ? 14 : 18, y: compact ? 6 : 8)
     }
 }
 
@@ -383,19 +384,19 @@ struct RouteOptionRow: View {
             if isSelected {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Palette.accentRed)
+                    .foregroundStyle(Palette.success)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: rowHeight)
         .padding(.horizontal, 12)
         .background(
-            (isHovered && !isSelected) ? Palette.hoverBackground : Palette.panel,
+            isSelected ? Palette.successBackground : ((isHovered && !isSelected) ? Palette.hoverBackground : Palette.panel),
             in: RoundedRectangle(cornerRadius: 12, style: .continuous)
         )
         .overlay {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(isSelected ? Palette.accentRed : Palette.surfaceBorder, lineWidth: isSelected ? 2 : 1)
+                .stroke(isSelected ? Palette.success : Palette.surfaceBorder, lineWidth: isSelected ? 1.6 : 1)
         }
     }
 }

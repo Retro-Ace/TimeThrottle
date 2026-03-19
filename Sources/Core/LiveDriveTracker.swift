@@ -70,12 +70,17 @@ public struct LiveDriveSnapshot: Equatable, Sendable {
 
 public enum LiveDrivePermissionState: Equatable, Sendable {
     case notDetermined
-    case authorized
+    case authorizedWhenInUse
+    case authorizedAlways
     case denied
     case restricted
 
     var requiresSettingsAction: Bool {
-        self == .denied
+        self == .denied || self == .authorizedWhenInUse
+    }
+
+    var supportsBackgroundContinuation: Bool {
+        self == .authorizedAlways
     }
 }
 
@@ -118,16 +123,26 @@ public final class LiveDriveTracker: NSObject, ObservableObject {
         permissionState = Self.permissionState(for: locationManager.authorizationStatus)
     }
 
-    public func startTrip() {
+    public func startTrip(requiresBackgroundContinuation: Bool = false) {
         pendingTripStart = true
 
         switch locationManager.authorizationStatus {
-        case .authorizedAlways, .authorizedWhenInUse:
-            permissionState = .authorized
+        case .authorizedAlways:
+            permissionState = .authorizedAlways
             beginTrackingUpdates()
+        case .authorizedWhenInUse:
+            permissionState = .authorizedWhenInUse
+            beginTrackingUpdates()
+            if requiresBackgroundContinuation {
+                locationManager.requestAlwaysAuthorization()
+            }
         case .notDetermined:
             permissionState = .notDetermined
-            locationManager.requestWhenInUseAuthorization()
+            if requiresBackgroundContinuation {
+                locationManager.requestAlwaysAuthorization()
+            } else {
+                locationManager.requestWhenInUseAuthorization()
+            }
         case .denied:
             permissionState = .denied
             pendingTripStart = false
@@ -149,6 +164,7 @@ public final class LiveDriveTracker: NSObject, ObservableObject {
         isTracking = false
         currentSpeed = 0
         locationManager.stopUpdatingLocation()
+        updateBackgroundLocationBehavior()
         recomputeSummary(force: true)
     }
 
@@ -171,6 +187,27 @@ public final class LiveDriveTracker: NSObject, ObservableObject {
         lastAcceptedSampleTimestamp = nil
         lastSummaryComputation = nil
         acceptedLocationCount = 0
+        updateBackgroundLocationBehavior()
+    }
+
+    public func requestBackgroundContinuationAuthorization() {
+        switch locationManager.authorizationStatus {
+        case .authorizedAlways:
+            permissionState = .authorizedAlways
+        case .authorizedWhenInUse, .notDetermined:
+            locationManager.requestAlwaysAuthorization()
+        case .denied:
+            permissionState = .denied
+        case .restricted:
+            permissionState = .restricted
+        @unknown default:
+            permissionState = .notDetermined
+        }
+    }
+
+    public func refreshAuthorizationState() {
+        permissionState = Self.permissionState(for: locationManager.authorizationStatus)
+        updateBackgroundLocationBehavior()
     }
 
     public var snapshot: LiveDriveSnapshot {
@@ -192,12 +229,20 @@ public final class LiveDriveTracker: NSObject, ObservableObject {
         locationManager.desiredAccuracy = configuration.desiredAccuracy
         locationManager.distanceFilter = configuration.distanceFilterMeters
         locationManager.pausesLocationUpdatesAutomatically = false
+        updateBackgroundLocationBehavior()
     }
 
     private func beginTrackingUpdates() {
         isTracking = true
         pendingTripStart = false
+        updateBackgroundLocationBehavior()
         locationManager.startUpdatingLocation()
+    }
+
+    private func updateBackgroundLocationBehavior() {
+        let allowsBackgroundContinuation = isTracking && permissionState.supportsBackgroundContinuation
+        locationManager.allowsBackgroundLocationUpdates = allowsBackgroundContinuation
+        locationManager.showsBackgroundLocationIndicator = allowsBackgroundContinuation
     }
 
     private func handleLocation(_ location: CLLocation) {
@@ -292,8 +337,10 @@ public final class LiveDriveTracker: NSObject, ObservableObject {
 
     private static func permissionState(for status: CLAuthorizationStatus) -> LiveDrivePermissionState {
         switch status {
-        case .authorizedAlways, .authorizedWhenInUse:
-            return .authorized
+        case .authorizedAlways:
+            return .authorizedAlways
+        case .authorizedWhenInUse:
+            return .authorizedWhenInUse
         case .denied:
             return .denied
         case .restricted:
@@ -324,6 +371,7 @@ extension LiveDriveTracker: CLLocationManagerDelegate {
             guard let self else { return }
 
             self.permissionState = Self.permissionState(for: status)
+            self.updateBackgroundLocationBehavior()
 
             switch status {
             case .authorizedAlways, .authorizedWhenInUse:
@@ -333,6 +381,7 @@ extension LiveDriveTracker: CLLocationManagerDelegate {
             case .denied, .restricted:
                 self.pendingTripStart = false
                 self.isTracking = false
+                self.updateBackgroundLocationBehavior()
                 self.locationManager.stopUpdatingLocation()
             case .notDetermined:
                 break

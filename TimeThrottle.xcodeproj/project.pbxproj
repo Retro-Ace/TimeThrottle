@@ -21,6 +21,7 @@
 		A1000000000000000000000C /* TimeThrottleLogo/TimeThrottle.png in Resources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000E /* TimeThrottleLogo/TimeThrottle.png */; };
 		A1000000000000000000000D /* TripAnalysisEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000010 /* TripAnalysisEngine.swift */; };
 		A1000000000000000000000E /* LiveDriveTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000011 /* LiveDriveTracker.swift */; };
+		A1000000000000000000000F /* NavigationHandoffService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000012 /* NavigationHandoffService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -40,6 +41,7 @@
 		A2000000000000000000000F /* iOS/Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = iOS/Info.plist; sourceTree = "<group>"; };
 		A20000000000000000000010 /* TripAnalysisEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripAnalysisEngine.swift; sourceTree = "<group>"; };
 		A20000000000000000000011 /* LiveDriveTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveDriveTracker.swift; sourceTree = "<group>"; };
+		A20000000000000000000012 /* NavigationHandoffService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationHandoffService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -109,6 +111,7 @@
 				A20000000000000000000009 /* RouteModels.swift */,
 				A2000000000000000000000A /* SharedComponents.swift */,
 				A2000000000000000000000B /* PlatformLayout.swift */,
+				A20000000000000000000012 /* NavigationHandoffService.swift */,
 			);
 			path = SharedUI;
 			sourceTree = "<group>";
@@ -206,6 +209,7 @@
 				A10000000000000000000009 /* PlatformLayout.swift in Sources */,
 				A1000000000000000000000D /* TripAnalysisEngine.swift in Sources */,
 				A1000000000000000000000E /* LiveDriveTracker.swift in Sources */,
+				A1000000000000000000000F /* NavigationHandoffService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -247,7 +251,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.2;
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = com.timethrottle.app;
 				SDKROOT = iphoneos;
@@ -291,7 +295,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.timethrottle.app;
 				SDKROOT = iphoneos;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -307,7 +311,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Resources/iOS/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -315,7 +319,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.timethrottle.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -332,7 +336,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Resources/iOS/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -340,7 +344,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.timethrottle.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;

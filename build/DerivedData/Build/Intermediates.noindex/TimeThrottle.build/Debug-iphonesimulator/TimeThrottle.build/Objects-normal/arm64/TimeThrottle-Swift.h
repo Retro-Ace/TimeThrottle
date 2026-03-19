@@ -281,6 +281,7 @@ typedef unsigned int swift_uint4  __attribute__((__ext_vector_type__(4)));
 #endif
 @import CoreLocation;
 @import Foundation;
+@import MapKit;
 @import ObjectiveC;
 #endif
 
@@ -304,14 +305,36 @@ typedef unsigned int swift_uint4  __attribute__((__ext_vector_type__(4)));
 
 #if defined(__OBJC__)
 
+SWIFT_CLASS("_TtC12TimeThrottle31AppleMapsAutocompleteController")
+@interface AppleMapsAutocompleteController : NSObject
+- (nonnull instancetype)init OBJC_DESIGNATED_INITIALIZER;
+@end
+
+@class MKLocalSearchCompleter;
+@interface AppleMapsAutocompleteController (SWIFT_EXTENSION(TimeThrottle)) <MKLocalSearchCompleterDelegate>
+- (void)completerDidUpdateResults:(MKLocalSearchCompleter * _Nonnull)completer;
+- (void)completer:(MKLocalSearchCompleter * _Nonnull)completer didFailWithError:(NSError * _Nonnull)error;
+@end
+
+SWIFT_CLASS("_TtC12TimeThrottle23CurrentLocationResolver")
+@interface CurrentLocationResolver : NSObject
+- (nonnull instancetype)init OBJC_DESIGNATED_INITIALIZER;
+@end
+
+@class CLLocationManager;
+@class CLLocation;
+@interface CurrentLocationResolver (SWIFT_EXTENSION(TimeThrottle)) <CLLocationManagerDelegate>
+- (void)locationManagerDidChangeAuthorization:(CLLocationManager * _Nonnull)manager;
+- (void)locationManager:(CLLocationManager * _Nonnull)manager didUpdateLocations:(NSArray<CLLocation *> * _Nonnull)locations;
+- (void)locationManager:(CLLocationManager * _Nonnull)manager didFailWithError:(NSError * _Nonnull)error;
+@end
+
 SWIFT_CLASS("_TtC12TimeThrottle16LiveDriveTracker")
 @interface LiveDriveTracker : NSObject
 - (nonnull instancetype)init SWIFT_UNAVAILABLE;
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
 
-@class CLLocationManager;
-@class CLLocation;
 @interface LiveDriveTracker (SWIFT_EXTENSION(TimeThrottle)) <CLLocationManagerDelegate>
 - (void)locationManager:(CLLocationManager * _Nonnull)manager didUpdateLocations:(NSArray<CLLocation *> * _Nonnull)locations;
 - (void)locationManagerDidChangeAuthorization:(CLLocationManager * _Nonnull)manager;

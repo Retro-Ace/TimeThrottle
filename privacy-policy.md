@@ -1,113 +1,122 @@
 # Privacy Policy for TimeThrottle
 
-**Effective date:** March 18, 2026
+**Effective date:** March 19, 2026
 
-TimeThrottle (“the app”) is designed to help users compare driving pace against a selected baseline using manual entry, Apple Maps route information, and optional live trip tracking.
+TimeThrottle is an iPhone pace-analysis app. It uses Apple Maps route planning as a baseline and, when enabled by the user, iPhone location services for Live Drive trip tracking.
 
-This Privacy Policy explains what information the app uses, how it is used, and what choices users have.
+This policy describes what the current app build uses, how that information is used, and what choices users have.
 
----
-
-## Information the App Uses
+## Information TimeThrottle Uses
 
 ### 1. Location Data
+
 If you use **Live Drive**, TimeThrottle may request access to your device location.
 
 Location is used to:
 - Measure current speed
 - Measure distance traveled
-- Track trip progress during a live drive
-- Compare the live trip against the selected route baseline
+- Track live trip progress
+- Compare the active trip against the selected Apple Maps route baseline
 
-Location access is optional, but Live Drive will not function properly without it.
+If you choose external navigation handoff during Live Drive, the app may request **Always Location** so tracking can continue while Apple Maps or Google Maps is open.
 
-### 2. Route Information
-If you use **Route** or **Live Drive** setup, the app may use:
-- Start address
-- Destination
+If location access is denied or restricted, Live Drive will not function as intended.
+
+### 2. Route and Search Information
+
+If you use **Route** mode or the setup flow for **Live Drive**, TimeThrottle may use:
+- Current Location as a route start when selected
+- Typed start and destination addresses
+- Apple Maps autocomplete suggestions
 - Apple Maps route options
 - Route distance
-- Estimated travel time
+- Apple ETA baseline
 
-This information is used only to calculate and display trip comparisons.
+This information is used to plan the route, display route options, and compare your pace against a route baseline.
 
 ### 3. Manual Inputs
-The app may use information you enter manually, such as:
+
+If you use **Manual** mode or pace-analysis inputs elsewhere in the app, TimeThrottle uses values you enter, such as:
 - Distance
 - Speed
 - Trip duration
 - MPG
 - Fuel price
 
-This information is used only to perform trip calculations inside the app.
+These values are used only to perform the calculations shown in the app.
 
----
+### 4. Navigation Preference
 
-## How Information Is Used
+TimeThrottle stores your preferred external navigation choice on-device using local iOS app storage.
 
-TimeThrottle uses information only to:
-- Calculate trip comparisons
-- Display route-based baselines
-- Track live drive progress when enabled
-- Show time, fuel, and pace-related summaries
+This preference supports the **Apple Maps**, **Google Maps**, and **Ask Every Time** options for Live Drive navigation handoff.
 
----
+## How TimeThrottle Uses This Information
 
-## Data Collection and Sharing
+TimeThrottle uses the information above only to:
+- Look up routes and baseline ETAs with Apple Maps
+- Show autocomplete suggestions for route entry
+- Track a live drive when the user enables location access
+- Compare pace and trip tradeoffs such as time saved, time under target pace, fuel penalty, and trip balance
+- Hand off navigation to Apple Maps or Google Maps when the user chooses that option
 
-TimeThrottle is intended **not to sell your personal data** and **not to track you across other companies’ apps or websites**.
+## External Services and Handoff
 
-At the current stage of the app:
+### Apple Maps
+
+TimeThrottle uses Apple Maps for:
+- Route lookup
+- Address/autocomplete resolution
+- Route options
+- ETA baseline planning
+
+### Google Maps
+
+If you choose **Google Maps** for Live Drive handoff, TimeThrottle attempts to open Google Maps if it is installed. If it is not installed, the app falls back to a web-based route handoff.
+
+When you choose Google Maps handoff, route information needed for that handoff is passed to Google Maps or its web route at your request. Google’s handling of that information is governed by Google’s own policies, not this one.
+
+## Data Collection, Accounts, and Sharing
+
+Based on the current app repository and build configuration:
 
 - No user account is required
-- No advertising profile is created
-- No personal data is sold
-- No in-app chat or public posting exists
-
-If analytics, crash reporting, cloud sync, or additional services are added in a future version, this policy should be updated before release of those changes.
-
----
+- No cloud sync is included
+- No advertising SDK is included
+- No third-party analytics SDK is included
+- No crash-reporting SDK is included
+- TimeThrottle does not sell personal information
 
 ## Data Storage
 
-TimeThrottle’s calculations and live drive features are intended to operate primarily on-device.
+The current app is designed to operate primarily on-device.
 
-If the app stores settings or recent inputs on your device for convenience, that storage remains local to the device unless a future version adds cloud features.
-
----
+The verified on-device preference currently stored by the app is the selected external navigation provider for Live Drive. Route calculations, manual entries, and live comparisons are performed in the app during normal use.
 
 ## Your Choices
 
 You can:
+- Use **Manual** mode without enabling location access
+- Use **Route** mode without enabling live trip tracking
 - Deny location access
-- Turn off location access later in iPhone Settings
-- Use Manual mode without Live Drive
-- Stop an active drive at any time
+- Change location access later in iPhone Settings
+- Choose Apple Maps, Google Maps, or Ask Every Time for Live Drive handoff
+- Stop or end a Live Drive at any time
 
-If you deny location access, Live Drive will not be available.
-
----
+If you do not grant the location access needed for Live Drive, TimeThrottle will show a clear permission state and Live Drive tracking will not continue as intended.
 
 ## Children’s Privacy
 
-TimeThrottle is not directed to children under 13, and the app is not intended to knowingly collect personal information from children.
-
----
+TimeThrottle is not directed to children under 13 and is not intended to knowingly collect personal information from children.
 
 ## Security
 
-Reasonable efforts should be made to keep app behavior limited to the features described above. However, no method of electronic storage or transmission is guaranteed to be completely secure.
-
----
+No electronic storage or transmission method can be guaranteed to be completely secure. This policy reflects the current app build and repository state as of the effective date above.
 
 ## Changes to This Policy
 
-This Privacy Policy may be updated from time to time as the app changes.
-
-If material changes are made, the updated version should be posted with a new effective date.
-
----
+If TimeThrottle adds new services or data flows in a future release, this policy should be updated before those changes are released.
 
 ## Contact
 
-For privacy questions or support requests, contact the app publisher using the support contact provided with the app listing.
+For support or privacy questions, contact: **fixitall329@gmail.com**

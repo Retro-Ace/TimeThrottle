@@ -54,6 +54,8 @@ public struct RouteComparisonView: View {
     private let brandLogo: Image?
     private let mapPreview: ([RouteEstimate], UUID?) -> AnyView
 
+    @Environment(\.scenePhase) private var scenePhase
+    @FocusState private var focusedRouteAddressField: RouteAddressField?
     @State private var selectedMode: Mode
     @State private var speedLimitText = "70"
     @State private var mode: CalculationMode = .simple
@@ -72,8 +74,11 @@ public struct RouteComparisonView: View {
     @State private var observedMPGText = "22"
     @State private var fuelPriceText = "3.79"
 
-    @State private var fromAddressText = "Red Ball Garage, 142 E 31st St, New York, NY"
-    @State private var toAddressText = "Portofino Hotel & Marina, 260 Portofino Way, Redondo Beach, CA"
+    @State private var routeOriginInputMode: RouteOriginInputMode = .currentLocation
+    @State private var fromAddressText = ""
+    @State private var fromResolvedPlace: ResolvedRoutePlace?
+    @State private var toAddressText = ""
+    @State private var toResolvedPlace: ResolvedRoutePlace?
     @State private var routeOptions: [RouteEstimate] = []
     @State private var selectedRouteID: UUID?
     @State private var hoveredRouteID: UUID?
@@ -82,10 +87,16 @@ public struct RouteComparisonView: View {
     @State private var didRunCaptureBootstrap = false
     @State private var captureScrollTarget: String?
     @State private var isShareSheetPresented = false
+    @AppStorage("timethrottle.preferredNavigationProvider") private var navigationProviderPreferenceRawValue = NavigationProvider.askEveryTime.rawValue
     @State private var liveDriveTargetSpeedText = "78"
     @State private var liveDriveMPGText = "24"
     @State private var liveDriveFuelPriceText = "3.79"
     @State private var liveDriveRouteContext: LiveDriveRouteContext?
+    @State private var liveDriveNavigationProviderPending: NavigationProvider?
+    @State private var liveDriveNavigationHandoffMessage: String?
+    @State private var isNavigationProviderChoicePresented = false
+    @StateObject private var currentLocationResolver = CurrentLocationResolver()
+    @StateObject private var autocompleteController = AppleMapsAutocompleteController()
     @StateObject private var tracker = LiveDriveTracker()
 
     private static let routePreviewCaptureID = "routePreviewCaptureSection"
@@ -150,11 +161,11 @@ public struct RouteComparisonView: View {
     }
 
     private var headerGradientStart: Color {
-        Color(red: 0.06, green: 0.62, blue: 0.35)
+        Color(red: 0.18, green: 0.77, blue: 0.47)
     }
 
     private var headerGradientEnd: Color {
-        Color(red: 0.18, green: 0.80, blue: 0.44)
+        Color(red: 0.43, green: 0.90, blue: 0.66)
     }
 
     private var mobileContentHorizontalPadding: CGFloat {
@@ -163,6 +174,10 @@ public struct RouteComparisonView: View {
 
     private var shouldRunCaptureBootstrap: Bool {
         ProcessInfo.processInfo.environment["TIMETHROTTLE_AUTOCAPTURE"] == "1"
+    }
+
+    private var isPolishedLiveDriveSetup: Bool {
+        isMobileLayout && selectedMode == .liveDrive && liveDriveScreenState == .setup
     }
 
     private var captureSectionName: String? {
@@ -182,12 +197,66 @@ public struct RouteComparisonView: View {
         return TimeThrottleCalculator.summarize(speedLimit: speedLimit, segments: validSegments, mode: mode)
     }
 
+    private var routeSourceEndpoint: RouteLookupEndpoint? {
+        switch routeOriginInputMode {
+        case .currentLocation:
+            guard let currentPlace = currentLocationResolver.currentPlace else { return nil }
+            return .currentLocation(currentPlace)
+        case .custom:
+            if let fromResolvedPlace {
+                return .resolvedPlace(fromResolvedPlace)
+            }
+
+            let query = Self.normalizedAddress(fromAddressText)
+            guard !query.isEmpty else { return nil }
+            return .query(query)
+        }
+    }
+
+    private var routeDestinationEndpoint: RouteLookupEndpoint? {
+        if let toResolvedPlace {
+            return .resolvedPlace(toResolvedPlace)
+        }
+
+        let query = Self.normalizedAddress(toAddressText)
+        guard !query.isEmpty else { return nil }
+        return .query(query)
+    }
+
     private var normalizedFromAddress: String {
-        Self.normalizedAddress(fromAddressText)
+        routeSourceEndpoint?.signature ?? ""
     }
 
     private var normalizedToAddress: String {
-        Self.normalizedAddress(toAddressText)
+        routeDestinationEndpoint?.signature ?? ""
+    }
+
+    private var currentLocationFieldLabel: String {
+        if currentLocationResolver.isResolving && currentLocationResolver.currentPlace == nil {
+            return "Finding Current Location..."
+        }
+
+        return currentLocationResolver.currentPlace?.title ?? "Current Location"
+    }
+
+    private var currentLocationDetailText: String {
+        if let subtitle = currentLocationResolver.currentPlace?.subtitle, !subtitle.isEmpty {
+            return subtitle
+        }
+
+        if let errorMessage = currentLocationResolver.errorMessage {
+            return errorMessage
+        }
+
+        return "Use your live position as the route start."
+    }
+
+    private var fromSuggestions: [AppleMapsAutocompleteController.Suggestion] {
+        autocompleteController.activeField == .from ? autocompleteController.suggestions : []
+    }
+
+    private var toSuggestions: [AppleMapsAutocompleteController.Suggestion] {
+        autocompleteController.activeField == .to ? autocompleteController.suggestions : []
     }
 
     private var routeOptionsAreCurrent: Bool {
@@ -306,7 +375,7 @@ public struct RouteComparisonView: View {
     private var liveDriveCurrentRouteLabel: String {
         guard let route = activeRouteEstimate, !routeNeedsRefresh else {
             if routeNeedsRefresh {
-                return "Addresses changed. Recalculate the Apple Maps route before starting."
+                return "Route inputs changed. Recalculate the Apple Maps route before starting."
             }
 
             return "Calculate the Apple Maps route to capture your baseline ETA and distance."
@@ -318,6 +387,17 @@ public struct RouteComparisonView: View {
 
     private var liveDriveRouteLabel: String {
         liveDriveRouteContext?.routeLabel ?? liveDriveCurrentRouteLabel
+    }
+
+    private var preferredNavigationProvider: NavigationProvider {
+        NavigationProvider(rawValue: navigationProviderPreferenceRawValue) ?? .askEveryTime
+    }
+
+    private var preferredNavigationProviderBinding: Binding<NavigationProvider> {
+        Binding(
+            get: { preferredNavigationProvider },
+            set: { navigationProviderPreferenceRawValue = $0.rawValue }
+        )
     }
 
     private var liveDriveSetupRouteOptions: [RouteEstimate] {
@@ -408,16 +488,37 @@ public struct RouteComparisonView: View {
     private var liveDrivePermissionMessage: String? {
         switch tracker.permissionState {
         case .denied:
-            return "Live Drive needs location access to measure your speed, distance, and trip progress. Turn it on in Settings to start a drive."
+            return "Turn on Location Access in Settings to use Live Drive."
         case .restricted:
-            return "Live Drive needs location access to measure your speed, distance, and trip progress. This device currently restricts location access."
-        case .authorized, .notDetermined:
+            return "This device restricts Location Access, so Live Drive cannot measure speed or distance."
+        case .authorizedAlways, .authorizedWhenInUse, .notDetermined:
             return nil
         }
     }
 
     private var liveDriveShowsSettingsAction: Bool {
         guard tracker.permissionState.requiresSettingsAction,
+              let settingsURL = URL(string: UIApplication.openSettingsURLString) else {
+            return false
+        }
+
+        return UIApplication.shared.canOpenURL(settingsURL)
+    }
+
+    private var liveDriveBackgroundContinuityMessage: String? {
+        switch tracker.permissionState {
+        case .authorizedAlways, .denied, .restricted:
+            return nil
+        case .authorizedWhenInUse:
+            return "Allow Always Location to keep Live Drive active while another navigation app is open."
+        case .notDetermined:
+            guard preferredNavigationProvider != .askEveryTime else { return nil }
+            return "External navigation needs Always Location so Live Drive can keep tracking in the background."
+        }
+    }
+
+    private var liveDriveShowsBackgroundContinuitySettingsAction: Bool {
+        guard tracker.permissionState == .authorizedWhenInUse,
               let settingsURL = URL(string: UIApplication.openSettingsURLString) else {
             return false
         }
@@ -580,7 +681,7 @@ public struct RouteComparisonView: View {
         case .manualMiles:
             return "This mode compares the same route distance against driving exactly at the posted speed limit, then estimates time under target pace, fuel burn, and ticket risk."
         case .appleMapsRoute:
-            return "This mode compares your trip against Apple Maps route distance and estimated travel time for the same addresses, then estimates time under target pace, fuel burn, and ticket risk."
+            return "This mode compares your trip against Apple Maps route distance and estimated travel time for the same route inputs, then estimates time under target pace, fuel burn, and ticket risk."
         }
     }
 
@@ -673,25 +774,39 @@ public struct RouteComparisonView: View {
             return "Calculating route..."
         }
 
+        if routeOriginInputMode == .currentLocation {
+            if currentLocationResolver.isResolving && currentLocationResolver.currentPlace == nil {
+                return "Finding your current location..."
+            }
+
+            if let errorMessage = currentLocationResolver.errorMessage {
+                return errorMessage
+            }
+        }
+
         if let route = activeRouteEstimate {
             let optionsLabel = activeRouteOptions.count == 1 ? "1 route ready" : "\(activeRouteOptions.count) routes ready"
             return "\(optionsLabel) • Selected: \(Self.milesString(route.distanceMiles)) mi • \(Self.durationString(route.expectedTravelMinutes))"
         }
 
         if routeNeedsRefresh {
-            return "Addresses changed. Recalculate the route."
+            return "Route inputs changed. Recalculate the route."
         }
 
         if let routeErrorMessage {
             return routeErrorMessage
         }
 
-        return "Enter two addresses and calculate the route."
+        return "Choose a route start, enter a destination, and calculate the route."
     }
 
     private var routeStatusForeground: Color {
         if isCalculatingRoute {
             return Palette.cocoa
+        }
+
+        if routeOriginInputMode == .currentLocation, currentLocationResolver.errorMessage != nil {
+            return Palette.danger
         }
 
         if activeRouteEstimate != nil {
@@ -706,6 +821,10 @@ public struct RouteComparisonView: View {
     }
 
     private var routeStatusBackground: Color {
+        if routeOriginInputMode == .currentLocation, currentLocationResolver.errorMessage != nil {
+            return Palette.dangerBackground
+        }
+
         if activeRouteEstimate != nil {
             return Palette.successBackground
         }
@@ -809,7 +928,7 @@ public struct RouteComparisonView: View {
     }
 
     private var isCalculateRouteDisabled: Bool {
-        isCalculatingRoute || normalizedFromAddress.isEmpty || normalizedToAddress.isEmpty
+        isCalculatingRoute || routeSourceEndpoint == nil || routeDestinationEndpoint == nil
     }
 
     private var isStartLiveDriveDisabled: Bool {
@@ -824,16 +943,99 @@ public struct RouteComparisonView: View {
             mobileScreen
         }
         .task {
+            if routeOriginInputMode == .currentLocation {
+                currentLocationResolver.requestCurrentLocationIfNeeded()
+            }
+
             guard shouldRunCaptureBootstrap, !didRunCaptureBootstrap else { return }
             didRunCaptureBootstrap = true
             calculateAppleMapsRoute()
         }
+        .onChange(of: routeOriginInputMode) { _, newMode in
+            focusedRouteAddressField = nil
+            autocompleteController.clear()
+            routeErrorMessage = nil
+
+            if newMode == .currentLocation {
+                currentLocationResolver.requestCurrentLocationIfNeeded()
+            }
+        }
+        .onChange(of: fromAddressText) { _, newValue in
+            handleFromAddressTextChanged(newValue)
+        }
+        .onChange(of: toAddressText) { _, newValue in
+            handleToAddressTextChanged(newValue)
+        }
+        .onChange(of: focusedRouteAddressField) { _, newField in
+            guard let newField else {
+                autocompleteController.clear()
+                return
+            }
+
+            switch newField {
+            case .from:
+                if routeOriginInputMode == .custom {
+                    autocompleteController.updateQuery(fromAddressText, for: .from)
+                }
+            case .to:
+                autocompleteController.updateQuery(toAddressText, for: .to)
+            }
+        }
+        .onChange(of: tracker.isTracking) { _, isTracking in
+            if isTracking {
+                processLiveDriveNavigationHandoffIfNeeded()
+            }
+        }
+        .onChange(of: tracker.permissionState) { _, newState in
+            if newState == .denied || newState == .restricted {
+                liveDriveNavigationProviderPending = nil
+                isNavigationProviderChoicePresented = false
+            } else if newState == .authorizedAlways, tracker.isTracking {
+                processLiveDriveNavigationHandoffIfNeeded()
+            }
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            guard newPhase == .active else { return }
+            tracker.refreshAuthorizationState()
+            currentLocationResolver.refreshAuthorizationState()
+
+            if routeOriginInputMode == .currentLocation {
+                currentLocationResolver.requestCurrentLocationIfNeeded()
+            }
+
+            if tracker.isTracking {
+                processLiveDriveNavigationHandoffIfNeeded()
+            }
+        }
         .onChange(of: selectedMode) { _, newMode in
             syncTripCompareDistanceSource(with: newMode)
+
+            if newMode != .manual, routeOriginInputMode == .currentLocation {
+                currentLocationResolver.requestCurrentLocationIfNeeded()
+            }
         }
         #if os(iOS)
         .sheet(isPresented: $isShareSheetPresented) {
             ShareSheet(activityItems: [worthItShareText])
+        }
+        .confirmationDialog(
+            "Choose navigation app",
+            isPresented: $isNavigationProviderChoicePresented,
+            titleVisibility: .visible
+        ) {
+            Button(NavigationProvider.appleMaps.rawValue) {
+                completeLiveDriveNavigationHandoff(using: .appleMaps)
+            }
+
+            Button(NavigationProvider.googleMaps.rawValue) {
+                completeLiveDriveNavigationHandoff(using: .googleMaps)
+            }
+
+            Button("Cancel", role: .cancel) {
+                liveDriveNavigationProviderPending = nil
+            }
+        } message: {
+            Text("TimeThrottle starts tracking first, then opens your chosen navigation app.")
         }
         #endif
     }
@@ -843,8 +1045,13 @@ public struct RouteComparisonView: View {
             mobileScreenBackground
             mobileHeaderBackdrop
 
+            if isPolishedLiveDriveSetup {
+                liveDriveSetupSurfaceBackdrop
+            }
+
             mobileBody
         }
+        .ignoresSafeArea(edges: .top)
     }
 
     @ViewBuilder
@@ -861,8 +1068,22 @@ public struct RouteComparisonView: View {
     private var mobileHeaderBackdrop: some View {
         headerBackground
             .frame(maxWidth: .infinity)
-            .frame(height: heroHeight + 72, alignment: .top)
-            .ignoresSafeArea(edges: .top)
+            .frame(height: 92, alignment: .top)
+            .ignoresSafeArea(.container, edges: .top)
+            .allowsHitTesting(false)
+    }
+
+    private var liveDriveSetupSurfaceBackdrop: some View {
+        RoundedRectangle(cornerRadius: 30, style: .continuous)
+            .fill(Color.white.opacity(0.985))
+            .overlay {
+                RoundedRectangle(cornerRadius: 30, style: .continuous)
+                    .stroke(Color.white.opacity(0.45), lineWidth: 1)
+            }
+            .shadow(color: .black.opacity(0.06), radius: 28, y: 14)
+            .padding(.top, heroHeight + 78)
+            .padding(.horizontal, 0)
+            .ignoresSafeArea(edges: .bottom)
             .allowsHitTesting(false)
     }
 
@@ -912,11 +1133,12 @@ public struct RouteComparisonView: View {
                     .padding(.horizontal, mobileContentHorizontalPadding)
                     .padding(.top, Layout.sectionSpacing)
                     .padding(.bottom, Layout.screenPadding)
-                    .background(Palette.workspace)
+                    .background(isPolishedLiveDriveSetup ? Color.clear : Palette.workspace)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .background(isPolishedLiveDriveSetup ? Color.white : Palette.workspace)
             .onChange(of: captureScrollTarget) { _, target in
                 guard let target else { return }
                 withAnimation(nil) {
@@ -1007,10 +1229,19 @@ public struct RouteComparisonView: View {
         ZStack {
             LinearGradient(
                 colors: [
-                    headerGradientStart,
-                    headerGradientEnd,
-                    headerGradientEnd.opacity(0.80),
-                    .clear
+                    headerGradientStart.opacity(0.98),
+                    headerGradientEnd.opacity(0.94),
+                    Color.white.opacity(0.18)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            LinearGradient(
+                colors: [
+                    Color.white.opacity(0.14),
+                    .clear,
+                    Color.white.opacity(0.10)
                 ],
                 startPoint: .top,
                 endPoint: .bottom
@@ -1018,12 +1249,12 @@ public struct RouteComparisonView: View {
 
             RadialGradient(
                 colors: [
-                    Color.white.opacity(0.10),
+                    Color.white.opacity(0.22),
                     .clear
                 ],
-                center: .top,
-                startRadius: 10,
-                endRadius: 240
+                center: .topLeading,
+                startRadius: 8,
+                endRadius: 260
             )
         }
     }
@@ -1081,13 +1312,13 @@ public struct RouteComparisonView: View {
             }
         }
         .padding(.horizontal, Layout.screenPadding)
-        .padding(.top, 18)
-        .padding(.bottom, 14)
-        .safeAreaPadding(.top, 8)
+        .padding(.top, 30)
+        .padding(.bottom, 16)
+        .safeAreaPadding(.top, 26)
         .frame(maxWidth: .infinity, minHeight: heroHeight, alignment: .bottom)
         .background {
             headerBackground
-                .ignoresSafeArea(edges: .top)
+                .ignoresSafeArea(.container, edges: .top)
         }
     }
 
@@ -1104,6 +1335,7 @@ public struct RouteComparisonView: View {
             }
             .pickerStyle(.segmented)
             .labelsHidden()
+            .tint(Palette.success)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -1146,7 +1378,7 @@ public struct RouteComparisonView: View {
 
     private var glassDivider: some View {
         Rectangle()
-            .fill(Color.white.opacity(0.15))
+            .fill(Color.white.opacity(0.34))
             .frame(height: 1)
             .padding(.horizontal, isMobileLayout ? 0 : Layout.screenPadding)
     }
@@ -1220,7 +1452,7 @@ public struct RouteComparisonView: View {
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
-                .tint(Palette.ferrariRed)
+                .tint(Palette.success)
 
                 Text(mode.footnote)
                     .font(panelDescriptionFont)
@@ -1280,7 +1512,7 @@ public struct RouteComparisonView: View {
             VStack(alignment: .leading, spacing: Layout.innerSpacing) {
                 mobileSectionHeader(
                     title: "Route input",
-                    subtitle: "Enter the start and destination, then pull the Apple Maps route baseline."
+                    subtitle: "Choose start and destination, then capture the Apple Maps baseline."
                 )
 
                 InsetPanel {
@@ -1292,10 +1524,10 @@ public struct RouteComparisonView: View {
 
     private var mobileManualCalculatorSection: some View {
         SectionCard {
-            VStack(alignment: .leading, spacing: Layout.innerSpacing) {
+            VStack(alignment: .leading, spacing: 10) {
                 mobileSectionHeader(
                     title: "Manual calculator",
-                    subtitle: "Enter a distance plus Speed A and Speed B to compare the same trip."
+                    subtitle: "Enter the same distance and compare Speed A with Speed B."
                 )
 
                 InsetPanel {
@@ -1314,7 +1546,7 @@ public struct RouteComparisonView: View {
             VStack(alignment: .leading, spacing: Layout.innerSpacing) {
                 mobileSectionHeader(
                     title: "Trip pace",
-                    subtitle: "Choose how to enter your trip pace, then add fuel assumptions for the cost model."
+                    subtitle: "Choose your trip pace and fuel assumptions."
                 )
                 inputStylePanel
                 InsetPanel {
@@ -1338,7 +1570,7 @@ public struct RouteComparisonView: View {
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
-                .tint(Palette.ferrariRed)
+                .tint(Palette.success)
 
                 Text(tripCompareDistanceSource.description)
                     .font(panelDescriptionFont)
@@ -1361,7 +1593,7 @@ public struct RouteComparisonView: View {
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
-                .tint(Palette.ferrariRed)
+                .tint(Palette.success)
 
                 Text(tripCompareEntryStyle.description)
                     .font(panelDescriptionFont)
@@ -1413,91 +1645,110 @@ public struct RouteComparisonView: View {
     }
 
     private var manualModePrimaryInputs: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Distance")
-                .font(inputLabelFont)
-                .foregroundStyle(Palette.cocoa)
+        Group {
+            if isMobileLayout {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(alignment: .top, spacing: 12) {
+                        compactMetricField(title: "Distance", text: $milesDrivenText, placeholder: "42", unit: "mi")
+                        compactMetricField(title: "Speed A", text: $speedLimitText, placeholder: "65", unit: "mph")
+                    }
 
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                BrandedTextField(
-                    text: $milesDrivenText,
-                    placeholder: "42",
-                    width: 130,
-                    fontSize: 24,
-                    fontWeight: .bold,
-                    compact: isMobileLayout
-                )
+                    compactMetricField(title: "Speed B", text: $comparisonAverageSpeedText, placeholder: "78", unit: "mph")
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Distance")
+                        .font(inputLabelFont)
+                        .foregroundStyle(Palette.cocoa)
 
-                Text("miles")
-                    .font(unitFont)
-                    .foregroundStyle(Palette.cocoa)
-            }
+                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                        BrandedTextField(
+                            text: $milesDrivenText,
+                            placeholder: "42",
+                            width: 130,
+                            fontSize: 24,
+                            fontWeight: .bold,
+                            compact: isMobileLayout
+                        )
 
-            Text("Speed A")
-                .font(inputLabelFont)
-                .foregroundStyle(Palette.cocoa)
+                        Text("miles")
+                            .font(unitFont)
+                            .foregroundStyle(Palette.cocoa)
+                    }
 
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                BrandedTextField(
-                    text: $speedLimitText,
-                    placeholder: "65",
-                    width: 110,
-                    fontSize: 24,
-                    fontWeight: .bold,
-                    compact: isMobileLayout
-                )
+                    Text("Speed A")
+                        .font(inputLabelFont)
+                        .foregroundStyle(Palette.cocoa)
 
-                Text("mph")
-                    .font(unitFont)
-                    .foregroundStyle(Palette.cocoa)
-            }
+                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                        BrandedTextField(
+                            text: $speedLimitText,
+                            placeholder: "65",
+                            width: 110,
+                            fontSize: 24,
+                            fontWeight: .bold,
+                            compact: isMobileLayout
+                        )
 
-            Text("Speed B")
-                .font(inputLabelFont)
-                .foregroundStyle(Palette.cocoa)
+                        Text("mph")
+                            .font(unitFont)
+                            .foregroundStyle(Palette.cocoa)
+                    }
 
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                BrandedTextField(
-                    text: $comparisonAverageSpeedText,
-                    placeholder: "78",
-                    width: 110,
-                    fontSize: 24,
-                    fontWeight: .bold,
-                    compact: isMobileLayout
-                )
+                    Text("Speed B")
+                        .font(inputLabelFont)
+                        .foregroundStyle(Palette.cocoa)
 
-                Text("mph")
-                    .font(unitFont)
-                    .foregroundStyle(Palette.cocoa)
+                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                        BrandedTextField(
+                            text: $comparisonAverageSpeedText,
+                            placeholder: "78",
+                            width: 110,
+                            fontSize: 24,
+                            fontWeight: .bold,
+                            compact: isMobileLayout
+                        )
+
+                        Text("mph")
+                            .font(unitFont)
+                            .foregroundStyle(Palette.cocoa)
+                    }
+                }
             }
         }
     }
 
     private var appleMapsRouteInputs: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: isPolishedLiveDriveSetup ? 10 : 12) {
             Text("From")
                 .font(inputLabelFont)
                 .foregroundStyle(Palette.cocoa)
 
-            BrandedTextField(
-                text: $fromAddressText,
-                placeholder: "Starting address",
-                fontSize: 17,
-                fontWeight: .medium,
-                compact: isMobileLayout
-            )
+            routeOriginModePicker
+
+            if routeOriginInputMode == .currentLocation {
+                currentLocationOriginField
+            } else {
+                routeAddressInputField(
+                    text: $fromAddressText,
+                    placeholder: "Enter a custom start",
+                    field: .from
+                )
+
+                routeAutocompleteList(suggestions: fromSuggestions, field: .from)
+            }
 
             Text("To")
                 .font(inputLabelFont)
                 .foregroundStyle(Palette.cocoa)
 
-            BrandedTextField(
+            routeAddressInputField(
                 text: $toAddressText,
                 placeholder: "Destination address",
-                fontSize: 17,
-                fontWeight: .medium,
-                compact: isMobileLayout
+                field: .to
             )
+
+            routeAutocompleteList(suggestions: toSuggestions, field: .to)
 
             HStack {
                 Spacer()
@@ -1508,8 +1759,265 @@ public struct RouteComparisonView: View {
         }
     }
 
+    private var routeOriginModePicker: some View {
+        HStack(spacing: isPolishedLiveDriveSetup ? 6 : 8) {
+            ForEach(RouteOriginInputMode.allCases) { mode in
+                Button {
+                    routeOriginInputMode = mode
+                } label: {
+                    Text(mode.rawValue)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(
+                            routeOriginInputMode == mode
+                                ? (isPolishedLiveDriveSetup ? Palette.ink : Color.white)
+                                : Palette.cocoa
+                        )
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, isPolishedLiveDriveSetup ? 9 : 10)
+                        .frame(maxWidth: .infinity)
+                        .background(
+                            routeOriginModeBackground(for: mode),
+                            in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        )
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .stroke(routeOriginModeBorder(for: mode), lineWidth: 1)
+                        }
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(isPolishedLiveDriveSetup ? 4 : 0)
+        .background(
+            routeOriginModeContainerBackground,
+            in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+        )
+    }
+
+    private var routeOriginModeContainerBackground: Color {
+        isPolishedLiveDriveSetup ? Color(red: 0.94, green: 0.97, blue: 0.95) : .clear
+    }
+
+    private func routeOriginModeBackground(for mode: RouteOriginInputMode) -> Color {
+        guard routeOriginInputMode == mode else {
+            return isPolishedLiveDriveSetup ? Color.clear : Palette.panelAlt
+        }
+
+        return isPolishedLiveDriveSetup ? Color.white.opacity(0.95) : Palette.success
+    }
+
+    private func routeOriginModeBorder(for mode: RouteOriginInputMode) -> Color {
+        if routeOriginInputMode == mode {
+            return isPolishedLiveDriveSetup ? Color.black.opacity(0.05) : Palette.success
+        }
+
+        return isPolishedLiveDriveSetup ? Color.clear : Palette.surfaceBorder
+    }
+
+    private var routeInputBackground: Color {
+        if isPolishedLiveDriveSetup {
+            return Color.white.opacity(0.97)
+        }
+
+        return Palette.panelAlt
+    }
+
+    private func routeInputBorder(for field: RouteAddressField) -> Color {
+        if focusedRouteAddressField == field {
+            return Palette.success.opacity(isPolishedLiveDriveSetup ? 0.35 : 0.45)
+        }
+
+        return isPolishedLiveDriveSetup ? Color.black.opacity(0.05) : Palette.surfaceBorder
+    }
+
+    private var currentLocationOriginField: some View {
+        Group {
+            if isPolishedLiveDriveSetup {
+                HStack(alignment: .center, spacing: 12) {
+                    ZStack {
+                        Circle()
+                            .fill(Palette.successBackground)
+                            .frame(width: 34, height: 34)
+
+                        Image(systemName: "location.fill")
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(Palette.success)
+                    }
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(currentLocationFieldLabel)
+                            .font(.headline.weight(.semibold))
+                            .foregroundStyle(Palette.ink)
+
+                        Text(currentLocationDetailText)
+                            .font(panelDescriptionFont)
+                            .foregroundStyle(currentLocationResolver.errorMessage == nil ? Palette.cocoa : Palette.danger)
+                    }
+
+                    Spacer(minLength: 12)
+
+                    if currentLocationResolver.isResolving {
+                        ProgressView()
+                            .tint(Palette.success)
+                    } else if currentLocationResolver.authorizationStatus == .denied {
+                        Button("Settings") {
+                            openLiveDriveSettings()
+                        }
+                        .buttonStyle(.borderless)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Palette.success)
+                    } else {
+                        Button("Refresh") {
+                            currentLocationResolver.requestCurrentLocation()
+                        }
+                        .buttonStyle(.borderless)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Palette.success)
+                    }
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 13)
+                .background(Color.white.opacity(0.96), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(Color.black.opacity(0.05), lineWidth: 1)
+                }
+                .shadow(color: .black.opacity(0.04), radius: 16, y: 7)
+            } else {
+                InsetPanel {
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack(alignment: .center, spacing: 12) {
+                            Image(systemName: "location.fill")
+                                .font(.headline)
+                                .foregroundStyle(Palette.success)
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(currentLocationFieldLabel)
+                                    .font(.headline.weight(.semibold))
+                                    .foregroundStyle(Palette.ink)
+
+                                Text(currentLocationDetailText)
+                                    .font(panelDescriptionFont)
+                                    .foregroundStyle(currentLocationResolver.errorMessage == nil ? Palette.cocoa : Palette.danger)
+                            }
+
+                            Spacer(minLength: 12)
+
+                            if currentLocationResolver.isResolving {
+                                ProgressView()
+                                    .tint(Palette.success)
+                            } else if currentLocationResolver.authorizationStatus == .denied {
+                                Button("Settings") {
+                                    openLiveDriveSettings()
+                                }
+                                .buttonStyle(.borderless)
+                                .font(.subheadline.weight(.semibold))
+                            } else {
+                                Button("Refresh") {
+                                    currentLocationResolver.requestCurrentLocation()
+                                }
+                                .buttonStyle(.borderless)
+                                .font(.subheadline.weight(.semibold))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func routeAddressInputField(
+        text: Binding<String>,
+        placeholder: String,
+        field: RouteAddressField
+    ) -> some View {
+        HStack(spacing: 10) {
+            if isPolishedLiveDriveSetup {
+                ZStack {
+                    Circle()
+                        .fill((field == .from ? Palette.successBackground : Palette.dangerBackground).opacity(0.9))
+                        .frame(width: 30, height: 30)
+
+                    Image(systemName: field == .from ? "location.fill" : "mappin.and.ellipse")
+                        .font(.footnote.weight(.bold))
+                        .foregroundStyle(field == .from ? Palette.success : Palette.accentRed)
+                }
+            } else {
+                Image(systemName: field == .from ? "circle.fill" : "mappin.and.ellipse")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(field == .from ? Palette.success : Palette.accentRed)
+            }
+
+            TextField(placeholder, text: text)
+                .focused($focusedRouteAddressField, equals: field)
+                .textFieldStyle(.plain)
+                .font(.body.weight(.medium))
+                .foregroundStyle(Palette.ink)
+                .textInputAutocapitalization(.words)
+                .autocorrectionDisabled(true)
+                .submitLabel(field == .from ? .next : .search)
+                .onSubmit {
+                    handleAddressFieldSubmit(field)
+                }
+        }
+        .padding(.horizontal, isPolishedLiveDriveSetup ? 16 : 14)
+        .frame(minHeight: isPolishedLiveDriveSetup ? 56 : 50, alignment: .leading)
+        .background(routeInputBackground, in: RoundedRectangle(cornerRadius: isPolishedLiveDriveSetup ? 18 : 14, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: isPolishedLiveDriveSetup ? 18 : 14, style: .continuous)
+                .stroke(routeInputBorder(for: field), lineWidth: 1)
+        }
+        .shadow(color: isPolishedLiveDriveSetup ? .black.opacity(0.04) : .clear, radius: 14, y: 6)
+    }
+
+    @ViewBuilder
+    private func routeAutocompleteList(
+        suggestions: [AppleMapsAutocompleteController.Suggestion],
+        field: RouteAddressField
+    ) -> some View {
+        if !suggestions.isEmpty {
+            VStack(spacing: 0) {
+                ForEach(Array(suggestions.enumerated()), id: \.element.id) { index, suggestion in
+                    Button {
+                        selectAutocompleteSuggestion(suggestion, for: field)
+                    } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(suggestion.title)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(Palette.ink)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+
+                            if !suggestion.subtitle.isEmpty {
+                                Text(suggestion.subtitle)
+                                    .font(.footnote.weight(.medium))
+                                    .foregroundStyle(Palette.cocoa)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 12)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+
+                    if index < suggestions.count - 1 {
+                        Divider()
+                    }
+                }
+            }
+            .background(Color.white.opacity(isPolishedLiveDriveSetup ? 0.98 : 1), in: RoundedRectangle(cornerRadius: isPolishedLiveDriveSetup ? 18 : 14, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: isPolishedLiveDriveSetup ? 18 : 14, style: .continuous)
+                    .stroke(Palette.surfaceBorder.opacity(isPolishedLiveDriveSetup ? 0.7 : 1), lineWidth: 1)
+            }
+            .shadow(color: .black.opacity(isPolishedLiveDriveSetup ? 0.08 : 0.05), radius: isPolishedLiveDriveSetup ? 20 : 14, y: isPolishedLiveDriveSetup ? 10 : 6)
+        }
+    }
+
     private var calculateRouteButton: some View {
         Button {
+            focusedRouteAddressField = nil
+            autocompleteController.clear()
             calculateAppleMapsRoute()
         } label: {
             Label(isCalculatingRoute ? "Calculating route" : "Calculate route", systemImage: "map")
@@ -1529,48 +2037,14 @@ public struct RouteComparisonView: View {
     private var comparisonValueInputs: some View {
         VStack(alignment: .leading, spacing: 12) {
             if tripCompareEntryStyle == .averageSpeed {
-                Text("Your average speed")
-                    .font(inputLabelFont)
-                    .foregroundStyle(Palette.cocoa)
-
-                HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    BrandedTextField(
-                        text: $comparisonAverageSpeedText,
-                        placeholder: "80",
-                        width: 130,
-                        fontSize: 24,
-                        fontWeight: .bold,
-                        compact: isMobileLayout
-                    )
-
-                    Text("mph")
-                        .font(unitFont)
-                        .foregroundStyle(Palette.cocoa)
-                }
+                compactMetricField(title: "Your average speed", text: $comparisonAverageSpeedText, placeholder: "80", unit: "mph")
             } else {
-                Text("Your trip time")
-                    .font(inputLabelFont)
-                    .foregroundStyle(Palette.cocoa)
-
-                HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    BrandedTextField(
-                        text: $comparisonTripMinutesText,
-                        placeholder: "30",
-                        width: 130,
-                        fontSize: 24,
-                        fontWeight: .bold,
-                        compact: isMobileLayout
-                    )
-
-                    Text("minutes")
-                        .font(unitFont)
-                        .foregroundStyle(Palette.cocoa)
-                }
+                compactMetricField(title: "Your trip time", text: $comparisonTripMinutesText, placeholder: "30", unit: "min")
             }
 
             fuelModelInputs
 
-            Text(tripCompareDistanceSource == .manualMiles ? "Compared against the same route distance at the posted speed. Average trip speed comes from the speed field or the derived duration." : "Compared against the Apple Maps route distance and ETA. Average trip speed comes from the speed field or the derived duration.")
+            Text(tripCompareDistanceSource == .manualMiles ? "Compared against the same distance at the posted speed. Average trip speed comes from the speed field or derived duration." : "Compared against the Apple Maps route distance and ETA. Average trip speed comes from the speed field or derived duration.")
                 .font(panelDescriptionFont)
                 .foregroundStyle(Palette.cocoa)
         }
@@ -1578,77 +2052,111 @@ public struct RouteComparisonView: View {
 
     private var fuelModelInputs: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Vehicle rated MPG")
-                .font(inputLabelFont)
-                .foregroundStyle(Palette.cocoa)
+            if isMobileLayout {
+                HStack(alignment: .top, spacing: 12) {
+                    compactMetricField(title: "Rated MPG", text: $ratedMPGText, placeholder: "28", unit: "mpg")
+                    compactMetricField(title: "Observed MPG", text: $observedMPGText, placeholder: "22", unit: "mpg")
+                }
 
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                BrandedTextField(
-                    text: $ratedMPGText,
-                    placeholder: "28",
-                    width: 130,
-                    fontSize: 24,
-                    fontWeight: .bold,
-                    compact: isMobileLayout
-                )
-
-                Text("mpg")
-                    .font(unitFont)
+                compactMetricField(title: "Fuel price", text: $fuelPriceText, placeholder: "3.79", unit: "/ gal")
+            } else {
+                Text("Vehicle rated MPG")
+                    .font(inputLabelFont)
                     .foregroundStyle(Palette.cocoa)
+
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    BrandedTextField(
+                        text: $ratedMPGText,
+                        placeholder: "28",
+                        width: 130,
+                        fontSize: 24,
+                        fontWeight: .bold,
+                        compact: isMobileLayout
+                    )
+
+                    Text("mpg")
+                        .font(unitFont)
+                        .foregroundStyle(Palette.cocoa)
+                }
+
+                Text("Observed MPG at your pace")
+                    .font(inputLabelFont)
+                    .foregroundStyle(Palette.cocoa)
+
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    BrandedTextField(
+                        text: $observedMPGText,
+                        placeholder: "22",
+                        width: 130,
+                        fontSize: 24,
+                        fontWeight: .bold,
+                        compact: isMobileLayout
+                    )
+
+                    Text("mpg")
+                        .font(unitFont)
+                        .foregroundStyle(Palette.cocoa)
+                }
+
+                Text("Fuel price")
+                    .font(inputLabelFont)
+                    .foregroundStyle(Palette.cocoa)
+
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    BrandedTextField(
+                        text: $fuelPriceText,
+                        placeholder: "3.79",
+                        width: 130,
+                        fontSize: 24,
+                        fontWeight: .bold,
+                        compact: isMobileLayout
+                    )
+
+                    Text("/ gallon")
+                        .font(unitFont)
+                        .foregroundStyle(Palette.cocoa)
+                }
             }
 
-            Text("Observed MPG at your pace")
-                .font(inputLabelFont)
-                .foregroundStyle(Palette.cocoa)
-
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                BrandedTextField(
-                    text: $observedMPGText,
-                    placeholder: "22",
-                    width: 130,
-                    fontSize: 24,
-                    fontWeight: .bold,
-                    compact: isMobileLayout
-                )
-
-                Text("mpg")
-                    .font(unitFont)
-                    .foregroundStyle(Palette.cocoa)
-            }
-
-            Text("Fuel price")
-                .font(inputLabelFont)
-                .foregroundStyle(Palette.cocoa)
-
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                BrandedTextField(
-                    text: $fuelPriceText,
-                    placeholder: "3.79",
-                    width: 130,
-                    fontSize: 24,
-                    fontWeight: .bold,
-                    compact: isMobileLayout
-                )
-
-                Text("/ gallon")
-                    .font(unitFont)
-                    .foregroundStyle(Palette.cocoa)
-            }
-
-            Text("Fuel penalty compares your baseline rated efficiency against the MPG you actually see at the faster pace.")
+            Text("Fuel penalty compares rated efficiency to what you actually see at the faster pace.")
                 .font(panelDescriptionFont)
                 .foregroundStyle(Palette.cocoa)
         }
     }
 
     private var manualModeFuelInputs: some View {
-        VStack(alignment: .leading, spacing: Layout.innerSpacing) {
-            Text("Vehicle assumptions")
+        VStack(alignment: .leading, spacing: 10) {
+            fuelModelInputs
+        }
+    }
+
+    private func compactMetricField(
+        title: String,
+        text: Binding<String>,
+        placeholder: String,
+        unit: String
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
                 .font(inputLabelFont)
                 .foregroundStyle(Palette.cocoa)
 
-            fuelModelInputs
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                BrandedTextField(
+                    text: text,
+                    placeholder: placeholder,
+                    fontSize: 24,
+                    fontWeight: .bold,
+                    compact: true
+                )
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Text(unit)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Palette.cocoa)
+            }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var routeStatusView: some View {
@@ -1680,10 +2188,10 @@ public struct RouteComparisonView: View {
 
     private var liveDriveSetupSection: some View {
         SectionCard {
-            VStack(alignment: .leading, spacing: Layout.innerSpacing) {
+            VStack(alignment: .leading, spacing: 12) {
                 mobileSectionHeader(
                     title: "Live drive setup",
-                    subtitle: "Choose the exact Apple Maps route, target speed, and fuel assumptions before you start driving."
+                    subtitle: "Capture the route baseline, choose your pace, and start tracking."
                 )
 
                 InsetPanel {
@@ -1698,86 +2206,53 @@ public struct RouteComparisonView: View {
                     mobileHelperCard(liveDriveCurrentRouteLabel)
                 }
 
-                if let liveDrivePermissionMessage {
-                    liveDrivePermissionBanner(message: liveDrivePermissionMessage)
-                }
-
                 InsetPanel {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Target speed")
-                            .font(inputLabelFont)
-                            .foregroundStyle(Palette.cocoa)
+                        liveDriveNavigationProviderSection
 
-                        HStack(alignment: .firstTextBaseline, spacing: 10) {
-                            BrandedTextField(
-                                text: $liveDriveTargetSpeedText,
-                                placeholder: "78",
-                                width: 110,
-                                fontSize: 24,
-                                fontWeight: .bold,
-                                compact: true
-                            )
-
-                            Text("mph")
-                                .font(unitFont)
-                                .foregroundStyle(Palette.cocoa)
+                        if let liveDriveNavigationHandoffMessage {
+                            liveDriveHelperNote(liveDriveNavigationHandoffMessage)
                         }
 
-                        Text("MPG")
-                            .font(inputLabelFont)
-                            .foregroundStyle(Palette.cocoa)
-
-                        HStack(alignment: .firstTextBaseline, spacing: 10) {
-                            BrandedTextField(
-                                text: $liveDriveMPGText,
-                                placeholder: "24",
-                                width: 110,
-                                fontSize: 24,
-                                fontWeight: .bold,
-                                compact: true
+                        if let liveDriveBackgroundContinuityMessage {
+                            liveDriveHelperNote(
+                                liveDriveBackgroundContinuityMessage,
+                                showsSettingsAction: liveDriveShowsBackgroundContinuitySettingsAction,
+                                actionTitle: "Always Location"
                             )
-
-                            Text("mpg")
-                                .font(unitFont)
-                                .foregroundStyle(Palette.cocoa)
                         }
 
-                        Text("Fuel price")
-                            .font(inputLabelFont)
-                            .foregroundStyle(Palette.cocoa)
-
-                        HStack(alignment: .firstTextBaseline, spacing: 10) {
-                            BrandedTextField(
-                                text: $liveDriveFuelPriceText,
-                                placeholder: "3.79",
-                                width: 110,
-                                fontSize: 24,
-                                fontWeight: .bold,
-                                compact: true
+                        if let liveDrivePermissionMessage {
+                            liveDriveStatusBanner(
+                                title: "Live Drive needs location access",
+                                message: liveDrivePermissionMessage,
+                                showsSettingsAction: liveDriveShowsSettingsAction
                             )
-
-                            Text("/ gallon")
-                                .font(unitFont)
-                                .foregroundStyle(Palette.cocoa)
                         }
+
+                        Rectangle()
+                            .fill(Color.black.opacity(0.06))
+                            .frame(height: 1)
+
+                        liveDriveAssumptionsSection
+
+                        Button {
+                            startLiveDrive()
+                        } label: {
+                            Label("Start Drive", systemImage: "location.fill")
+                                .font(.headline)
+                                .foregroundStyle(Color.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.horizontal, 18)
+                                .padding(.vertical, 14)
+                                .background(Palette.success, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                .shadow(color: Palette.success.opacity(0.20), radius: 3, y: 2)
+                        }
+                        .buttonStyle(.plain)
+                        .opacity(isStartLiveDriveDisabled ? 0.55 : 1)
+                        .disabled(isStartLiveDriveDisabled)
                     }
                 }
-
-                Button {
-                    startLiveDrive()
-                } label: {
-                    Label("Start Drive", systemImage: "location.fill")
-                        .font(.headline)
-                        .foregroundStyle(Color.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.horizontal, 18)
-                        .padding(.vertical, 14)
-                        .background(Palette.success, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                        .shadow(color: Palette.success.opacity(0.25), radius: 3, y: 2)
-                }
-                .buttonStyle(.plain)
-                .opacity(isStartLiveDriveDisabled ? 0.55 : 1)
-                .disabled(isStartLiveDriveDisabled)
             }
         }
     }
@@ -1910,6 +2385,10 @@ public struct RouteComparisonView: View {
                     title: "Trip Summary So Far",
                     subtitle: liveDriveRouteLabel
                 )
+
+                if let liveDriveNavigationHandoffMessage {
+                    mobileHelperCard(liveDriveNavigationHandoffMessage)
+                }
 
                 VStack(alignment: .leading, spacing: 16) {
                     liveDriveSummaryBlock(
@@ -2688,42 +3167,135 @@ public struct RouteComparisonView: View {
         }
     }
 
+    private var liveDriveNavigationProviderSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .center, spacing: 12) {
+                Label("Navigation App", systemImage: "arrow.triangle.turn.up.right.circle.fill")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Palette.ink)
+
+                Spacer(minLength: 12)
+
+                Picker("Navigation app", selection: preferredNavigationProviderBinding) {
+                    ForEach(NavigationProvider.allCases) { provider in
+                        Text(provider.rawValue).tag(provider)
+                    }
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+                .tint(Palette.ink)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(Palette.successBackground, in: Capsule())
+            }
+
+            Text("TimeThrottle starts tracking first, then opens your navigation app.")
+                .font(panelDescriptionFont)
+                .foregroundStyle(Palette.cocoa)
+        }
+    }
+
+    private var liveDriveAssumptionsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Trip assumptions")
+                .font(inputLabelFont)
+                .foregroundStyle(Palette.cocoa)
+
+            HStack(alignment: .top, spacing: 12) {
+                compactMetricField(title: "Target speed", text: $liveDriveTargetSpeedText, placeholder: "78", unit: "mph")
+                compactMetricField(title: "MPG", text: $liveDriveMPGText, placeholder: "24", unit: "mpg")
+            }
+
+            compactMetricField(title: "Fuel price", text: $liveDriveFuelPriceText, placeholder: "3.79", unit: "/ gal")
+        }
+    }
+
     private func mobileHelperCard(_ text: String) -> some View {
         Text(text)
             .font(panelDescriptionFont)
             .foregroundStyle(Palette.cocoa)
-            .padding(14)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 11)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Palette.panelAlt, in: RoundedRectangle(cornerRadius: Layout.innerCorner, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: Layout.innerCorner, style: .continuous)
+                    .stroke(Palette.surfaceBorder.opacity(0.8), lineWidth: 1)
+            }
     }
 
     @ViewBuilder
-    private func liveDrivePermissionBanner(message: String) -> some View {
-        InsetPanel {
-            VStack(alignment: .leading, spacing: 12) {
-                Label("Live Drive needs location access", systemImage: "location.fill")
-                    .font(.headline.weight(.semibold))
-                    .foregroundStyle(Palette.ink)
+    private func liveDriveHelperNote(
+        _ message: String,
+        showsSettingsAction: Bool = false,
+        actionTitle: String = "Allow Always Location"
+    ) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "info.circle.fill")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Palette.success)
+                .padding(.top, 1)
 
+            VStack(alignment: .leading, spacing: 6) {
                 Text(message)
                     .font(panelDescriptionFont)
                     .foregroundStyle(Palette.cocoa)
 
-                if liveDriveShowsSettingsAction {
-                    Button {
+                if showsSettingsAction {
+                    Button(actionTitle) {
                         openLiveDriveSettings()
-                    } label: {
-                        Label("Open Settings", systemImage: "gearshape.fill")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(Color.white)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 10)
-                            .background(Palette.success, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                     }
                     .buttonStyle(.plain)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Palette.success)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Palette.panelAlt.opacity(0.72), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(Color.black.opacity(0.05), lineWidth: 1)
+        }
+    }
+
+    @ViewBuilder
+    private func liveDriveStatusBanner(
+        title: String,
+        message: String,
+        showsSettingsAction: Bool
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label(title, systemImage: "location.fill")
+                .font(.headline.weight(.semibold))
+                .foregroundStyle(Palette.ink)
+
+            Text(message)
+                .font(panelDescriptionFont)
+                .foregroundStyle(Palette.cocoa)
+
+            if showsSettingsAction {
+                Button {
+                    openLiveDriveSettings()
+                } label: {
+                    Label("Open Settings", systemImage: "gearshape.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Color.white)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(Palette.success, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(Palette.dangerBackground.opacity(0.45), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(Palette.danger.opacity(0.18), lineWidth: 1)
         }
     }
 
@@ -2758,7 +3330,7 @@ public struct RouteComparisonView: View {
                 Text("Route options")
                     .font(panelHeaderFont)
                     .foregroundStyle(Palette.ink)
-                Text("Select which Apple Maps route to compare against.")
+                Text("Pick the Apple Maps route to use as the baseline.")
                     .font(panelDescriptionFont)
                     .foregroundStyle(Palette.cocoa)
             }
@@ -2862,11 +3434,11 @@ public struct RouteComparisonView: View {
             }
         case .appleMapsRoute:
             if normalizedFromAddress.isEmpty || normalizedToAddress.isEmpty {
-                return "Enter both addresses, calculate the Apple Maps route, and then enter your trip speed or time."
+                return "Choose a route start, enter a destination, calculate the Apple Maps route, and then enter your trip speed or time."
             }
 
             if routeNeedsRefresh {
-                return "The addresses changed after the last route lookup. Recalculate the Apple Maps route before comparing."
+                return "The route inputs changed after the last lookup. Recalculate the Apple Maps route before comparing."
             }
 
             return "Calculate the Apple Maps route, then enter your trip speed or duration to compare against the selected route."
@@ -2984,9 +3556,15 @@ public struct RouteComparisonView: View {
             baselineRouteETAMinutes: selectedRoute.expectedTravelMinutes,
             baselineRouteDistanceMiles: selectedRoute.distanceMiles
         )
+        liveDriveNavigationHandoffMessage = nil
+        liveDriveNavigationProviderPending = preferredNavigationProvider
         tracker.configuration = configuration
         withAnimation(.snappy(duration: 0.28, extraBounce: 0)) {
-            tracker.startTrip()
+            tracker.startTrip(requiresBackgroundContinuation: preferredNavigationProvider != .askEveryTime)
+        }
+
+        if tracker.isTracking {
+            processLiveDriveNavigationHandoffIfNeeded()
         }
     }
 
@@ -2999,7 +3577,101 @@ public struct RouteComparisonView: View {
     private func endLiveDrive() {
         withAnimation(.snappy(duration: 0.24, extraBounce: 0)) {
             liveDriveRouteContext = nil
+            liveDriveNavigationProviderPending = nil
+            liveDriveNavigationHandoffMessage = nil
+            isNavigationProviderChoicePresented = false
             tracker.resetTrip()
+        }
+    }
+
+    private func processLiveDriveNavigationHandoffIfNeeded() {
+        guard tracker.isTracking, let provider = liveDriveNavigationProviderPending else { return }
+
+        guard let route = liveDriveCapturedRoute ?? liveDriveSetupRoute else {
+            liveDriveNavigationProviderPending = nil
+            liveDriveNavigationHandoffMessage = "No route is ready for navigation handoff."
+            return
+        }
+
+        guard tracker.permissionState.supportsBackgroundContinuation else {
+            switch tracker.permissionState {
+            case .authorizedWhenInUse, .notDetermined:
+                tracker.requestBackgroundContinuationAuthorization()
+                liveDriveNavigationHandoffMessage = pendingBackgroundContinuationMessage(for: provider)
+            case .denied, .restricted:
+                liveDriveNavigationProviderPending = nil
+                liveDriveNavigationHandoffMessage = blockedNavigationHandoffMessage(for: provider)
+            case .authorizedAlways:
+                break
+            }
+            return
+        }
+
+        switch provider {
+        case .askEveryTime:
+            liveDriveNavigationProviderPending = nil
+            isNavigationProviderChoicePresented = true
+        case .appleMaps, .googleMaps:
+            liveDriveNavigationProviderPending = nil
+            Task {
+                let outcome = await NavigationHandoffService.handoff(provider: provider, route: route)
+                await MainActor.run {
+                    liveDriveNavigationHandoffMessage = outcome.userFacingMessage
+                }
+            }
+        }
+    }
+
+    private func completeLiveDriveNavigationHandoff(using provider: NavigationProvider) {
+        guard let route = liveDriveCapturedRoute ?? liveDriveSetupRoute else {
+            liveDriveNavigationHandoffMessage = "No route is ready for navigation handoff."
+            return
+        }
+
+        guard tracker.permissionState.supportsBackgroundContinuation else {
+            switch tracker.permissionState {
+            case .authorizedWhenInUse, .notDetermined:
+                liveDriveNavigationProviderPending = provider
+                tracker.requestBackgroundContinuationAuthorization()
+                liveDriveNavigationHandoffMessage = pendingBackgroundContinuationMessage(for: provider)
+            case .denied, .restricted:
+                liveDriveNavigationHandoffMessage = blockedNavigationHandoffMessage(for: provider)
+            case .authorizedAlways:
+                break
+            }
+            return
+        }
+
+        isNavigationProviderChoicePresented = false
+        liveDriveNavigationProviderPending = nil
+
+        Task {
+            let outcome = await NavigationHandoffService.handoff(provider: provider, route: route)
+            await MainActor.run {
+                liveDriveNavigationHandoffMessage = outcome.userFacingMessage
+            }
+        }
+    }
+
+    private func blockedNavigationHandoffMessage(for provider: NavigationProvider) -> String {
+        switch provider {
+        case .appleMaps:
+            return "Apple Maps did not open because Always Location is required for background tracking. Tracking is still active in TimeThrottle."
+        case .googleMaps:
+            return "Google Maps did not open because Always Location is required for background tracking. Tracking is still active in TimeThrottle."
+        case .askEveryTime:
+            return "External navigation did not open because Always Location is required for background tracking. Tracking is still active in TimeThrottle."
+        }
+    }
+
+    private func pendingBackgroundContinuationMessage(for provider: NavigationProvider) -> String {
+        switch provider {
+        case .appleMaps:
+            return "Apple Maps will open after Always Location is enabled. Until then, stay in TimeThrottle."
+        case .googleMaps:
+            return "Google Maps will open after Always Location is enabled. Until then, stay in TimeThrottle."
+        case .askEveryTime:
+            return "Choose an external navigation app after Always Location is enabled."
         }
     }
 
@@ -3012,20 +3684,103 @@ public struct RouteComparisonView: View {
         UIApplication.shared.open(settingsURL)
     }
 
-    private func calculateAppleMapsRoute() {
+    private func handleFromAddressTextChanged(_ newValue: String) {
+        guard routeOriginInputMode == .custom else { return }
+
         routeErrorMessage = nil
 
-        let sourceQuery = normalizedFromAddress
-        let destinationQuery = normalizedToAddress
-
-        guard !sourceQuery.isEmpty else {
-            routeOptions = []
-            selectedRouteID = nil
-            routeErrorMessage = RouteLookupError.blankAddress("starting").localizedDescription
+        if fromResolvedPlace?.displayText == newValue {
             return
         }
 
-        guard !destinationQuery.isEmpty else {
+        fromResolvedPlace = nil
+
+        if focusedRouteAddressField == .from {
+            autocompleteController.updateQuery(newValue, for: .from)
+        }
+    }
+
+    private func handleToAddressTextChanged(_ newValue: String) {
+        routeErrorMessage = nil
+
+        if toResolvedPlace?.displayText == newValue {
+            return
+        }
+
+        toResolvedPlace = nil
+
+        if focusedRouteAddressField == .to {
+            autocompleteController.updateQuery(newValue, for: .to)
+        }
+    }
+
+    private func handleAddressFieldSubmit(_ field: RouteAddressField) {
+        switch field {
+        case .from:
+            focusedRouteAddressField = .to
+            autocompleteController.clear(field: .from)
+        case .to:
+            focusedRouteAddressField = nil
+            autocompleteController.clear(field: .to)
+
+            if !isCalculateRouteDisabled {
+                calculateAppleMapsRoute()
+            }
+        }
+    }
+
+    private func selectAutocompleteSuggestion(
+        _ suggestion: AppleMapsAutocompleteController.Suggestion,
+        for field: RouteAddressField
+    ) {
+        Task {
+            do {
+                let resolvedPlace = try await autocompleteController.resolve(suggestion)
+
+                await MainActor.run {
+                    applyResolvedPlace(resolvedPlace, to: field)
+                }
+            } catch {
+                await MainActor.run {
+                    routeErrorMessage = error.localizedDescription
+                }
+            }
+        }
+    }
+
+    private func applyResolvedPlace(_ place: ResolvedRoutePlace, to field: RouteAddressField) {
+        routeErrorMessage = nil
+        autocompleteController.clear()
+
+        switch field {
+        case .from:
+            fromResolvedPlace = place
+            fromAddressText = place.displayText
+            focusedRouteAddressField = .to
+        case .to:
+            toResolvedPlace = place
+            toAddressText = place.displayText
+            focusedRouteAddressField = nil
+        }
+
+        if !isCalculateRouteDisabled {
+            calculateAppleMapsRoute()
+        }
+    }
+
+    private func calculateAppleMapsRoute() {
+        routeErrorMessage = nil
+
+        guard let sourceEndpoint = routeSourceEndpoint else {
+            routeOptions = []
+            selectedRouteID = nil
+            routeErrorMessage = routeOriginInputMode == .currentLocation
+                ? RouteLookupError.currentLocationUnavailable.localizedDescription
+                : RouteLookupError.blankAddress("starting").localizedDescription
+            return
+        }
+
+        guard let destinationEndpoint = routeDestinationEndpoint else {
             routeOptions = []
             selectedRouteID = nil
             routeErrorMessage = RouteLookupError.blankAddress("destination").localizedDescription
@@ -3037,8 +3792,8 @@ public struct RouteComparisonView: View {
         Task {
             do {
                 let estimates = try await RouteLookupService.fetchRouteOptions(
-                    sourceQuery: sourceQuery,
-                    destinationQuery: destinationQuery
+                    source: sourceEndpoint,
+                    destination: destinationEndpoint
                 )
 
                 await MainActor.run {
