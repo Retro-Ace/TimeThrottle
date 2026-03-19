@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/timethrottle-banner.png" width="900">
+</p>
+
 # TimeThrottle
 
 **TimeThrottle** is an iPhone pace-analysis app that helps drivers understand what faster driving actually buys them.
