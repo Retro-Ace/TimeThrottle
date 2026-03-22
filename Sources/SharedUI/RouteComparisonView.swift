@@ -84,20 +84,26 @@ public struct RouteComparisonView: View {
     @State private var hoveredRouteID: UUID?
     @State private var routeErrorMessage: String?
     @State private var isCalculatingRoute = false
+    @State private var routeLookupGeneration = 0
     @State private var didRunCaptureBootstrap = false
     @State private var captureScrollTarget: String?
+    @State private var shareSheetItems: [Any] = []
     @State private var isShareSheetPresented = false
     @AppStorage("timethrottle.preferredNavigationProvider") private var navigationProviderPreferenceRawValue = NavigationProvider.askEveryTime.rawValue
     @State private var liveDriveTargetSpeedText = "78"
     @State private var liveDriveMPGText = "24"
     @State private var liveDriveFuelPriceText = "3.79"
     @State private var liveDriveRouteContext: LiveDriveRouteContext?
+    @State private var liveDriveFinishedTrip: CompletedTripRecord?
+    @State private var liveDrivePostTripObservedMPGText = ""
     @State private var liveDriveNavigationProviderPending: NavigationProvider?
     @State private var liveDriveNavigationHandoffMessage: String?
     @State private var isNavigationProviderChoicePresented = false
+    @State private var isTripHistoryPresented = false
     @StateObject private var currentLocationResolver = CurrentLocationResolver()
     @StateObject private var autocompleteController = AppleMapsAutocompleteController()
     @StateObject private var tracker = LiveDriveTracker()
+    @StateObject private var tripHistoryStore = TripHistoryStore()
 
     private static let routePreviewCaptureID = "routePreviewCaptureSection"
 
@@ -357,15 +363,15 @@ public struct RouteComparisonView: View {
     }
 
     private var liveDriveHasTripData: Bool {
-        tracker.isTracking || tracker.distanceTraveled > 0 || tracker.tripDuration > 0 || tracker.snapshot.sampleCount > 0
+        tracker.isTracking || tracker.isPaused || tracker.distanceTraveled > 0 || tracker.tripDuration > 0 || tracker.snapshot.sampleCount > 0
     }
 
     private var liveDriveScreenState: LiveDriveScreenState {
-        if tracker.isTracking {
+        if tracker.isTracking || tracker.isPaused {
             return .driving
         }
 
-        if liveDriveHasTripData {
+        if tracker.didFinishTrip || liveDriveFinishedTrip != nil || liveDriveHasTripData {
             return .tripComplete
         }
 
@@ -451,10 +457,32 @@ public struct RouteComparisonView: View {
         return max(55, (liveDriveTargetSpeed ?? 72) - 12)
     }
 
-    private var liveDriveObservedMPG: Double? {
+    private var liveDriveEstimatedObservedMPG: Double? {
         guard let ratedMPG = liveDriveMPG, ratedMPG > 0 else { return nil }
         let speedDelta = max(0, (liveDriveTargetSpeed ?? 0) - liveDriveBaselineSpeed)
         return max(1, ratedMPG - speedDelta * 0.22)
+    }
+
+    private var liveDriveDisplayedTimeSaved: Double {
+        liveDriveFinishedTrip?.timeSavedBySpeeding ?? tracker.tripSummary.timeSavedBySpeeding
+    }
+
+    private var liveDriveDisplayedTimeLost: Double {
+        liveDriveFinishedTrip?.timeLostBelowTargetPace ?? tracker.tripSummary.timeLostBelowTargetPace
+    }
+
+    private var liveDriveDisplayedFuelPenalty: Double {
+        liveDriveFinishedTrip?.fuelPenalty ?? tracker.tripSummary.fuelPenalty
+    }
+
+    private var liveDriveDisplayedNetTimeGain: Double {
+        liveDriveFinishedTrip?.netTimeGain ?? tracker.tripSummary.netTimeGain
+    }
+
+    private var liveDriveObservedMPGEntry: Double? {
+        let trimmed = liveDrivePostTripObservedMPGText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        return Self.number(from: trimmed)
     }
 
     private var liveDriveConfigurationForStart: LiveDriveConfiguration? {
@@ -463,7 +491,7 @@ public struct RouteComparisonView: View {
             !routeNeedsRefresh,
             let targetSpeed = liveDriveTargetSpeed,
             let ratedMPG = liveDriveMPG,
-            let observedMPG = liveDriveObservedMPG,
+            let observedMPG = liveDriveEstimatedObservedMPG,
             let fuelPrice = liveDriveFuelPrice,
             targetSpeed > 0,
             ratedMPG > 0,
@@ -526,16 +554,22 @@ public struct RouteComparisonView: View {
         return UIApplication.shared.canOpenURL(settingsURL)
     }
 
+    private var liveDriveNavigationProviderHelperText: String {
+        preferredNavigationProvider == .askEveryTime
+            ? "You’ll choose a navigation app when the trip starts."
+            : "TimeThrottle tracks the trip. Your map app handles navigation."
+    }
+
     private var liveDriveBelowTargetMetricTitle: String {
         "Time Under Target Pace"
     }
 
     private var liveDriveGainSummaryText: String {
-        "\(Self.durationString(tracker.tripSummary.timeSavedBySpeeding)) by driving above your target pace"
+        "\(Self.durationString(liveDriveDisplayedTimeSaved)) by driving above your target pace"
     }
 
     private var liveDriveBelowTargetSummaryText: String {
-        "\(Self.durationString(tracker.tripSummary.timeLostBelowTargetPace)) below your target pace"
+        "\(Self.durationString(liveDriveDisplayedTimeLost)) below your target pace"
     }
 
     private var liveDriveProjectedTravelMinutes: Double {
@@ -560,6 +594,19 @@ public struct RouteComparisonView: View {
         }
 
         return Palette.danger
+    }
+
+    private var liveDriveControlsSubtitle: String {
+        switch liveDriveScreenState {
+        case .setup:
+            return "Capture the route, choose your pace, and start a trip."
+        case .driving:
+            return tracker.isPaused
+                ? "Resume the same trip or end it without losing the finished result."
+                : "Pause the trip or end it when you are finished driving."
+        case .tripComplete:
+            return "Your finished trip stays here until you start a new one."
+        }
     }
 
     private var hasTripComparisonResult: Bool {
@@ -954,7 +1001,7 @@ public struct RouteComparisonView: View {
         .onChange(of: routeOriginInputMode) { _, newMode in
             focusedRouteAddressField = nil
             autocompleteController.clear()
-            routeErrorMessage = nil
+            resetCalculatedRouteState()
 
             if newMode == .currentLocation {
                 currentLocationResolver.requestCurrentLocationIfNeeded()
@@ -1014,9 +1061,16 @@ public struct RouteComparisonView: View {
                 currentLocationResolver.requestCurrentLocationIfNeeded()
             }
         }
+        .onChange(of: liveDrivePostTripObservedMPGText) { _, _ in
+            guard liveDriveFinishedTrip != nil else { return }
+            updateFinishedTripObservedMPG()
+        }
         #if os(iOS)
         .sheet(isPresented: $isShareSheetPresented) {
-            ShareSheet(activityItems: [worthItShareText])
+            ShareSheet(activityItems: shareSheetItems)
+        }
+        .sheet(isPresented: $isTripHistoryPresented) {
+            TripHistoryScreen(store: tripHistoryStore, brandLogo: brandLogo)
         }
         .confirmationDialog(
             "Choose navigation app",
@@ -1029,6 +1083,10 @@ public struct RouteComparisonView: View {
 
             Button(NavigationProvider.googleMaps.rawValue) {
                 completeLiveDriveNavigationHandoff(using: .googleMaps)
+            }
+
+            Button(NavigationProvider.waze.rawValue) {
+                completeLiveDriveNavigationHandoff(using: .waze)
             }
 
             Button("Cancel", role: .cancel) {
@@ -1177,12 +1235,10 @@ public struct RouteComparisonView: View {
                 liveDriveSafetySection
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             case .tripComplete:
-                liveDriveComparisonSection
+                liveDriveFinishedResultSection
                     .transition(.opacity)
                 liveDriveRouteContextSection
                     .transition(.opacity)
-                liveDriveTripSummarySection
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
                 liveDriveCompletionSection
                     .transition(.opacity)
                 liveDriveSafetySection
@@ -1342,16 +1398,37 @@ public struct RouteComparisonView: View {
 
     private var liveDriveHeaderStatus: some View {
         HStack(spacing: 8) {
-            Image(systemName: liveDriveScreenState == .driving ? "location.fill" : "checkmark.circle.fill")
+            Image(systemName: liveDriveHeaderStatusIconName)
                 .font(.caption.weight(.bold))
 
-            Text(liveDriveScreenState == .driving ? "Drive in progress" : "Trip complete")
+            Text(liveDriveHeaderStatusTitle)
                 .font(.caption.weight(.semibold))
         }
         .foregroundStyle(Color.white)
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .background(Color.white.opacity(0.18), in: Capsule())
+    }
+
+    private var liveDriveHeaderStatusTitle: String {
+        let elapsedMinutes = liveDriveFinishedTrip?.elapsedDriveMinutes ?? tracker.tripDuration
+        let elapsedText = Self.durationString(elapsedMinutes)
+
+        if liveDriveScreenState == .tripComplete {
+            return "Trip complete • \(elapsedText)"
+        }
+
+        return tracker.isPaused
+            ? "Trip paused • \(elapsedText)"
+            : "Trip in progress • \(elapsedText)"
+    }
+
+    private var liveDriveHeaderStatusIconName: String {
+        if liveDriveScreenState == .tripComplete {
+            return "checkmark.circle.fill"
+        }
+
+        return tracker.isPaused ? "pause.circle.fill" : "location.fill"
     }
 
     private var logoLockup: some View {
@@ -1959,6 +2036,18 @@ public struct RouteComparisonView: View {
                 .onSubmit {
                     handleAddressFieldSubmit(field)
                 }
+
+            if field == .to && !text.wrappedValue.isEmpty {
+                Button {
+                    clearDestinationField()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Palette.cocoa.opacity(0.75))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Clear destination")
+            }
         }
         .padding(.horizontal, isPolishedLiveDriveSetup ? 16 : 14)
         .frame(minHeight: isPolishedLiveDriveSetup ? 56 : 50, alignment: .leading)
@@ -2189,10 +2278,16 @@ public struct RouteComparisonView: View {
     private var liveDriveSetupSection: some View {
         SectionCard {
             VStack(alignment: .leading, spacing: 12) {
-                mobileSectionHeader(
-                    title: "Live drive setup",
-                    subtitle: "Capture the route baseline, choose your pace, and start tracking."
-                )
+                HStack(alignment: .top, spacing: 12) {
+                    mobileSectionHeader(
+                        title: "Live drive setup",
+                        subtitle: "Capture the route baseline, choose your pace, and start tracking."
+                    )
+
+                    Spacer(minLength: 12)
+
+                    tripHistoryShortcutButton
+                }
 
                 InsetPanel {
                     VStack(alignment: .leading, spacing: Layout.innerSpacing) {
@@ -2251,6 +2346,8 @@ public struct RouteComparisonView: View {
                         .buttonStyle(.plain)
                         .opacity(isStartLiveDriveDisabled ? 0.55 : 1)
                         .disabled(isStartLiveDriveDisabled)
+
+                        liveDriveLegalityNote
                     }
                 }
             }
@@ -2291,7 +2388,7 @@ public struct RouteComparisonView: View {
             VStack(alignment: .leading, spacing: Layout.innerSpacing) {
                 mobileSectionHeader(
                     title: "Live dashboard",
-                    subtitle: "Large, glanceable metrics only while the trip is in progress."
+                    subtitle: "Current speed stays front and center while the trip is active."
                 )
 
                 VStack(spacing: 12) {
@@ -2317,14 +2414,14 @@ public struct RouteComparisonView: View {
 
                         liveDriveMetricCard(
                             title: liveDriveBelowTargetMetricTitle,
-                            value: Self.durationString(tracker.tripSummary.timeLostBelowTargetPace),
+                            value: Self.durationString(liveDriveDisplayedTimeLost),
                             tint: Palette.danger
                         )
 
                         liveDriveMetricCard(
                             title: "Trip balance",
-                            value: Self.netString(tracker.tripSummary.netTimeGain),
-                            tint: tracker.tripSummary.netTimeGain >= 0 ? Palette.success : Palette.danger,
+                            value: Self.netString(liveDriveDisplayedNetTimeGain),
+                            tint: liveDriveDisplayedNetTimeGain >= 0 ? Palette.success : Palette.danger,
                             emphasis: .strong
                         )
                         .gridCellColumns(2)
@@ -2414,9 +2511,124 @@ public struct RouteComparisonView: View {
 
                     liveDriveSummaryBlock(
                         title: "Extra fuel burned",
-                        value: Self.currencyString(tracker.tripSummary.fuelPenalty),
-                        tint: tracker.tripSummary.fuelPenalty > 0 ? Palette.danger : Palette.ink
+                        value: Self.currencyString(liveDriveDisplayedFuelPenalty),
+                        tint: liveDriveDisplayedFuelPenalty > 0 ? Palette.danger : Palette.ink
                     )
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var liveDriveFinishedResultSection: some View {
+        if let completedTrip = liveDriveFinishedTrip {
+            SectionCard {
+                VStack(alignment: .leading, spacing: Layout.innerSpacing) {
+                    mobileSectionHeader(
+                        title: "Trip result",
+                        subtitle: "Review the finished result, share it, or refine the fuel estimate."
+                    )
+
+                    InsetPanel {
+                        VStack(alignment: .leading, spacing: 16) {
+                            HStack(alignment: .center, spacing: 14) {
+                                worthItBrandLogoMobile
+                                    .frame(width: 82, height: 54, alignment: .center)
+
+                                VStack(alignment: .leading, spacing: 5) {
+                                    Text(completedTrip.displayRouteTitle)
+                                        .font(.headline.weight(.semibold))
+                                        .foregroundStyle(Palette.ink)
+
+                                    Text(completedTrip.routeLabel)
+                                        .font(panelDescriptionFont)
+                                        .foregroundStyle(Palette.cocoa)
+                                }
+                            }
+
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Net result")
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(Palette.cocoa)
+
+                                Text(Self.netString(completedTrip.netTimeGain))
+                                    .font(.system(size: 34, weight: .bold, design: .rounded))
+                                    .foregroundStyle(completedTrip.netTimeGain >= 0 ? Palette.success : Palette.danger)
+
+                                Text(liveDriveVerdict(for: completedTrip.netTimeGain))
+                                    .font(panelDescriptionFont)
+                                    .foregroundStyle(Palette.cocoa)
+                            }
+
+                            LazyVGrid(
+                                columns: [
+                                    GridItem(.flexible(), spacing: 12),
+                                    GridItem(.flexible(), spacing: 12)
+                                ],
+                                spacing: 12
+                            ) {
+                                SummaryCard(title: "Time saved", value: Self.durationString(completedTrip.timeSavedBySpeeding), tint: Palette.success, compact: true)
+                                SummaryCard(title: "Below target pace", value: Self.durationString(completedTrip.timeLostBelowTargetPace), tint: Palette.danger, compact: true)
+                                SummaryCard(title: "Net result", value: Self.netString(completedTrip.netTimeGain), tint: completedTrip.netTimeGain >= 0 ? Palette.success : Palette.danger, isProminent: true, compact: true)
+                                SummaryCard(title: "Fuel penalty", value: Self.currencyString(completedTrip.fuelPenalty), tint: completedTrip.fuelPenalty > 0 ? Palette.danger : Palette.ink, compact: true)
+                            }
+
+                            Button {
+                                shareFinishedTrip()
+                            } label: {
+                                Label("Share Trip Result", systemImage: "square.and.arrow.up")
+                                    .font(.headline)
+                                    .foregroundStyle(Color.white)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.horizontal, 18)
+                                    .padding(.vertical, 12)
+                                    .background(Palette.success, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            }
+                            .buttonStyle(.plain)
+
+                            Rectangle()
+                                .fill(Color.black.opacity(0.06))
+                                .frame(height: 1)
+
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Refine fuel result")
+                                    .font(.headline.weight(.semibold))
+                                    .foregroundStyle(Palette.ink)
+
+                                Text("Observed MPG (optional)")
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(Palette.cocoa)
+
+                                HStack(alignment: .center, spacing: 10) {
+                                    BrandedTextField(
+                                        text: $liveDrivePostTripObservedMPGText,
+                                        placeholder: completedTrip.estimatedObservedMPG.map { Self.speedString($0) } ?? "24",
+                                        fontSize: 24,
+                                        fontWeight: .bold,
+                                        compact: true
+                                    )
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                                    Text("mpg")
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(Palette.cocoa)
+
+                                    if !liveDrivePostTripObservedMPGText.isEmpty {
+                                        Button("Clear") {
+                                            liveDrivePostTripObservedMPGText = ""
+                                        }
+                                        .buttonStyle(.plain)
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(Palette.success)
+                                    }
+                                }
+
+                                Text(liveDriveObservedMPGHelperText(for: completedTrip))
+                                    .font(panelDescriptionFont)
+                                    .foregroundStyle(Palette.cocoa)
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -2426,8 +2638,8 @@ public struct RouteComparisonView: View {
         SectionCard {
             VStack(alignment: .leading, spacing: Layout.innerSpacing) {
                 mobileSectionHeader(
-                    title: "Trip complete",
-                    subtitle: "Review the final trip numbers before you end the session."
+                    title: "Drive details",
+                    subtitle: "Keep the finished summary, elapsed time, and distance available until you start a new trip."
                 )
 
                 LazyVGrid(
@@ -2439,28 +2651,35 @@ public struct RouteComparisonView: View {
                 ) {
                     liveDriveMetricCard(
                         title: "Distance driven",
-                        value: "\(Self.milesString(tracker.distanceTraveled)) mi",
+                        value: "\(Self.milesString(liveDriveFinishedTrip?.distanceDrivenMiles ?? tracker.distanceTraveled)) mi",
                         tint: Palette.ink
                     )
 
                     liveDriveMetricCard(
-                        title: "Time speeding",
+                        title: "Elapsed drive time",
+                        value: Self.durationString(liveDriveFinishedTrip?.elapsedDriveMinutes ?? tracker.tripDuration),
+                        tint: Palette.ink
+                    )
+
+                    liveDriveMetricCard(
+                        title: "Time above target",
                         value: Self.durationString(tracker.timeAboveTargetSpeed),
                         tint: Palette.ferrariRed
                     )
 
                     liveDriveMetricCard(
                         title: liveDriveBelowTargetMetricTitle,
-                        value: Self.durationString(tracker.tripSummary.timeLostBelowTargetPace),
+                        value: Self.durationString(liveDriveDisplayedTimeLost),
                         tint: Palette.danger
                     )
 
                     liveDriveMetricCard(
                         title: "Trip balance",
-                        value: Self.netString(tracker.tripSummary.netTimeGain),
-                        tint: tracker.tripSummary.netTimeGain >= 0 ? Palette.success : Palette.danger,
+                        value: Self.netString(liveDriveDisplayedNetTimeGain),
+                        tint: liveDriveDisplayedNetTimeGain >= 0 ? Palette.success : Palette.danger,
                         emphasis: .strong
                     )
+                    .gridCellColumns(2)
                 }
             }
         }
@@ -2471,17 +2690,47 @@ public struct RouteComparisonView: View {
             VStack(alignment: .leading, spacing: Layout.innerSpacing) {
                 mobileSectionHeader(
                     title: liveDriveScreenState == .driving ? "Drive controls" : "Trip controls",
-                    subtitle: liveDriveScreenState == .driving
-                        ? "Keep controls minimal while the trip is active."
-                        : "End the trip to return to the setup screen."
+                    subtitle: liveDriveControlsSubtitle
                 )
 
                 VStack(spacing: 12) {
                     if liveDriveScreenState == .driving {
+                        if tracker.isTracking {
+                            Button {
+                                pauseLiveDrive()
+                            } label: {
+                                Label("Pause", systemImage: "pause.fill")
+                                    .font(.headline)
+                                    .foregroundStyle(Color.white)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.horizontal, 18)
+                                    .padding(.vertical, 14)
+                                    .background(Palette.ink, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            }
+                            .buttonStyle(.plain)
+                        }
+
+                        if tracker.isPaused {
+                            Button {
+                                resumeLiveDrive()
+                            } label: {
+                                Label("Resume", systemImage: "play.fill")
+                                    .font(.headline)
+                                    .foregroundStyle(Color.white)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.horizontal, 18)
+                                    .padding(.vertical, 14)
+                                    .background(Palette.success, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+
+                    if liveDriveScreenState == .tripComplete {
                         Button {
-                            stopLiveDrive()
+                            isTripHistoryPresented = true
                         } label: {
-                            Label("Stop Drive", systemImage: "pause.fill")
+                            Label("View Trip History", systemImage: "clock.arrow.circlepath")
                                 .font(.headline)
                                 .foregroundStyle(Color.white)
                                 .frame(maxWidth: .infinity)
@@ -2490,20 +2739,39 @@ public struct RouteComparisonView: View {
                                 .background(Palette.ink, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                         }
                         .buttonStyle(.plain)
+
+                        Button {
+                            startNewLiveDrive()
+                        } label: {
+                            Label("Start New Trip", systemImage: "plus.circle.fill")
+                                .font(.headline)
+                                .foregroundStyle(Color.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.horizontal, 18)
+                                .padding(.vertical, 14)
+                                .background(Palette.success, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        Button {
+                            endLiveDrive()
+                        } label: {
+                            Label("End Trip", systemImage: "stop.fill")
+                                .font(.headline)
+                                .foregroundStyle(Palette.danger)
+                                .frame(maxWidth: .infinity)
+                                .padding(.horizontal, 18)
+                                .padding(.vertical, 14)
+                                .background(Palette.dangerBackground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                        .stroke(Palette.danger.opacity(0.18), lineWidth: 1)
+                                }
+                        }
+                        .buttonStyle(.plain)
                     }
 
-                    Button(role: .destructive) {
-                        endLiveDrive()
-                    } label: {
-                        Label("End Trip", systemImage: "stop.fill")
-                            .font(.headline)
-                            .foregroundStyle(Color.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.horizontal, 18)
-                            .padding(.vertical, 14)
-                            .background(Palette.danger, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    }
-                    .buttonStyle(.plain)
+                    liveDriveLegalityNote
                 }
             }
         }
@@ -3168,31 +3436,88 @@ public struct RouteComparisonView: View {
     }
 
     private var liveDriveNavigationProviderSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .center, spacing: 12) {
-                Label("Navigation App", systemImage: "arrow.triangle.turn.up.right.circle.fill")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Palette.ink)
+        VStack(alignment: .leading, spacing: 10) {
+            Label("Navigation App", systemImage: "arrow.triangle.turn.up.right.circle.fill")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Palette.ink)
 
-                Spacer(minLength: 12)
+            VStack(spacing: 8) {
+                ForEach(NavigationProvider.allCases) { provider in
+                    let isSelected = preferredNavigationProvider == provider
 
-                Picker("Navigation app", selection: preferredNavigationProviderBinding) {
-                    ForEach(NavigationProvider.allCases) { provider in
-                        Text(provider.rawValue).tag(provider)
+                    Button {
+                        preferredNavigationProviderBinding.wrappedValue = provider
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: navigationProviderIconName(for: provider))
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(isSelected ? Palette.success : Palette.cocoa)
+                                .frame(width: 18)
+
+                            Text(provider.rawValue)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(Palette.ink)
+
+                            Spacer(minLength: 12)
+
+                            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(isSelected ? Palette.success : Palette.cocoa.opacity(0.5))
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(
+                            isSelected ? Palette.successBackground : Palette.panel,
+                            in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        )
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .stroke(isSelected ? Palette.success.opacity(0.24) : Palette.surfaceBorder, lineWidth: 1)
+                        }
                     }
+                    .buttonStyle(.plain)
                 }
-                .pickerStyle(.menu)
-                .labelsHidden()
-                .tint(Palette.ink)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(Palette.successBackground, in: Capsule())
             }
 
-            Text("TimeThrottle starts tracking first, then opens your navigation app.")
+            Text(liveDriveNavigationProviderHelperText)
                 .font(panelDescriptionFont)
                 .foregroundStyle(Palette.cocoa)
         }
+    }
+
+    private func navigationProviderIconName(for provider: NavigationProvider) -> String {
+        switch provider {
+        case .appleMaps:
+            return "map.fill"
+        case .googleMaps:
+            return "globe.americas.fill"
+        case .waze:
+            return "car.fill"
+        case .askEveryTime:
+            return "questionmark.circle.fill"
+        }
+    }
+
+    private var tripHistoryShortcutButton: some View {
+        Button {
+            isTripHistoryPresented = true
+        } label: {
+            Label("Trips", systemImage: "clock.arrow.circlepath")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Palette.ink)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(Palette.successBackground, in: Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var liveDriveLegalityNote: some View {
+        Text("Always obey traffic laws and road conditions.")
+            .font(.footnote.weight(.medium))
+            .foregroundStyle(Palette.cocoa)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var liveDriveAssumptionsSection: some View {
@@ -3460,7 +3785,69 @@ public struct RouteComparisonView: View {
     }
 
     private func shareResult() {
+        shareSheetItems = [worthItShareText]
         isShareSheetPresented = true
+    }
+
+    private func makeCompletedTripRecord() -> CompletedTripRecord? {
+        guard let routeContext = liveDriveRouteContext else { return nil }
+
+        let selectedRoute = routeContext.selectedRoute
+        let sourceName = selectedRoute?.sourceName ?? routeContext.routeLabel
+        let destinationName = selectedRoute?.destinationName ?? "Destination"
+        let averageTripSpeed = tracker.tripDuration > 0
+            ? tracker.distanceTraveled / (tracker.tripDuration / 60)
+            : tracker.analysisResult.averageTripSpeed
+        let estimatedObservedMPG = liveDriveEstimatedObservedMPG
+
+        return CompletedTripRecord(
+            completedAt: Date(),
+            sourceName: sourceName,
+            destinationName: destinationName,
+            routeLabel: routeContext.routeLabel,
+            baselineRouteETAMinutes: routeContext.baselineRouteETAMinutes,
+            baselineRouteDistanceMiles: routeContext.baselineRouteDistanceMiles,
+            distanceDrivenMiles: tracker.distanceTraveled,
+            elapsedDriveMinutes: tracker.tripDuration,
+            averageTripSpeed: averageTripSpeed,
+            targetSpeed: liveDriveTargetSpeed ?? tracker.configuration.targetSpeed,
+            ratedMPG: liveDriveMPG ?? tracker.configuration.fuelModel?.ratedMPG ?? 0,
+            estimatedObservedMPG: estimatedObservedMPG,
+            enteredObservedMPG: liveDriveObservedMPGEntry,
+            fuelPricePerGallon: liveDriveFuelPrice ?? tracker.configuration.fuelModel?.fuelPricePerGallon ?? 0,
+            timeSavedBySpeeding: tracker.tripSummary.timeSavedBySpeeding,
+            timeLostBelowTargetPace: tracker.tripSummary.timeLostBelowTargetPace,
+            netTimeGain: tracker.tripSummary.netTimeGain,
+            fuelPenalty: CompletedTripRecord.fuelPenalty(
+                distanceMiles: tracker.distanceTraveled > 0 ? tracker.distanceTraveled : routeContext.baselineRouteDistanceMiles,
+                ratedMPG: liveDriveMPG ?? tracker.configuration.fuelModel?.ratedMPG ?? 0,
+                observedMPG: liveDriveObservedMPGEntry ?? estimatedObservedMPG,
+                fuelPricePerGallon: liveDriveFuelPrice ?? tracker.configuration.fuelModel?.fuelPricePerGallon ?? 0
+            )
+        )
+    }
+
+    private func liveDriveObservedMPGHelperText(for completedTrip: CompletedTripRecord) -> String {
+        if completedTrip.enteredObservedMPG != nil {
+            return "Fuel penalty is using your observed MPG."
+        }
+
+        if let estimatedObservedMPG = completedTrip.estimatedObservedMPG {
+            return "Leave this blank to keep the live estimate of \(Self.speedString(estimatedObservedMPG)) mpg."
+        }
+
+        return "Enter observed MPG if you want to recalculate true fuel burn after the drive."
+    }
+
+    private func finishedTripShareText(for completedTrip: CompletedTripRecord) -> String {
+        """
+        TimeThrottle trip result
+        \(completedTrip.displayRouteTitle)
+        Time saved: \(Self.durationString(completedTrip.timeSavedBySpeeding))
+        Time under target pace: \(Self.durationString(completedTrip.timeLostBelowTargetPace))
+        Net result: \(Self.netString(completedTrip.netTimeGain))
+        Fuel penalty: \(Self.currencyString(completedTrip.fuelPenalty))
+        """
     }
 
     private func liveDriveMetricCard(
@@ -3530,25 +3917,31 @@ public struct RouteComparisonView: View {
         return arrival.formatted(date: .omitted, time: .shortened)
     }
 
-    private var liveDriveVerdict: String {
-        if tracker.tripSummary.netTimeGain > 10 {
+    private func liveDriveVerdict(for netTimeGain: Double) -> String {
+        if netTimeGain > 10 {
             return "You are still ahead after the time lost below target pace."
         }
 
-        if tracker.tripSummary.netTimeGain > 0 {
+        if netTimeGain > 0 {
             return "You only gained a little after the time lost below target pace."
         }
 
         return "Time lost below target pace erased the gain."
     }
 
+    private var liveDriveVerdict: String {
+        liveDriveVerdict(for: liveDriveDisplayedNetTimeGain)
+    }
+
     private var liveDriveVerdictTint: Color {
-        tracker.tripSummary.netTimeGain > 0 ? Palette.success : Palette.danger
+        liveDriveDisplayedNetTimeGain > 0 ? Palette.success : Palette.danger
     }
 
     private func startLiveDrive() {
         guard let configuration = liveDriveConfigurationForStart,
               let selectedRoute = liveDriveSetupRoute else { return }
+        liveDriveFinishedTrip = nil
+        liveDrivePostTripObservedMPGText = ""
         liveDriveRouteContext = LiveDriveRouteContext(
             routes: liveDriveSetupRouteOptions,
             selectedRouteID: selectedRoute.id,
@@ -3568,17 +3961,35 @@ public struct RouteComparisonView: View {
         }
     }
 
-    private func stopLiveDrive() {
+    private func pauseLiveDrive() {
         withAnimation(.snappy(duration: 0.24, extraBounce: 0)) {
-            tracker.stopTrip()
+            tracker.pauseTrip()
+        }
+    }
+
+    private func resumeLiveDrive() {
+        withAnimation(.snappy(duration: 0.24, extraBounce: 0)) {
+            tracker.resumeTrip()
         }
     }
 
     private func endLiveDrive() {
         withAnimation(.snappy(duration: 0.24, extraBounce: 0)) {
+            liveDriveNavigationProviderPending = nil
+            liveDriveNavigationHandoffMessage = nil
+            isNavigationProviderChoicePresented = false
+            tracker.endTrip()
+            finalizeCompletedTrip()
+        }
+    }
+
+    private func startNewLiveDrive() {
+        withAnimation(.snappy(duration: 0.24, extraBounce: 0)) {
             liveDriveRouteContext = nil
             liveDriveNavigationProviderPending = nil
             liveDriveNavigationHandoffMessage = nil
+            liveDriveFinishedTrip = nil
+            liveDrivePostTripObservedMPGText = ""
             isNavigationProviderChoicePresented = false
             tracker.resetTrip()
         }
@@ -3611,7 +4022,7 @@ public struct RouteComparisonView: View {
         case .askEveryTime:
             liveDriveNavigationProviderPending = nil
             isNavigationProviderChoicePresented = true
-        case .appleMaps, .googleMaps:
+        case .appleMaps, .googleMaps, .waze:
             liveDriveNavigationProviderPending = nil
             Task {
                 let outcome = await NavigationHandoffService.handoff(provider: provider, route: route)
@@ -3659,6 +4070,8 @@ public struct RouteComparisonView: View {
             return "Apple Maps did not open because Always Location is required for background tracking. Tracking is still active in TimeThrottle."
         case .googleMaps:
             return "Google Maps did not open because Always Location is required for background tracking. Tracking is still active in TimeThrottle."
+        case .waze:
+            return "Waze did not open because Always Location is required for background tracking. Tracking is still active in TimeThrottle."
         case .askEveryTime:
             return "External navigation did not open because Always Location is required for background tracking. Tracking is still active in TimeThrottle."
         }
@@ -3670,9 +4083,31 @@ public struct RouteComparisonView: View {
             return "Apple Maps will open after Always Location is enabled. Until then, stay in TimeThrottle."
         case .googleMaps:
             return "Google Maps will open after Always Location is enabled. Until then, stay in TimeThrottle."
+        case .waze:
+            return "Waze will open after Always Location is enabled. Until then, stay in TimeThrottle."
         case .askEveryTime:
             return "Choose an external navigation app after Always Location is enabled."
         }
+    }
+
+    private func finalizeCompletedTrip() {
+        guard let completedTrip = makeCompletedTripRecord() else { return }
+        liveDriveFinishedTrip = completedTrip
+        liveDrivePostTripObservedMPGText = completedTrip.enteredObservedMPG.map { Self.speedString($0) } ?? ""
+        tripHistoryStore.save(completedTrip)
+    }
+
+    private func updateFinishedTripObservedMPG() {
+        guard let completedTrip = liveDriveFinishedTrip else { return }
+        let updatedTrip = completedTrip.updatingObservedMPG(liveDriveObservedMPGEntry)
+        liveDriveFinishedTrip = updatedTrip
+        tripHistoryStore.save(updatedTrip)
+    }
+
+    private func shareFinishedTrip() {
+        guard let completedTrip = liveDriveFinishedTrip else { return }
+        shareSheetItems = [finishedTripShareText(for: completedTrip)]
+        isShareSheetPresented = true
     }
 
     private func openLiveDriveSettings() {
@@ -3694,6 +4129,7 @@ public struct RouteComparisonView: View {
         }
 
         fromResolvedPlace = nil
+        resetCalculatedRouteState()
 
         if focusedRouteAddressField == .from {
             autocompleteController.updateQuery(newValue, for: .from)
@@ -3708,10 +4144,19 @@ public struct RouteComparisonView: View {
         }
 
         toResolvedPlace = nil
+        resetCalculatedRouteState()
 
         if focusedRouteAddressField == .to {
             autocompleteController.updateQuery(newValue, for: .to)
         }
+    }
+
+    private func clearDestinationField() {
+        toAddressText = ""
+        toResolvedPlace = nil
+        focusedRouteAddressField = .to
+        autocompleteController.clear(field: .to)
+        resetCalculatedRouteState()
     }
 
     private func handleAddressFieldSubmit(_ field: RouteAddressField) {
@@ -3768,12 +4213,21 @@ public struct RouteComparisonView: View {
         }
     }
 
+    private func resetCalculatedRouteState() {
+        routeLookupGeneration += 1
+        routeOptions = []
+        selectedRouteID = nil
+        hoveredRouteID = nil
+        routeErrorMessage = nil
+        isCalculatingRoute = false
+        captureScrollTarget = nil
+    }
+
     private func calculateAppleMapsRoute() {
         routeErrorMessage = nil
 
         guard let sourceEndpoint = routeSourceEndpoint else {
-            routeOptions = []
-            selectedRouteID = nil
+            resetCalculatedRouteState()
             routeErrorMessage = routeOriginInputMode == .currentLocation
                 ? RouteLookupError.currentLocationUnavailable.localizedDescription
                 : RouteLookupError.blankAddress("starting").localizedDescription
@@ -3781,12 +4235,13 @@ public struct RouteComparisonView: View {
         }
 
         guard let destinationEndpoint = routeDestinationEndpoint else {
-            routeOptions = []
-            selectedRouteID = nil
+            resetCalculatedRouteState()
             routeErrorMessage = RouteLookupError.blankAddress("destination").localizedDescription
             return
         }
 
+        let lookupGeneration = routeLookupGeneration + 1
+        routeLookupGeneration = lookupGeneration
         isCalculatingRoute = true
 
         Task {
@@ -3797,8 +4252,10 @@ public struct RouteComparisonView: View {
                 )
 
                 await MainActor.run {
+                    guard lookupGeneration == routeLookupGeneration else { return }
                     routeOptions = estimates
                     selectedRouteID = estimates.first?.id
+                    hoveredRouteID = nil
                     routeErrorMessage = nil
                     isCalculatingRoute = false
                     if captureSectionName == "routePreview" {
@@ -3807,8 +4264,8 @@ public struct RouteComparisonView: View {
                 }
             } catch {
                 await MainActor.run {
-                    routeOptions = []
-                    selectedRouteID = nil
+                    guard lookupGeneration == routeLookupGeneration else { return }
+                    resetCalculatedRouteState()
                     routeErrorMessage = error.localizedDescription
                     isCalculatingRoute = false
                 }

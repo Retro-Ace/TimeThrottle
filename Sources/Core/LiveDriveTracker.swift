@@ -44,6 +44,8 @@ public struct LiveDriveSnapshot: Equatable, Sendable {
     public var expectedArrivalTime: Date?
     public var tripSummary: TripSummary
     public var sampleCount: Int
+    public var isPaused: Bool
+    public var didFinishTrip: Bool
 
     public init(
         currentSpeed: Double = 0,
@@ -54,7 +56,9 @@ public struct LiveDriveSnapshot: Equatable, Sendable {
         estimatedTimeLostBelowTargetPace: Double = 0,
         expectedArrivalTime: Date? = nil,
         tripSummary: TripSummary = TripSummary(),
-        sampleCount: Int = 0
+        sampleCount: Int = 0,
+        isPaused: Bool = false,
+        didFinishTrip: Bool = false
     ) {
         self.currentSpeed = currentSpeed
         self.distanceTraveled = distanceTraveled
@@ -65,6 +69,8 @@ public struct LiveDriveSnapshot: Equatable, Sendable {
         self.expectedArrivalTime = expectedArrivalTime
         self.tripSummary = tripSummary
         self.sampleCount = sampleCount
+        self.isPaused = isPaused
+        self.didFinishTrip = didFinishTrip
     }
 }
 
@@ -96,6 +102,8 @@ public final class LiveDriveTracker: NSObject, ObservableObject {
     @Published public private(set) var tripSummary: TripSummary = TripSummary()
     @Published public private(set) var analysisResult: TripAnalysisResult = TripAnalysisResult()
     @Published public private(set) var isTracking = false
+    @Published public private(set) var isPaused = false
+    @Published public private(set) var didFinishTrip = false
     @Published public private(set) var permissionState: LiveDrivePermissionState
 
     public var configuration: LiveDriveConfiguration {
@@ -107,12 +115,14 @@ public final class LiveDriveTracker: NSObject, ObservableObject {
 
     private let locationManager = CLLocationManager()
     private var analysisState = TripAnalysisState()
-    private var tripStartTimestamp: Date?
     private var lastAcceptedLocation: CLLocation?
     private var lastAcceptedSampleTimestamp: Date?
     private var lastSummaryComputation: Date?
     private var pendingTripStart = false
     private var acceptedLocationCount = 0
+    private var accumulatedActiveDuration: TimeInterval = 0
+    private var currentActiveIntervalStartedAt: Date?
+    private var elapsedTimer: Timer?
 
     public init(configuration: LiveDriveConfiguration = LiveDriveConfiguration()) {
         self.configuration = configuration
@@ -124,6 +134,8 @@ public final class LiveDriveTracker: NSObject, ObservableObject {
     }
 
     public func startTrip(requiresBackgroundContinuation: Bool = false) {
+        guard !isTracking, !isPaused else { return }
+        prepareForNewTrip()
         pendingTripStart = true
 
         switch locationManager.authorizationStatus {
@@ -146,32 +158,62 @@ public final class LiveDriveTracker: NSObject, ObservableObject {
         case .denied:
             permissionState = .denied
             pendingTripStart = false
-            isTracking = false
         case .restricted:
             permissionState = .restricted
             pendingTripStart = false
-            isTracking = false
         @unknown default:
             permissionState = .notDetermined
             pendingTripStart = false
-            isTracking = false
         }
     }
 
-    public func stopTrip() {
+    public func pauseTrip() {
         guard isTracking else { return }
         pendingTripStart = false
         isTracking = false
+        isPaused = true
+        currentSpeed = 0
+        finishActiveInterval(at: Date())
+        lastAcceptedLocation = nil
+        lastAcceptedSampleTimestamp = nil
+        locationManager.stopUpdatingLocation()
+        updateBackgroundLocationBehavior()
+        recomputeSummary(force: true)
+    }
+
+    public func resumeTrip() {
+        guard isPaused, !didFinishTrip else { return }
+        isPaused = false
+        beginTrackingUpdates()
+    }
+
+    public func endTrip() {
+        guard isTracking || isPaused || hasTripData else { return }
+        pendingTripStart = false
+        if isTracking {
+            finishActiveInterval(at: Date())
+        } else {
+            updateTripDuration(now: Date())
+        }
+        isTracking = false
+        isPaused = false
+        didFinishTrip = true
         currentSpeed = 0
         locationManager.stopUpdatingLocation()
         updateBackgroundLocationBehavior()
         recomputeSummary(force: true)
     }
 
+    public func stopTrip() {
+        pauseTrip()
+    }
+
     public func resetTrip() {
         locationManager.stopUpdatingLocation()
         pendingTripStart = false
         isTracking = false
+        isPaused = false
+        didFinishTrip = false
         currentSpeed = 0
         distanceTraveled = 0
         tripDuration = 0
@@ -182,11 +224,13 @@ public final class LiveDriveTracker: NSObject, ObservableObject {
         tripSummary = TripSummary()
         analysisResult = TripAnalysisResult()
         analysisState = TripAnalysisState()
-        tripStartTimestamp = nil
         lastAcceptedLocation = nil
         lastAcceptedSampleTimestamp = nil
         lastSummaryComputation = nil
         acceptedLocationCount = 0
+        accumulatedActiveDuration = 0
+        currentActiveIntervalStartedAt = nil
+        invalidateElapsedTimer()
         updateBackgroundLocationBehavior()
     }
 
@@ -220,8 +264,19 @@ public final class LiveDriveTracker: NSObject, ObservableObject {
             estimatedTimeLostBelowTargetPace: estimatedTimeLostBelowTargetPace,
             expectedArrivalTime: expectedArrivalTime,
             tripSummary: tripSummary,
-            sampleCount: acceptedLocationCount
+            sampleCount: acceptedLocationCount,
+            isPaused: isPaused,
+            didFinishTrip: didFinishTrip
         )
+    }
+
+    private var hasTripData: Bool {
+        distanceTraveled > 0 || tripDuration > 0 || acceptedLocationCount > 0
+    }
+
+    private func prepareForNewTrip() {
+        resetTrip()
+        didFinishTrip = false
     }
 
     private func applyConfiguration() {
@@ -234,7 +289,10 @@ public final class LiveDriveTracker: NSObject, ObservableObject {
 
     private func beginTrackingUpdates() {
         isTracking = true
+        isPaused = false
+        didFinishTrip = false
         pendingTripStart = false
+        startActiveInterval(at: Date())
         updateBackgroundLocationBehavior()
         locationManager.startUpdatingLocation()
     }
@@ -243,6 +301,41 @@ public final class LiveDriveTracker: NSObject, ObservableObject {
         let allowsBackgroundContinuation = isTracking && permissionState.supportsBackgroundContinuation
         locationManager.allowsBackgroundLocationUpdates = allowsBackgroundContinuation
         locationManager.showsBackgroundLocationIndicator = allowsBackgroundContinuation
+    }
+
+    private func startActiveInterval(at date: Date) {
+        currentActiveIntervalStartedAt = date
+        updateTripDuration(now: date)
+        startElapsedTimer()
+    }
+
+    private func finishActiveInterval(at date: Date) {
+        if let currentActiveIntervalStartedAt {
+            accumulatedActiveDuration += max(date.timeIntervalSince(currentActiveIntervalStartedAt), 0)
+        }
+        currentActiveIntervalStartedAt = nil
+        invalidateElapsedTimer()
+        updateTripDuration(now: date)
+    }
+
+    private func updateTripDuration(now: Date) {
+        let activeInterval = currentActiveIntervalStartedAt.map { max(now.timeIntervalSince($0), 0) } ?? 0
+        tripDuration = max((accumulatedActiveDuration + activeInterval) / 60, 0)
+    }
+
+    private func startElapsedTimer() {
+        invalidateElapsedTimer()
+        elapsedTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.updateTripDuration(now: Date())
+            }
+        }
+        RunLoop.main.add(elapsedTimer!, forMode: .common)
+    }
+
+    private func invalidateElapsedTimer() {
+        elapsedTimer?.invalidate()
+        elapsedTimer = nil
     }
 
     private func handleLocation(_ location: CLLocation) {
@@ -258,10 +351,6 @@ public final class LiveDriveTracker: NSObject, ObservableObject {
 
         let speedMilesPerHour = resolvedSpeedMilesPerHour(for: location)
         let previousLocation = lastAcceptedLocation
-
-        if tripStartTimestamp == nil {
-            tripStartTimestamp = location.timestamp
-        }
 
         if let previousLocation {
             let elapsedMinutes = max(location.timestamp.timeIntervalSince(previousLocation.timestamp) / 60, 0)
@@ -283,7 +372,7 @@ public final class LiveDriveTracker: NSObject, ObservableObject {
         }
 
         currentSpeed = speedMilesPerHour
-        tripDuration = max(location.timestamp.timeIntervalSince(tripStartTimestamp ?? location.timestamp) / 60, 0)
+        updateTripDuration(now: location.timestamp)
         lastAcceptedLocation = location
         lastAcceptedSampleTimestamp = location.timestamp
         acceptedLocationCount += 1
@@ -381,8 +470,10 @@ extension LiveDriveTracker: CLLocationManagerDelegate {
             case .denied, .restricted:
                 self.pendingTripStart = false
                 self.isTracking = false
+                self.isPaused = false
                 self.updateBackgroundLocationBehavior()
                 self.locationManager.stopUpdatingLocation()
+                self.invalidateElapsedTimer()
             case .notDetermined:
                 break
             @unknown default:

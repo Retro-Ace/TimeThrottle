@@ -25,10 +25,11 @@
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>TimeThrottle uses Apple Maps routing to compare trip timing for your route.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>TimeThrottle needs background location to keep Live Drive tracking active while Apple Maps or Google Maps is open.</string>
+	<string>TimeThrottle needs background location to keep Live Drive tracking active while Apple Maps, Google Maps, or Waze is open.</string>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>comgooglemaps</string>
+		<string>waze</string>
 	</array>
 	<key>UIBackgroundModes</key>
 	<array>

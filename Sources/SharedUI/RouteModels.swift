@@ -82,6 +82,7 @@ public enum Mode: String, CaseIterable, Identifiable, Sendable {
 public enum NavigationProvider: String, CaseIterable, Identifiable, Sendable {
     case appleMaps = "Apple Maps"
     case googleMaps = "Google Maps"
+    case waze = "Waze"
     case askEveryTime = "Ask Every Time"
 
     public var id: String { rawValue }
@@ -92,8 +93,10 @@ public enum NavigationProvider: String, CaseIterable, Identifiable, Sendable {
             return "Open Apple Maps directions after TimeThrottle starts tracking."
         case .googleMaps:
             return "Open Google Maps if it is installed, otherwise fall back to the web route."
+        case .waze:
+            return "Open Waze if it is installed, otherwise fall back to the web route."
         case .askEveryTime:
-            return "Choose Apple Maps or Google Maps when a Live Drive starts."
+            return "Choose Apple Maps, Google Maps, or Waze when a Live Drive starts."
         }
     }
 }

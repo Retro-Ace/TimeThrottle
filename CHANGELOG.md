@@ -2,6 +2,41 @@
 
 All notable release-facing changes to **TimeThrottle** should be documented in this file.
 
+## v1.3 - March 22, 2026
+
+### What's New
+
+Use this block for GitHub releases, TestFlight notes, or App Store Connect:
+
+> **TimeThrottle 1.3**
+>  
+> - Added Pause, Resume, and End Trip controls for Live Drive
+> - Finished trips now stay visible after completion
+> - Added optional Observed MPG fuel refinement after a drive
+> - Added Trip History for completed Live Drive trips
+> - Added a shareable finished-trip summary
+> - Added Waze as a navigation handoff option
+> - Improved the navigation provider selector and trip-status timing
+> - Added a destination clear control during route setup
+> - Added a small reminder to obey traffic laws and road conditions
+
+### Release Notes
+
+- Kept Apple Maps as the route lookup and ETA baseline layer
+- Added Pause / Resume / End Trip control flow for active Live Drive sessions
+- Kept finished trips visible after completion instead of wiping the result immediately
+- Added optional Observed MPG refinement to recalculate post-trip fuel penalty
+- Added local Trip History for completed Live Drive trips
+- Added a shareable finished-trip summary for the iOS share sheet
+- Added Waze alongside Apple Maps, Google Maps, and Ask Every Time for navigation handoff
+- Improved the Live Drive provider selector and elapsed-trip status treatment
+- Added a destination clear control and tighter route-state reset behavior
+- Added a small safety note: “Always obey traffic laws and road conditions.”
+
+### Release Positioning
+
+TimeThrottle 1.3 is an iPhone pace-analysis release focused on Live Drive completion and post-trip usefulness. Apple Maps still provides route lookup and ETA baseline planning, while Live Drive can optionally hand off navigation to Apple Maps, Google Maps, or Waze and continue tracking pace tradeoffs without claiming built-in turn-by-turn navigation.
+
 ## v1.2 - March 19, 2026
 
 ### What's New

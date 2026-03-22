@@ -7,29 +7,30 @@
 <p align="center">
 How much time did speed really buy you?
 </p>
-# TimeThrottle
 
-**TimeThrottle** is an iPhone pace-analysis app that helps drivers understand what faster driving actually buys them.
+**TimeThrottle** is an iPhone pace-analysis app that helps drivers understand what faster driving actually bought them.
 
-The app uses Apple Maps for route lookup and ETA baseline planning, then compares pace tradeoffs such as time saved, time under target pace, fuel penalty, ticket-risk estimate, and overall trip balance.
+Apple Maps provides route lookup, autocomplete, route options, and the ETA baseline. TimeThrottle then tracks or compares pace tradeoffs such as time saved, time under target pace, fuel penalty, ticket-risk estimate, and overall trip balance.
 
-TimeThrottle does **not** provide built-in turn-by-turn navigation. In **Live Drive**, it can hand off navigation to Apple Maps or Google Maps while TimeThrottle continues tracking the trip and comparing pace tradeoffs.
+TimeThrottle does **not** provide built-in turn-by-turn navigation. In **Live Drive**, it can hand off navigation to Apple Maps, Google Maps, or Waze while TimeThrottle continues tracking the trip and comparing pace tradeoffs.
 
 > **How much time did speed really buy you?**
 
-## What's New in v1.2
+## What's New in v1.3
 
 Use this block for GitHub, TestFlight, and App Store Connect release copy:
 
-> **TimeThrottle 1.2**
+> **TimeThrottle 1.3**
 >  
-> - Added external navigation handoff for Live Drive
-> - Choose Apple Maps, Google Maps, or Ask Every Time
-> - Current Location is now the default route start
-> - Added Apple Maps-style address autocomplete
-> - Cleaned up the Live Drive setup flow
-> - Tightened truthful pace-based wording across the app
-> - Refined Live Drive, Route, and Manual into a more consistent iPhone experience
+> - Added Pause, Resume, and End Trip controls for Live Drive
+> - Finished trips now stay visible after completion
+> - Added optional Observed MPG fuel refinement after a drive
+> - Added Trip History for completed Live Drive trips
+> - Added a shareable finished-trip summary
+> - Added Waze as a navigation handoff option
+> - Improved the navigation provider selector and trip-status timing
+> - Added a destination clear control during route setup
+> - Added a small safety reminder to obey traffic laws and road conditions
 
 ## Core Modes
 
@@ -42,9 +43,12 @@ It can:
 - Use Current Location as the default route start
 - Offer Apple Maps-style address autocomplete for route setup
 - Track speed, distance, and trip progress with iPhone location services
+- Pause, resume, and end the active trip without losing the finished result
 - Compare live projected pace against the Apple ETA baseline
 - Estimate time saved, time under target pace, fuel penalty, and trip balance
-- Hand off navigation to Apple Maps or Google Maps without claiming built-in navigation
+- Keep completed trips visible for review, sharing, and optional Observed MPG refinement
+- Save completed Live Drive trips into local Trip History
+- Hand off navigation to Apple Maps, Google Maps, or Waze without claiming built-in navigation
 
 ### Route
 
@@ -70,16 +74,17 @@ It includes:
 - Fuel assumptions
 - Pace, fuel, and ticket-risk tradeoff output
 
-## Navigation Handoff in v1.2
+## Navigation Handoff in v1.3
 
-TimeThrottle 1.2 keeps Apple Maps as the planning layer and Apple ETA baseline source.
+TimeThrottle 1.3 still keeps Apple Maps as the planning layer and Apple ETA baseline source.
 
 During Live Drive, users can choose:
 - **Apple Maps**
 - **Google Maps**
+- **Waze**
 - **Ask Every Time**
 
-When a Live Drive starts, TimeThrottle starts trip tracking first, then opens the selected navigation app if background continuity requirements are met. If Google Maps is not installed, the app falls back cleanly instead of leaving the user stuck.
+When a Live Drive starts, TimeThrottle starts trip tracking first, then opens the selected navigation app if background continuity requirements are met. If Google Maps or Waze is not installed, the app falls back cleanly instead of leaving the user stuck.
 
 ## Product Positioning
 
@@ -92,13 +97,21 @@ The app is designed to answer questions like:
 - What was the fuel penalty?
 - Was the overall tradeoff worth it?
 
+## Safety Note
+
+TimeThrottle includes a small reminder during Live Drive and trip review screens:
+
+> **Always obey traffic laws and road conditions.**
+
 ## Privacy at a Glance
 
 - No user account is required
-- Apple Maps is used for route lookup, autocomplete resolution, and ETA baseline planning
+- Apple Maps is used for route lookup, autocomplete resolution, route options, and ETA baseline planning
 - Live Drive uses iPhone location services when the user enables them
 - External navigation handoff is optional
+- Completed Live Drive trips are stored locally on-device
 - The preferred navigation app choice is stored locally on-device
+- Sharing only happens when the user explicitly opens the iOS share sheet
 
 For the full policy, see [privacy-policy.md](/Users/anthonylarosa/SPEED%20APP/privacy-policy.md).
 
@@ -107,19 +120,20 @@ For the full policy, see [privacy-policy.md](/Users/anthonylarosa/SPEED%20APP/pr
 - **Platform:** iPhone / iOS only
 - **Deployment target:** iOS 17+
 - **Bundle ID:** `com.timethrottle.app`
-- **Current release:** v1.2
-- **Current build:** 2
+- **Current release:** v1.3
+- **Current build:** 3
 - **Primary app target:** `TimeThrottle.xcodeproj`
 - **Primary shared UI:** `Sources/SharedUI/RouteComparisonView.swift`
 
 ### Core Components
 
 - `LiveDriveTracker.swift` — Live Drive tracking, permission state, speed, and distance updates
+- `TripHistoryStore.swift` — local persistence for completed Live Drive trips
 - `TripAnalysisEngine.swift` — live pace/trip summary generation
 - `SpeedCostCalculator.swift` — route/manual speed-cost math
 - `TimeThrottleCalculator.swift` — manual and segment-based comparison math
 - `RouteModels.swift` — shared route, lookup, autocomplete, and mode models
-- `NavigationHandoffService.swift` — Apple Maps / Google Maps / Ask Every Time handoff behavior
+- `NavigationHandoffService.swift` — Apple Maps / Google Maps / Waze / Ask Every Time handoff behavior
 
 ## Repository Layout
 

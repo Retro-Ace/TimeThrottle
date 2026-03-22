@@ -16,6 +16,8 @@ public enum NavigationHandoffOutcome: Equatable, Sendable {
             switch provider {
             case .googleMaps:
                 return "Google Maps is not installed. Opening the web route instead."
+            case .waze:
+                return "Waze is not installed. Opening the web route instead."
             case .appleMaps, .askEveryTime:
                 return nil
             }
@@ -23,6 +25,8 @@ public enum NavigationHandoffOutcome: Equatable, Sendable {
             switch provider {
             case .googleMaps:
                 return "Could not open Google Maps. Live Drive tracking is still running."
+            case .waze:
+                return "Could not open Waze. Live Drive tracking is still running."
             case .appleMaps:
                 return "Could not open Apple Maps. Live Drive tracking is still running."
             case .askEveryTime:
@@ -63,6 +67,21 @@ public enum NavigationHandoffService {
                 ? .openedWithFallback(provider: provider)
                 : .unavailable(provider: provider)
 
+        case .waze:
+            if canOpenWaze(),
+               let appURL = wazeAppURL(for: route),
+               await open(url: appURL) {
+                return .opened(provider: provider)
+            }
+
+            guard let fallbackURL = wazeWebURL(for: route) else {
+                return .unavailable(provider: provider)
+            }
+
+            return await open(url: fallbackURL)
+                ? .openedWithFallback(provider: provider)
+                : .unavailable(provider: provider)
+
         case .askEveryTime:
             return .unavailable(provider: provider)
         }
@@ -72,6 +91,16 @@ public enum NavigationHandoffService {
     private static func canOpenGoogleMaps() -> Bool {
 #if os(iOS)
         guard let url = URL(string: "comgooglemaps://") else { return false }
+        return UIApplication.shared.canOpenURL(url)
+#else
+        return false
+#endif
+    }
+
+    @MainActor
+    private static func canOpenWaze() -> Bool {
+#if os(iOS)
+        guard let url = URL(string: "waze://") else { return false }
         return UIApplication.shared.canOpenURL(url)
 #else
         return false
@@ -92,14 +121,18 @@ public enum NavigationHandoffService {
     }
 
     private static func appleMapsDirectionsURL(for route: RouteEstimate) -> URL? {
-        guard var components = URLComponents(
-            string: "https://maps.apple.com/"
-        ) else { return nil }
-        components.queryItems = [
-            URLQueryItem(name: "saddr", value: coordinateString(route.sourceCoordinate)),
+        guard var components = URLComponents(string: "maps://") else { return nil }
+
+        var queryItems = [
             URLQueryItem(name: "daddr", value: coordinateString(route.destinationCoordinate)),
             URLQueryItem(name: "dirflg", value: "d")
         ]
+
+        if !route.sourceQuery.hasPrefix("current:") {
+            queryItems.insert(URLQueryItem(name: "saddr", value: coordinateString(route.sourceCoordinate)), at: 0)
+        }
+
+        components.queryItems = queryItems
         return components.url
     }
 
@@ -120,6 +153,24 @@ public enum NavigationHandoffService {
             URLQueryItem(name: "origin", value: coordinateString(route.sourceCoordinate)),
             URLQueryItem(name: "destination", value: coordinateString(route.destinationCoordinate)),
             URLQueryItem(name: "travelmode", value: "driving")
+        ]
+        return components.url
+    }
+
+    private static func wazeAppURL(for route: RouteEstimate) -> URL? {
+        guard var components = URLComponents(string: "waze://") else { return nil }
+        components.queryItems = [
+            URLQueryItem(name: "ll", value: coordinateString(route.destinationCoordinate)),
+            URLQueryItem(name: "navigate", value: "yes")
+        ]
+        return components.url
+    }
+
+    private static func wazeWebURL(for route: RouteEstimate) -> URL? {
+        guard var components = URLComponents(string: "https://waze.com/ul") else { return nil }
+        components.queryItems = [
+            URLQueryItem(name: "ll", value: coordinateString(route.destinationCoordinate)),
+            URLQueryItem(name: "navigate", value: "yes")
         ]
         return components.url
     }
