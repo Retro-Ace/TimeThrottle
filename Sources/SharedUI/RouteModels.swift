@@ -33,26 +33,9 @@ enum TripCompareEntryStyle: String, CaseIterable, Identifiable {
     }
 }
 
-enum TripCompareDistanceSource: String, CaseIterable, Identifiable {
-    case appleMapsRoute = "Apple Maps route"
-    case manualMiles = "Manual miles"
-
-    var id: String { rawValue }
-
-    var description: String {
-        switch self {
-        case .manualMiles:
-            return "Enter a posted speed limit and route distance by hand."
-        case .appleMapsRoute:
-            return "Look up a route by address and use Apple Maps distance and ETA as the baseline."
-        }
-    }
-}
-
 public enum Mode: String, CaseIterable, Identifiable, Sendable {
     case liveDrive = "Live Drive"
-    case route = "Route"
-    case manual = "Manual"
+    case route = "Compare"
 
     public var id: String { rawValue }
 
@@ -61,20 +44,7 @@ public enum Mode: String, CaseIterable, Identifiable, Sendable {
         case .liveDrive:
             return "Track a drive live with GPS speed, distance, and trip analysis."
         case .route:
-            return "Compare a trip against an Apple Maps route distance and ETA."
-        case .manual:
-            return "Compare a trip against a hand-entered route distance and target speed."
-        }
-    }
-
-    var tripCompareDistanceSource: TripCompareDistanceSource? {
-        switch self {
-        case .liveDrive:
-            return nil
-        case .route:
-            return .appleMapsRoute
-        case .manual:
-            return .manualMiles
+            return "Compare a trip against an Apple Maps route distance and ETA baseline."
         }
     }
 }

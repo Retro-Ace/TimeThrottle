@@ -24,7 +24,7 @@ If location access is denied or restricted, Live Drive will not function as inte
 
 ### 2. Route and Search Information
 
-If you use **Route** mode or the setup flow for **Live Drive**, TimeThrottle may use:
+If you use **Compare** or the setup flow for **Live Drive**, TimeThrottle may use:
 - Current Location as a route start when selected
 - Typed start and destination addresses
 - Apple Maps autocomplete suggestions
@@ -34,14 +34,14 @@ If you use **Route** mode or the setup flow for **Live Drive**, TimeThrottle may
 
 This information is used to plan the route, display route options, and compare your pace against a route baseline.
 
-### 3. Manual Inputs
+### 3. Compare and Trip Inputs
 
-If you use **Manual** mode or pace-analysis inputs elsewhere in the app, TimeThrottle uses values you enter, such as:
-- Distance
-- Speed
+If you use **Compare** or enter pace/fuel assumptions for **Live Drive**, TimeThrottle uses values you enter, such as:
+- Average speed
 - Trip duration
-- MPG
-- Fuel price
+- Live Drive target speed
+- Live Drive MPG and fuel price assumptions
+- Optional Observed MPG after a finished trip
 
 These values are used only to perform the calculations shown in the app.
 
@@ -112,13 +112,13 @@ The verified on-device data currently stored by the app includes:
 - Completed Live Drive trip history
 - Optional Observed MPG refinements you enter for finished trips
 
-Route calculations, manual entries, and live comparisons are otherwise performed in the app during normal use.
+Route calculations, Compare inputs, and Live Drive comparisons are otherwise performed in the app during normal use.
 
 ## Your Choices
 
 You can:
-- Use **Manual** mode without enabling location access
-- Use **Route** mode without enabling live trip tracking
+- Use **Compare** without starting Live Drive tracking
+- Use **Compare** with a custom route start if you do not want to use Current Location
 - Deny location access
 - Change location access later in iPhone Settings
 - Choose Apple Maps, Google Maps, Waze, or Ask Every Time for Live Drive handoff

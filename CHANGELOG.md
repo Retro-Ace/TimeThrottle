@@ -13,6 +13,7 @@ Use this block for GitHub releases, TestFlight notes, or App Store Connect:
 > - Clarified finished-trip result labels so Above-target gain, Below-target loss, and Overall vs Apple ETA are clearly separated
 > - Updated Trip History, trip detail, and shared trip summaries to use the same Apple ETA baseline framing
 > - Tightened in-app and release-facing wording around finished-trip metrics for consistency
+> - Simplified the active iPhone app structure so it now centers on Live Drive and Compare
 
 ### Release Notes
 
@@ -21,10 +22,13 @@ Use this block for GitHub releases, TestFlight notes, or App Store Connect:
 - Clarified that Below-target loss measures time lost while driving below target pace
 - Clarified that Overall vs Apple ETA is the completed-trip result against the Apple Maps ETA baseline
 - Updated share text, Trip History, trip detail, and release-facing copy to match the clarified result story
+- Removed Manual from the active iPhone flow
+- Kept Compare focused on the Apple Maps ETA-baseline planning and simulation path
+- Left Live Drive behavior unchanged in this simplification pass
 
 ### Release Positioning
 
-TimeThrottle 1.3.1 is a wording and consistency update focused on finished-trip clarity. Apple Maps still provides route lookup and ETA baseline planning, while TimeThrottle continues to track the trip and explain the result without claiming built-in turn-by-turn navigation.
+TimeThrottle 1.3.1 is a wording and consistency update focused on finished-trip clarity and the simplified two-mode iPhone flow. Apple Maps still provides route lookup and ETA baseline planning, Compare remains the simulation mode built around that baseline, and Live Drive continues to track real trips without claiming built-in turn-by-turn navigation.
 
 ## v1.3 - March 22, 2026
 

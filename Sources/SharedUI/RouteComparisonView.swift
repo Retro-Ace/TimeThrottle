@@ -65,14 +65,10 @@ public struct RouteComparisonView: View {
         EditableSegment(label: "Cruising", speedText: "72", minutesText: "14")
     ]
 
-    @State private var tripCompareDistanceSource: TripCompareDistanceSource = .appleMapsRoute
     @State private var milesDrivenText = "42"
     @State private var tripCompareEntryStyle: TripCompareEntryStyle = .averageSpeed
     @State private var comparisonAverageSpeedText = "80"
     @State private var comparisonTripMinutesText = "30"
-    @State private var ratedMPGText = "28"
-    @State private var observedMPGText = "22"
-    @State private var fuelPriceText = "3.79"
 
     @State private var routeOriginInputMode: RouteOriginInputMode = .currentLocation
     @State private var fromAddressText = ""
@@ -117,9 +113,6 @@ public struct RouteComparisonView: View {
             AnyView(mapPreview(routes, selectedRouteID))
         }
         _selectedMode = State(initialValue: configuration.initialMode)
-        _tripCompareDistanceSource = State(
-            initialValue: configuration.initialMode.tripCompareDistanceSource ?? .appleMapsRoute
-        )
     }
 
     private var isMobileLayout: Bool {
@@ -290,29 +283,19 @@ public struct RouteComparisonView: View {
     }
 
     private var tripDistanceMiles: Double? {
-        switch tripCompareDistanceSource {
-        case .manualMiles:
-            return Self.number(from: milesDrivenText)
-        case .appleMapsRoute:
-            return activeRouteEstimate?.distanceMiles
-        }
+        activeRouteEstimate?.distanceMiles
     }
 
     private var comparisonBaselineSpeed: Double? {
-        switch tripCompareDistanceSource {
-        case .manualMiles:
-            return speedLimit
-        case .appleMapsRoute:
-            guard
-                let route = activeRouteEstimate,
-                route.distanceMiles > 0,
-                route.expectedTravelMinutes > 0
-            else {
-                return nil
-            }
-
-            return route.distanceMiles / (route.expectedTravelMinutes / 60)
+        guard
+            let route = activeRouteEstimate,
+            route.distanceMiles > 0,
+            route.expectedTravelMinutes > 0
+        else {
+            return nil
         }
+
+        return route.distanceMiles / (route.expectedTravelMinutes / 60)
     }
 
     private var tripComparisonInput: TripComparisonInput? {
@@ -620,40 +603,6 @@ public struct RouteComparisonView: View {
         tripComparisonSummary.comparisonAverageSpeed > 0
     }
 
-    private var speedCostInput: SpeedCostInput? {
-        guard
-            hasTripComparisonResult,
-            let ratedMPG = Self.number(from: ratedMPGText),
-            let observedMPG = Self.number(from: observedMPGText),
-            let fuelPrice = Self.number(from: fuelPriceText),
-            ratedMPG > 0,
-            observedMPG > 0,
-            fuelPrice >= 0
-        else {
-            return nil
-        }
-
-        return SpeedCostInput(
-            distanceMiles: tripComparisonSummary.distanceMiles,
-            speedLimit: tripComparisonSummary.speedLimit,
-            averageTripSpeed: tripComparisonSummary.comparisonAverageSpeed,
-            baselineTravelMinutes: tripComparisonSummary.legalTravelMinutes,
-            actualTravelMinutes: tripComparisonSummary.comparisonTravelMinutes,
-            ratedMPG: ratedMPG,
-            observedMPG: observedMPG,
-            fuelPricePerGallon: fuelPrice
-        )
-    }
-
-    private var speedCostSummary: SpeedCostSummary {
-        guard let speedCostInput else { return SpeedCostSummary() }
-        return SpeedCostCalculator.summarize(input: speedCostInput)
-    }
-
-    private var hasSpeedCostSummary: Bool {
-        speedCostInput != nil
-    }
-
     private var heroSubtitle: String {
         switch selectedMode {
         case .liveDrive:
@@ -666,87 +615,36 @@ public struct RouteComparisonView: View {
                 return "Review the trip summary, then end the trip when you are done."
             }
         case .route:
-            return "Compare your trip against an Apple Maps route baseline and estimate the cost of speeding."
-        case .manual:
-            return "Compare your trip against a manual distance and target speed, then estimate the cost of speeding."
+            return "Compare your trip against an Apple Maps route and ETA baseline."
         }
-    }
-
-    private var timeComparisonScaleMinutes: Double {
-        max(1, max(tripComparisonSummary.legalTravelMinutes, tripComparisonSummary.comparisonTravelMinutes))
     }
 
     private var baselineSummaryTitle: String {
-        if selectedMode == .manual {
-            return "Speed A time"
-        }
-
-        switch tripCompareDistanceSource {
-        case .manualMiles:
-            return "At limit"
-        case .appleMapsRoute:
-            return "Apple Maps ETA"
-        }
+        "Apple Maps ETA"
     }
 
     private var paceStatTitle: String {
-        if selectedMode == .manual {
-            return "Speed B vs A"
-        }
-
-        switch tripCompareDistanceSource {
-        case .manualMiles:
-            return "Over/under limit"
-        case .appleMapsRoute:
-            return "Over/under route pace"
-        }
+        "Over/under route pace"
     }
 
     private var baselineDetailSubtitle: String {
-        if selectedMode == .manual {
-            return "\(Self.milesString(tripComparisonSummary.distanceMiles)) miles at \(Self.speedString(tripComparisonSummary.speedLimit)) mph"
+        guard let route = activeRouteEstimate else {
+            return "Calculate an Apple Maps route"
         }
 
-        switch tripCompareDistanceSource {
-        case .manualMiles:
-            return "\(Self.milesString(tripComparisonSummary.distanceMiles)) miles at \(Self.speedString(tripComparisonSummary.speedLimit)) mph"
-        case .appleMapsRoute:
-            guard let route = activeRouteEstimate else {
-                return "Calculate an Apple Maps route"
-            }
-
-            if route.routeName.isEmpty {
-                return "\(route.sourceName) to \(route.destinationName)"
-            }
-
-            return "\(route.routeName) from \(route.sourceName) to \(route.destinationName)"
+        if route.routeName.isEmpty {
+            return "\(route.sourceName) to \(route.destinationName)"
         }
+
+        return "\(route.routeName) from \(route.sourceName) to \(route.destinationName)"
     }
 
     private var comparisonDetailsIntro: String {
-        if selectedMode == .manual {
-            return "This mode compares Speed A against Speed B across the same hand-entered route distance, then estimates time under target pace, fuel burn, and ticket risk."
-        }
-
-        switch tripCompareDistanceSource {
-        case .manualMiles:
-            return "This mode compares the same route distance against driving exactly at the posted speed limit, then estimates time under target pace, fuel burn, and ticket risk."
-        case .appleMapsRoute:
-            return "This mode compares your trip against Apple Maps route distance and estimated travel time for the same route inputs, then estimates time under target pace, fuel burn, and ticket risk."
-        }
+        "This mode compares your trip against Apple Maps route distance and estimated travel time for the selected route."
     }
 
     private var differenceDetailSubtitle: String {
-        if selectedMode == .manual {
-            return "Speed A time minus Speed B time"
-        }
-
-        switch tripCompareDistanceSource {
-        case .manualMiles:
-            return "At-limit travel time minus your trip time"
-        case .appleMapsRoute:
-            return "Apple Maps ETA minus your trip time"
-        }
+        "Apple Maps ETA minus your trip time"
     }
 
     private var comparisonDifferenceTint: Color {
@@ -791,33 +689,6 @@ public struct RouteComparisonView: View {
             return Palette.ink
         }
         return comparisonSpeedDelta > 0 ? Palette.success : Palette.danger
-    }
-
-    private var ticketRiskTint: Color {
-        switch speedCostSummary.ticketRisk {
-        case .low:
-            return Palette.success
-        case .moderate:
-            return Palette.ferrariRed
-        case .high:
-            return Palette.danger
-        }
-    }
-
-    private var timeUnderTargetPaceTint: Color {
-        speedCostSummary.timeUnderTargetPaceMinutes > 0 ? Palette.danger : Palette.ink
-    }
-
-    private var fuelPenaltyTint: Color {
-        speedCostSummary.fuelCostPenalty > 0 ? Palette.danger : Palette.ink
-    }
-
-    private var netBenefitTint: Color {
-        if abs(speedCostSummary.netBenefitMinutes) < 0.01 {
-            return Palette.ink
-        }
-
-        return speedCostSummary.netBenefitMinutes > 0 ? Palette.success : Palette.danger
     }
 
     private var routeStatusText: String {
@@ -919,6 +790,18 @@ public struct RouteComparisonView: View {
         hasTripComparisonResult ? comparisonDifferenceTint : summaryPlaceholderTint
     }
 
+    private var compareResultSummaryTitle: String {
+        "Result vs Apple ETA"
+    }
+
+    private var compareResultSectionTitle: String {
+        "Compare result"
+    }
+
+    private var compareResultSectionSubtitle: String {
+        "See how your trip compares to the selected Apple Maps ETA baseline."
+    }
+
     private var comparisonMilesStatValue: String {
         hasTripComparisonResult ? "\(Self.milesString(tripComparisonSummary.distanceMiles)) mi" : summaryPlaceholderValue
     }
@@ -941,41 +824,6 @@ public struct RouteComparisonView: View {
 
     private var comparisonPaceStatForeground: Color {
         hasTripComparisonResult ? comparisonSpeedPillForeground : summaryPlaceholderTint
-    }
-
-    private var worthItVerdict: String {
-        if speedCostSummary.timeSavedMinutes > 90 {
-            return "Probably."
-        }
-
-        if speedCostSummary.timeSavedMinutes >= 30 {
-            return "Maybe."
-        }
-
-        if speedCostSummary.fuelCostPenalty > 20 {
-            return "Probably not."
-        }
-
-        return "Maybe."
-    }
-
-    private var worthItVerdictTint: Color {
-        switch worthItVerdict {
-        case "Probably.":
-            return Palette.success
-        case "Probably not.":
-            return Palette.danger
-        default:
-            return Palette.ferrariRed
-        }
-    }
-
-    private var worthItLabelFont: Font {
-        isMobileLayout ? .subheadline.weight(.semibold) : .system(size: 12, weight: .semibold, design: .rounded)
-    }
-
-    private var worthItShareText: String {
-        "I drove \(Self.speedString(tripComparisonSummary.comparisonAverageSpeed)) mph for \(Self.milesString(tripComparisonSummary.distanceMiles)) miles and only saved \(Self.durationString(speedCostSummary.timeSavedMinutes)). Was it worth it? \(worthItVerdict)"
     }
 
     private var isCalculateRouteDisabled: Bool {
@@ -1058,10 +906,8 @@ public struct RouteComparisonView: View {
                 processLiveDriveNavigationHandoffIfNeeded()
             }
         }
-        .onChange(of: selectedMode) { _, newMode in
-            syncTripCompareDistanceSource(with: newMode)
-
-            if newMode != .manual, routeOriginInputMode == .currentLocation {
+        .onChange(of: selectedMode) { _, _ in
+            if routeOriginInputMode == .currentLocation {
                 currentLocationResolver.requestCurrentLocationIfNeeded()
             }
         }
@@ -1188,7 +1034,7 @@ public struct RouteComparisonView: View {
                         switch selectedMode {
                         case .liveDrive:
                             mobileLiveDriveFlow
-                        case .route, .manual:
+                        case .route:
                             mobileTripCompareFlow
                         }
                     }
@@ -1215,8 +1061,6 @@ public struct RouteComparisonView: View {
             switch selectedMode {
             case .route:
                 mobileRouteModeFlow
-            case .manual:
-                mobileManualModeFlow
             case .liveDrive:
                 EmptyView()
             }
@@ -1255,33 +1099,13 @@ public struct RouteComparisonView: View {
     private var mobileRouteModeFlow: some View {
         VStack(alignment: .leading, spacing: Layout.sectionSpacing) {
             mobileRouteInputSection
-            mobileRouteComparisonInputSection
-            mobileTripComparisonResultSection
 
             if let route = activeRouteEstimate {
                 mobileMapPreviewSection(route: route)
             }
 
-            if hasTripComparisonResult {
-                mobileComparisonBarsSection
-                mobileComparisonBreakdownSection
-            } else {
-                mobileComparisonPromptSection
-            }
-        }
-    }
-
-    private var mobileManualModeFlow: some View {
-        VStack(alignment: .leading, spacing: Layout.sectionSpacing) {
-            mobileManualCalculatorSection
+            mobileRouteComparisonInputSection
             mobileTripComparisonResultSection
-
-            if hasTripComparisonResult {
-                mobileComparisonBarsSection
-                mobileComparisonBreakdownSection
-            } else {
-                mobileComparisonPromptSection
-            }
         }
     }
 
@@ -1469,7 +1293,7 @@ public struct RouteComparisonView: View {
         switch selectedMode {
         case .liveDrive:
             liveDriveSetupSection
-        case .route, .manual:
+        case .route:
             tripCompareControls
         }
     }
@@ -1547,38 +1371,26 @@ public struct RouteComparisonView: View {
             Group {
                 if isMobileLayout {
                     VStack(alignment: .leading, spacing: Layout.innerSpacing) {
-                        distanceBasisPanel
                         inputStylePanel
                         InsetPanel {
-                            if tripCompareDistanceSource == .manualMiles {
-                                manualTripCompareInputs
-                            } else {
-                                appleMapsRouteInputs
-                            }
+                            appleMapsRouteInputs
                         }
                         InsetPanel {
-                            comparisonValueInputs
+                            comparisonPaceInputs
                         }
                     }
                 } else {
                     VStack(alignment: .leading, spacing: Layout.innerSpacing) {
-                        HStack(alignment: .top, spacing: Layout.innerSpacing) {
-                            distanceBasisPanel
-                            inputStylePanel
-                                .frame(width: Layout.sidePanelWidth, alignment: .leading)
-                        }
+                        inputStylePanel
+                            .frame(width: Layout.sidePanelWidth, alignment: .leading)
 
                         HStack(alignment: .top, spacing: Layout.innerSpacing) {
                             InsetPanel {
-                                if tripCompareDistanceSource == .manualMiles {
-                                    manualTripCompareInputs
-                                } else {
-                                    appleMapsRouteInputs
-                                }
+                                appleMapsRouteInputs
                             }
 
                             InsetPanel {
-                                comparisonValueInputs
+                                comparisonPaceInputs
                             }
                             .frame(width: Layout.sidePanelWidth, alignment: .leading)
                         }
@@ -1603,60 +1415,32 @@ public struct RouteComparisonView: View {
         }
     }
 
-    private var mobileManualCalculatorSection: some View {
-        SectionCard {
-            VStack(alignment: .leading, spacing: 10) {
-                mobileSectionHeader(
-                    title: "Manual calculator",
-                    subtitle: "Enter the same distance and compare Speed A with Speed B."
-                )
-
-                InsetPanel {
-                    manualModePrimaryInputs
-                }
-
-                InsetPanel {
-                    manualModeFuelInputs
-                }
-            }
-        }
-    }
-
     private var mobileRouteComparisonInputSection: some View {
         SectionCard {
             VStack(alignment: .leading, spacing: Layout.innerSpacing) {
                 mobileSectionHeader(
                     title: "Trip pace",
-                    subtitle: "Choose your trip pace and fuel assumptions."
+                    subtitle: "Enter your trip pace and compare it to the selected Apple Maps baseline."
                 )
                 inputStylePanel
                 InsetPanel {
-                    comparisonValueInputs
+                    comparisonPaceInputs
                 }
             }
         }
     }
 
-    private var distanceBasisPanel: some View {
-        InsetPanel {
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Distance basis")
-                    .font(inputLabelFont)
-                    .foregroundStyle(Palette.cocoa)
-
-                Picker("Distance basis", selection: $tripCompareDistanceSource) {
-                    ForEach(TripCompareDistanceSource.allCases) { source in
-                        Text(source.rawValue).tag(source)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .tint(Palette.success)
-
-                Text(tripCompareDistanceSource.description)
-                    .font(panelDescriptionFont)
-                    .foregroundStyle(Palette.cocoa)
+    private var comparisonPaceInputs: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if tripCompareEntryStyle == .averageSpeed {
+                compactMetricField(title: "Your average speed", text: $comparisonAverageSpeedText, placeholder: "80", unit: "mph")
+            } else {
+                compactMetricField(title: "Your trip time", text: $comparisonTripMinutesText, placeholder: "30", unit: "min")
             }
+
+            Text("Compared against the Apple Maps route distance and ETA. Average trip speed comes from the speed field or derived duration.")
+                .font(panelDescriptionFont)
+                .foregroundStyle(Palette.cocoa)
         }
     }
 
@@ -1683,121 +1467,6 @@ public struct RouteComparisonView: View {
         }
     }
 
-    private var manualTripCompareInputs: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Posted speed limit")
-                .font(inputLabelFont)
-                .foregroundStyle(Palette.cocoa)
-
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                BrandedTextField(
-                    text: $speedLimitText,
-                    placeholder: "70",
-                    width: 110,
-                    fontSize: 26,
-                    fontWeight: .bold,
-                    compact: isMobileLayout
-                )
-
-                Text("mph")
-                    .font(unitFont)
-                    .foregroundStyle(Palette.cocoa)
-            }
-
-            Text("Miles driven")
-                .font(inputLabelFont)
-                .foregroundStyle(Palette.cocoa)
-
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                BrandedTextField(
-                    text: $milesDrivenText,
-                    placeholder: "42",
-                    width: 130,
-                    fontSize: 24,
-                    fontWeight: .bold,
-                    compact: isMobileLayout
-                )
-
-                Text("miles")
-                    .font(unitFont)
-                    .foregroundStyle(Palette.cocoa)
-            }
-        }
-    }
-
-    private var manualModePrimaryInputs: some View {
-        Group {
-            if isMobileLayout {
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack(alignment: .top, spacing: 12) {
-                        compactMetricField(title: "Distance", text: $milesDrivenText, placeholder: "42", unit: "mi")
-                        compactMetricField(title: "Speed A", text: $speedLimitText, placeholder: "65", unit: "mph")
-                    }
-
-                    compactMetricField(title: "Speed B", text: $comparisonAverageSpeedText, placeholder: "78", unit: "mph")
-                }
-            } else {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Distance")
-                        .font(inputLabelFont)
-                        .foregroundStyle(Palette.cocoa)
-
-                    HStack(alignment: .firstTextBaseline, spacing: 10) {
-                        BrandedTextField(
-                            text: $milesDrivenText,
-                            placeholder: "42",
-                            width: 130,
-                            fontSize: 24,
-                            fontWeight: .bold,
-                            compact: isMobileLayout
-                        )
-
-                        Text("miles")
-                            .font(unitFont)
-                            .foregroundStyle(Palette.cocoa)
-                    }
-
-                    Text("Speed A")
-                        .font(inputLabelFont)
-                        .foregroundStyle(Palette.cocoa)
-
-                    HStack(alignment: .firstTextBaseline, spacing: 10) {
-                        BrandedTextField(
-                            text: $speedLimitText,
-                            placeholder: "65",
-                            width: 110,
-                            fontSize: 24,
-                            fontWeight: .bold,
-                            compact: isMobileLayout
-                        )
-
-                        Text("mph")
-                            .font(unitFont)
-                            .foregroundStyle(Palette.cocoa)
-                    }
-
-                    Text("Speed B")
-                        .font(inputLabelFont)
-                        .foregroundStyle(Palette.cocoa)
-
-                    HStack(alignment: .firstTextBaseline, spacing: 10) {
-                        BrandedTextField(
-                            text: $comparisonAverageSpeedText,
-                            placeholder: "78",
-                            width: 110,
-                            fontSize: 24,
-                            fontWeight: .bold,
-                            compact: isMobileLayout
-                        )
-
-                        Text("mph")
-                            .font(unitFont)
-                            .foregroundStyle(Palette.cocoa)
-                    }
-                }
-            }
-        }
-    }
 
     private var appleMapsRouteInputs: some View {
         VStack(alignment: .leading, spacing: isPolishedLiveDriveSetup ? 10 : 12) {
@@ -2127,102 +1796,6 @@ public struct RouteComparisonView: View {
         .accessibilityIdentifier("calculate-route-button")
     }
 
-    private var comparisonValueInputs: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            if tripCompareEntryStyle == .averageSpeed {
-                compactMetricField(title: "Your average speed", text: $comparisonAverageSpeedText, placeholder: "80", unit: "mph")
-            } else {
-                compactMetricField(title: "Your trip time", text: $comparisonTripMinutesText, placeholder: "30", unit: "min")
-            }
-
-            fuelModelInputs
-
-            Text(tripCompareDistanceSource == .manualMiles ? "Compared against the same distance at the posted speed. Average trip speed comes from the speed field or derived duration." : "Compared against the Apple Maps route distance and ETA. Average trip speed comes from the speed field or derived duration.")
-                .font(panelDescriptionFont)
-                .foregroundStyle(Palette.cocoa)
-        }
-    }
-
-    private var fuelModelInputs: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            if isMobileLayout {
-                HStack(alignment: .top, spacing: 12) {
-                    compactMetricField(title: "Rated MPG", text: $ratedMPGText, placeholder: "28", unit: "mpg")
-                    compactMetricField(title: "Observed MPG", text: $observedMPGText, placeholder: "22", unit: "mpg")
-                }
-
-                compactMetricField(title: "Fuel price", text: $fuelPriceText, placeholder: "3.79", unit: "/ gal")
-            } else {
-                Text("Vehicle rated MPG")
-                    .font(inputLabelFont)
-                    .foregroundStyle(Palette.cocoa)
-
-                HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    BrandedTextField(
-                        text: $ratedMPGText,
-                        placeholder: "28",
-                        width: 130,
-                        fontSize: 24,
-                        fontWeight: .bold,
-                        compact: isMobileLayout
-                    )
-
-                    Text("mpg")
-                        .font(unitFont)
-                        .foregroundStyle(Palette.cocoa)
-                }
-
-                Text("Observed MPG at your pace")
-                    .font(inputLabelFont)
-                    .foregroundStyle(Palette.cocoa)
-
-                HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    BrandedTextField(
-                        text: $observedMPGText,
-                        placeholder: "22",
-                        width: 130,
-                        fontSize: 24,
-                        fontWeight: .bold,
-                        compact: isMobileLayout
-                    )
-
-                    Text("mpg")
-                        .font(unitFont)
-                        .foregroundStyle(Palette.cocoa)
-                }
-
-                Text("Fuel price")
-                    .font(inputLabelFont)
-                    .foregroundStyle(Palette.cocoa)
-
-                HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    BrandedTextField(
-                        text: $fuelPriceText,
-                        placeholder: "3.79",
-                        width: 130,
-                        fontSize: 24,
-                        fontWeight: .bold,
-                        compact: isMobileLayout
-                    )
-
-                    Text("/ gallon")
-                        .font(unitFont)
-                        .foregroundStyle(Palette.cocoa)
-                }
-            }
-
-            Text("Fuel penalty compares rated efficiency to what you actually see at the faster pace.")
-                .font(panelDescriptionFont)
-                .foregroundStyle(Palette.cocoa)
-        }
-    }
-
-    private var manualModeFuelInputs: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            fuelModelInputs
-        }
-    }
-
     private func compactMetricField(
         title: String,
         text: Binding<String>,
@@ -2274,7 +1847,7 @@ public struct RouteComparisonView: View {
         switch selectedMode {
         case .liveDrive:
             liveDriveSummarySection
-        case .route, .manual:
+        case .route:
             tripComparisonSummarySection
         }
     }
@@ -2536,7 +2109,7 @@ public struct RouteComparisonView: View {
                     InsetPanel {
                         VStack(alignment: .leading, spacing: 16) {
                             HStack(alignment: .center, spacing: 14) {
-                                worthItBrandLogoMobile
+                                finishedTripBrandLogo
                                     .frame(width: 82, height: 54, alignment: .center)
 
                                 VStack(alignment: .leading, spacing: 5) {
@@ -2851,10 +2424,8 @@ public struct RouteComparisonView: View {
     private var tripComparisonSummarySection: some View {
         VStack(alignment: .leading, spacing: 12) {
             brandedSectionHeader(
-                title: selectedMode == .manual ? "Manual comparison" : "Route comparison",
-                subtitle: selectedMode == .manual
-                    ? "Compare Speed A and Speed B across the same distance."
-                    : "Compare your trip against the selected baseline."
+                title: compareResultSectionTitle,
+                subtitle: compareResultSectionSubtitle
             )
 
             if isMobileLayout {
@@ -2872,7 +2443,7 @@ public struct RouteComparisonView: View {
                         compact: true
                     )
                     SummaryCard(
-                        title: "Difference",
+                        title: compareResultSummaryTitle,
                         value: comparisonDifferenceSummaryValue,
                         tint: comparisonDifferenceSummaryTint,
                         isProminent: true,
@@ -2894,7 +2465,7 @@ public struct RouteComparisonView: View {
                         tint: comparisonTripSummaryTint
                     )
                     SummaryCard(
-                        title: "Difference",
+                        title: compareResultSummaryTitle,
                         value: comparisonDifferenceSummaryValue,
                         tint: comparisonDifferenceSummaryTint,
                         isProminent: true
@@ -2902,15 +2473,6 @@ public struct RouteComparisonView: View {
                 }
 
                 comparisonMetricGrid(compact: false)
-            }
-
-            if hasSpeedCostSummary {
-                speedCostSummaryPanel
-                worthItSummaryCard
-            }
-
-            if hasTripComparisonResult, !isMobileLayout {
-                timeComparisonCard
             }
         }
     }
@@ -3028,7 +2590,7 @@ public struct RouteComparisonView: View {
         switch selectedMode {
         case .liveDrive:
             liveDriveContentSection
-        case .route, .manual:
+        case .route:
             comparisonDetailsSection
         }
     }
@@ -3093,7 +2655,7 @@ public struct RouteComparisonView: View {
                         .foregroundStyle(Palette.cocoa)
                 }
 
-                if tripCompareDistanceSource == .appleMapsRoute, let route = activeRouteEstimate {
+                if let route = activeRouteEstimate {
                     routePreviewSection(routes: activeRouteOptions, selectedRoute: route)
                         .id(Self.routePreviewCaptureID)
                 }
@@ -3130,10 +2692,8 @@ public struct RouteComparisonView: View {
         SectionCard {
             VStack(alignment: .leading, spacing: 12) {
                 brandedPanelHeader(
-                    title: selectedMode == .manual ? "Manual comparison" : "Route comparison",
-                    subtitle: selectedMode == .manual
-                        ? "See how Speed B compares to Speed A across the same trip."
-                        : "See how your pace compares to the selected baseline."
+                    title: compareResultSectionTitle,
+                    subtitle: compareResultSectionSubtitle
                 )
 
                 VStack(spacing: 12) {
@@ -3150,7 +2710,7 @@ public struct RouteComparisonView: View {
                         compact: true
                     )
                     SummaryCard(
-                        title: "Difference",
+                        title: compareResultSummaryTitle,
                         value: comparisonDifferenceSummaryValue,
                         tint: comparisonDifferenceSummaryTint,
                         isProminent: true,
@@ -3160,9 +2720,8 @@ public struct RouteComparisonView: View {
 
                 comparisonMetricGrid(compact: true)
 
-                if hasSpeedCostSummary {
-                    speedCostSummaryPanel
-                    worthItSummaryCard
+                if !hasTripComparisonResult {
+                    mobileHelperCard("Calculate the Apple Maps route, then enter your trip speed or duration to see the final result against the baseline.")
                 }
             }
         }
@@ -3179,224 +2738,6 @@ public struct RouteComparisonView: View {
             }
         }
         .id(Self.routePreviewCaptureID)
-    }
-
-    private var mobileComparisonBarsSection: some View {
-        SectionCard {
-            VStack(alignment: .leading, spacing: Layout.innerSpacing) {
-                mobileSectionHeader(
-                    title: "Comparison bars",
-                    subtitle: "Visualize the baseline time against your actual trip."
-                )
-                timeComparisonCard
-            }
-        }
-    }
-
-    private var mobileComparisonBreakdownSection: some View {
-        SectionCard {
-            VStack(alignment: .leading, spacing: Layout.innerSpacing) {
-                mobileSectionHeader(
-                    title: "Comparison breakdown",
-                    subtitle: comparisonDetailsIntro
-                )
-                VStack(spacing: 10) {
-                    comparisonDetailCards
-                }
-            }
-        }
-    }
-
-    private var mobileComparisonPromptSection: some View {
-        SectionCard {
-            VStack(alignment: .leading, spacing: Layout.innerSpacing) {
-                mobileSectionHeader(
-                    title: "Comparison bars",
-                    subtitle: "Calculate the route or enter valid numbers to populate the full comparison."
-                )
-                mobileHelperCard(emptyComparisonPrompt)
-            }
-        }
-    }
-
-    private var speedCostSummaryPanel: some View {
-        InsetPanel {
-            VStack(alignment: .leading, spacing: Layout.innerSpacing) {
-                brandedPanelHeader(
-                    title: "Speed cost summary",
-                    subtitle: tripCompareDistanceSource == .manualMiles
-                        ? "Estimate time saved, time under target pace, fuel burn, and ticket exposure using the posted limit as the risk baseline."
-                        : "Estimate time saved, time under target pace, fuel burn, and ticket exposure using the selected route pace as the risk baseline."
-                )
-
-                LazyVGrid(
-                    columns: isMobileLayout
-                        ? [
-                            GridItem(.flexible(minimum: 130), spacing: 10),
-                            GridItem(.flexible(minimum: 130), spacing: 10)
-                        ]
-                        : [
-                            GridItem(.flexible(minimum: 170), spacing: 10),
-                            GridItem(.flexible(minimum: 170), spacing: 10),
-                            GridItem(.flexible(minimum: 170), spacing: 10)
-                        ],
-                    spacing: 10
-                ) {
-                    SummaryCard(
-                        title: "Time saved",
-                        value: Self.durationString(speedCostSummary.timeSavedMinutes),
-                        tint: Palette.success,
-                        compact: isMobileLayout
-                    )
-                    SummaryCard(
-                        title: "Time Under Target Pace",
-                        value: Self.lossString(speedCostSummary.timeUnderTargetPaceMinutes),
-                        tint: timeUnderTargetPaceTint,
-                        compact: isMobileLayout
-                    )
-                    SummaryCard(
-                        title: "Fuel penalty",
-                        value: Self.currencyPenaltyString(speedCostSummary.fuelCostPenalty),
-                        tint: fuelPenaltyTint,
-                        compact: isMobileLayout
-                    )
-                    SummaryCard(
-                        title: "Ticket risk",
-                        value: speedCostSummary.ticketRisk.rawValue,
-                        tint: ticketRiskTint,
-                        compact: isMobileLayout
-                    )
-                    SummaryCard(
-                        title: "Net benefit",
-                        value: Self.netString(speedCostSummary.netBenefitMinutes),
-                        tint: netBenefitTint,
-                        isProminent: true,
-                        compact: isMobileLayout
-                    )
-                }
-            }
-        }
-    }
-
-    private var worthItSummaryCard: some View {
-        InsetPanel {
-            Group {
-                if isMobileLayout {
-                    VStack(alignment: .leading, spacing: 16) {
-                        VStack(spacing: 16) {
-                            worthItBrandLogoMobile
-                                .frame(maxWidth: .infinity, alignment: .center)
-
-                            Text("Was it worth it?")
-                                .font(.title2.weight(.semibold))
-                                .foregroundStyle(Palette.ink)
-                                .frame(maxWidth: .infinity, alignment: .center)
-                        }
-
-                        worthItDetailsBlock
-                        worthItVerdictBlock
-                        shareResultButton
-                    }
-                } else {
-                    HStack(alignment: .center, spacing: 24) {
-                        worthItBrandLogoDesktop
-
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("Was it worth it?")
-                                .font(.system(size: 24, weight: .bold, design: .rounded))
-                                .foregroundStyle(Palette.ink)
-
-                            worthItDetailsBlock
-                            worthItVerdictBlock
-                        }
-
-                        Spacer(minLength: 0)
-                    }
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var worthItBrandLogoMobile: some View {
-        if let brandLogo {
-            brandLogo
-                .resizable()
-                .interpolation(.high)
-                .scaledToFit()
-                .frame(height: 70)
-        } else {
-            Image(systemName: "gauge.with.needle")
-                .font(.system(size: 56, weight: .semibold))
-                .foregroundStyle(Palette.success)
-        }
-    }
-
-    @ViewBuilder
-    private var worthItBrandLogoDesktop: some View {
-        if let brandLogo {
-            brandLogo
-                .resizable()
-                .interpolation(.high)
-                .scaledToFit()
-                .frame(width: 90)
-        } else {
-            Image(systemName: "gauge.with.needle")
-                .font(.system(size: 72, weight: .semibold))
-                .foregroundStyle(Palette.success)
-                .frame(width: 90)
-        }
-    }
-
-    private var worthItDetailsBlock: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            worthItLine(title: "Trip speed", value: "\(Self.speedString(tripComparisonSummary.comparisonAverageSpeed)) mph")
-            worthItLine(title: "Distance", value: "\(Self.milesString(tripComparisonSummary.distanceMiles)) miles")
-            worthItLine(title: "Time saved", value: Self.durationString(speedCostSummary.timeSavedMinutes))
-            worthItLine(title: "Fuel cost", value: Self.currencyString(speedCostSummary.fuelCostPenalty))
-            worthItLine(title: "Ticket risk", value: speedCostSummary.ticketRisk.rawValue.uppercased())
-        }
-    }
-
-    private var worthItVerdictBlock: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Verdict")
-                .font(worthItLabelFont)
-                .foregroundStyle(Palette.cocoa)
-
-            Text(worthItVerdict)
-                .font(isMobileLayout ? .headline.weight(.bold) : .system(size: 22, weight: .bold, design: .rounded))
-                .foregroundStyle(worthItVerdictTint)
-        }
-        .padding(.top, 4)
-    }
-
-    private func worthItLine(title: String, value: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text("\(title):")
-                .font(inputLabelFont)
-                .foregroundStyle(Palette.cocoa)
-
-            Text(value)
-                .font(isMobileLayout ? .subheadline.weight(.semibold) : .system(size: 15, weight: .semibold, design: .rounded))
-                .foregroundStyle(Palette.ink)
-        }
-    }
-
-    private var shareResultButton: some View {
-        Button {
-            shareResult()
-        } label: {
-            Label("Share Result", systemImage: "square.and.arrow.up")
-                .font(.headline)
-                .foregroundStyle(Color.white)
-                .frame(maxWidth: .infinity)
-                .padding(.horizontal, 18)
-                .padding(.vertical, 12)
-                .background(Palette.success, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .shadow(color: Palette.success.opacity(0.25), radius: 3, y: 2)
-        }
-        .buttonStyle(.plain)
     }
 
     private var comparisonDetailCards: some View {
@@ -3417,18 +2758,33 @@ public struct RouteComparisonView: View {
             )
             DetailRow(
                 title: tripCompareEntryStyle == .tripDuration ? "Derived average speed" : "Average speed entered",
-                subtitle: tripCompareDistanceSource == .manualMiles ? "Whole-trip average for the same route distance" : "Whole-trip average based on the Apple Maps route distance",
+                subtitle: "Whole-trip average based on the Apple Maps route distance",
                 value: "\(Self.speedString(tripComparisonSummary.comparisonAverageSpeed)) mph",
                 tint: comparisonAverageSpeedTint,
                 compact: isMobileLayout
             )
             DetailRow(
-                title: "Difference",
+                title: compareResultSummaryTitle,
                 subtitle: differenceDetailSubtitle,
                 value: Self.netString(tripComparisonSummary.timeDeltaMinutes),
                 tint: comparisonDifferenceTint,
                 compact: isMobileLayout
             )
+        }
+    }
+
+    @ViewBuilder
+    private var finishedTripBrandLogo: some View {
+        if let brandLogo {
+            brandLogo
+                .resizable()
+                .interpolation(.high)
+                .scaledToFit()
+                .frame(height: 70)
+        } else {
+            Image(systemName: "gauge.with.needle")
+                .font(.system(size: 56, weight: .semibold))
+                .foregroundStyle(Palette.success)
         }
     }
 
@@ -3740,10 +3096,6 @@ public struct RouteComparisonView: View {
     }
 
     private var comparisonTravelSubtitle: String {
-        if selectedMode == .manual {
-            return "\(Self.milesString(tripComparisonSummary.distanceMiles)) miles at \(Self.speedString(tripComparisonSummary.comparisonAverageSpeed)) mph"
-        }
-
         switch tripCompareEntryStyle {
         case .averageSpeed:
             return "\(Self.milesString(tripComparisonSummary.distanceMiles)) miles at \(Self.speedString(tripComparisonSummary.comparisonAverageSpeed)) mph average"
@@ -3753,36 +3105,22 @@ public struct RouteComparisonView: View {
     }
 
     private var emptyComparisonPrompt: String {
-        if selectedMode == .manual {
-            return "Enter a distance plus Speed A and Speed B to compare the trip."
+        if normalizedFromAddress.isEmpty || normalizedToAddress.isEmpty {
+            return "Choose a route start, enter a destination, calculate the Apple Maps route, and then enter your trip speed or time."
         }
 
-        switch tripCompareDistanceSource {
-        case .manualMiles:
-            switch tripCompareEntryStyle {
-            case .averageSpeed:
-                return "Enter a positive speed limit, miles driven, and your average speed to compare the route."
-            case .tripDuration:
-                return "Enter a positive speed limit, miles driven, and your total trip time to derive the average speed and compare the route."
-            }
-        case .appleMapsRoute:
-            if normalizedFromAddress.isEmpty || normalizedToAddress.isEmpty {
-                return "Choose a route start, enter a destination, calculate the Apple Maps route, and then enter your trip speed or time."
-            }
-
-            if routeNeedsRefresh {
-                return "The route inputs changed after the last lookup. Recalculate the Apple Maps route before comparing."
-            }
-
-            return "Calculate the Apple Maps route, then enter your trip speed or duration to compare against the selected route."
+        if routeNeedsRefresh {
+            return "The route inputs changed after the last lookup. Recalculate the Apple Maps route before comparing."
         }
+
+        return "Calculate the Apple Maps route, then enter your trip speed or duration to compare against the selected route."
     }
 
     private var overUnderPaceText: String {
         guard hasTripComparisonResult else { return summaryPlaceholderValue }
 
         if abs(comparisonSpeedDelta) < 0.01 {
-            return selectedMode == .manual ? "Matched" : "At pace"
+            return "At pace"
         }
 
         if comparisonSpeedDelta > 0 {
@@ -3791,12 +3129,6 @@ public struct RouteComparisonView: View {
 
         return "\(Self.speedString(abs(comparisonSpeedDelta))) under"
     }
-
-    private func shareResult() {
-        shareSheetItems = [worthItShareText]
-        isShareSheetPresented = true
-    }
-
     private func makeCompletedTripRecord() -> CompletedTripRecord? {
         guard let routeContext = liveDriveRouteContext else { return nil }
 
@@ -4404,25 +3736,6 @@ public struct RouteComparisonView: View {
         .disabled(segments.count == 1)
     }
 
-    private var timeComparisonCard: some View {
-        timeComparisonRows(
-            baselineTitle: baselineSummaryTitle,
-            baselineMinutes: tripComparisonSummary.legalTravelMinutes,
-            comparisonTitle: "Your trip",
-            comparisonMinutes: tripComparisonSummary.comparisonTravelMinutes,
-            comparisonTint: comparisonTripTint,
-            comparisonLabel: Self.durationString(tripComparisonSummary.comparisonTravelMinutes),
-            scaleMinutes: timeComparisonScaleMinutes
-        )
-        .padding(isMobileLayout ? 14 : 16)
-        .background(Palette.panel, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(Palette.surfaceBorder, lineWidth: 1)
-        }
-        .shadow(color: .black.opacity(0.08), radius: 25, y: 10)
-    }
-
     private func timeComparisonRows(
         baselineTitle: String,
         baselineMinutes: Double,
@@ -4468,15 +3781,6 @@ public struct RouteComparisonView: View {
 
     private func removeSegment(id: UUID) {
         segments.removeAll { $0.id == id }
-    }
-
-    private func syncTripCompareDistanceSource(with modeSelection: Mode) {
-        guard let source = modeSelection.tripCompareDistanceSource else { return }
-        tripCompareDistanceSource = source
-
-        if modeSelection == .manual {
-            tripCompareEntryStyle = .averageSpeed
-        }
     }
 
     private func parsedSegment(for editable: EditableSegment) -> DriveSegment? {

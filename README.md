@@ -10,7 +10,7 @@ How much time did speed really buy you?
 
 **TimeThrottle** is an iPhone pace-analysis app that helps drivers understand what faster driving actually bought them.
 
-Apple Maps provides route lookup, autocomplete, route options, and the ETA baseline. TimeThrottle then tracks or compares pace tradeoffs such as above-target gain, below-target loss, fuel penalty, ticket-risk estimate, and overall result versus Apple ETA where that baseline exists.
+Apple Maps provides route lookup, autocomplete, route options, and the ETA baseline. TimeThrottle then tracks or compares pace tradeoffs such as above-target gain, below-target loss, fuel penalty, and overall result versus Apple ETA where that baseline exists.
 
 TimeThrottle does **not** provide built-in turn-by-turn navigation. In **Live Drive**, it can hand off navigation to Apple Maps, Google Maps, or Waze while TimeThrottle continues tracking the trip and comparing pace tradeoffs.
 
@@ -25,6 +25,7 @@ Use this block for GitHub, TestFlight, and App Store Connect release copy:
 > - Clarified finished-trip result labels so Above-target gain, Below-target loss, and Overall vs Apple ETA are clearly separated
 > - Updated Trip History, trip detail, and shared trip summaries to use the same Apple ETA baseline framing
 > - Tightened in-app and release-facing wording around finished-trip metrics for consistency
+> - Simplified the active iPhone app to two intentional modes: Live Drive and Compare
 
 ## What's New in v1.3
 
@@ -60,29 +61,17 @@ It can:
 - Save completed Live Drive trips into local Trip History
 - Hand off navigation to Apple Maps, Google Maps, or Waze without claiming built-in navigation
 
-### Route
+### Compare
 
-Route mode compares a planned or completed trip against an Apple Maps route and ETA baseline.
+Compare is the Apple Maps ETA-baseline planning and simulation mode.
 
 It includes:
 - Apple Maps route lookup
 - Route options
 - Route preview
 - Apple ETA baseline
-- Pace comparison
-- Fuel and ticket-risk estimates
-- Comparison bars and trip summary output
-
-### Manual
-
-Manual mode compares two paces across a hand-entered distance.
-
-It includes:
-- Distance entry
-- Speed A vs Speed B comparison
-- Average-speed or trip-duration comparison input
-- Fuel assumptions
-- Pace, fuel, and ticket-risk tradeoff output
+- Pace comparison input
+- Final result versus Apple ETA
 
 ## Navigation Handoff in v1.3.1
 
@@ -141,8 +130,8 @@ For the full policy, see [privacy-policy.md](/Users/anthonylarosa/SPEED%20APP/pr
 - `LiveDriveTracker.swift` — Live Drive tracking, permission state, speed, and distance updates
 - `TripHistoryStore.swift` — local persistence for completed Live Drive trips
 - `TripAnalysisEngine.swift` — live pace/trip summary generation
-- `SpeedCostCalculator.swift` — route/manual speed-cost math
-- `TimeThrottleCalculator.swift` — manual and segment-based comparison math
+- `SpeedCostCalculator.swift` — shared pace and fuel-tradeoff math
+- `TimeThrottleCalculator.swift` — shared trip-comparison math for Apple Maps ETA-baseline comparisons
 - `RouteModels.swift` — shared route, lookup, autocomplete, and mode models
 - `NavigationHandoffService.swift` — Apple Maps / Google Maps / Waze / Ask Every Time handoff behavior
 
