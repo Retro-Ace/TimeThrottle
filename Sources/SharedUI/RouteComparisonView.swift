@@ -561,15 +561,19 @@ public struct RouteComparisonView: View {
     }
 
     private var liveDriveBelowTargetMetricTitle: String {
-        "Time Under Target Pace"
+        "Below-target loss"
+    }
+
+    private var liveDriveOverallResultTitle: String {
+        "Overall vs Apple ETA"
     }
 
     private var liveDriveGainSummaryText: String {
-        "\(Self.durationString(liveDriveDisplayedTimeSaved)) by driving above your target pace"
+        "\(Self.durationString(liveDriveDisplayedTimeSaved)) gained while driving above your target pace"
     }
 
     private var liveDriveBelowTargetSummaryText: String {
-        "\(Self.durationString(liveDriveDisplayedTimeLost)) below your target pace"
+        "\(Self.durationString(liveDriveDisplayedTimeLost)) lost while below your target pace"
     }
 
     private var liveDriveProjectedTravelMinutes: Double {
@@ -657,7 +661,7 @@ public struct RouteComparisonView: View {
             case .setup:
                 return "Set up a live trip with GPS tracking, Apple Maps routing, and cost analysis."
             case .driving:
-                return "A minimal dashboard focused on live speed, below-target pace loss, and net trip balance."
+                return "A minimal dashboard focused on live speed, below-target loss, and overall progress vs Apple ETA."
             case .tripComplete:
                 return "Review the trip summary, then end the trip when you are done."
             }
@@ -2419,7 +2423,7 @@ public struct RouteComparisonView: View {
                         )
 
                         liveDriveMetricCard(
-                            title: "Trip balance",
+                            title: liveDriveOverallResultTitle,
                             value: Self.netString(liveDriveDisplayedNetTimeGain),
                             tint: liveDriveDisplayedNetTimeGain >= 0 ? Palette.success : Palette.danger,
                             emphasis: .strong
@@ -2503,7 +2507,7 @@ public struct RouteComparisonView: View {
                     )
 
                     liveDriveSummaryBlock(
-                        title: "Net result",
+                        title: liveDriveOverallResultTitle,
                         value: liveDriveVerdict,
                         tint: liveDriveVerdictTint,
                         isNarrative: true
@@ -2547,7 +2551,7 @@ public struct RouteComparisonView: View {
                             }
 
                             VStack(alignment: .leading, spacing: 6) {
-                                Text("Net result")
+                                Text(liveDriveOverallResultTitle)
                                     .font(.subheadline.weight(.semibold))
                                     .foregroundStyle(Palette.cocoa)
 
@@ -2567,11 +2571,15 @@ public struct RouteComparisonView: View {
                                 ],
                                 spacing: 12
                             ) {
-                                SummaryCard(title: "Time saved", value: Self.durationString(completedTrip.timeSavedBySpeeding), tint: Palette.success, compact: true)
-                                SummaryCard(title: "Below target pace", value: Self.durationString(completedTrip.timeLostBelowTargetPace), tint: Palette.danger, compact: true)
-                                SummaryCard(title: "Net result", value: Self.netString(completedTrip.netTimeGain), tint: completedTrip.netTimeGain >= 0 ? Palette.success : Palette.danger, isProminent: true, compact: true)
+                                SummaryCard(title: "Above-target gain", value: Self.durationString(completedTrip.timeSavedBySpeeding), tint: Palette.success, compact: true)
+                                SummaryCard(title: "Below-target loss", value: Self.durationString(completedTrip.timeLostBelowTargetPace), tint: Palette.danger, compact: true)
+                                SummaryCard(title: liveDriveOverallResultTitle, value: Self.netString(completedTrip.netTimeGain), tint: completedTrip.netTimeGain >= 0 ? Palette.success : Palette.danger, isProminent: true, compact: true)
                                 SummaryCard(title: "Fuel penalty", value: Self.currencyString(completedTrip.fuelPenalty), tint: completedTrip.fuelPenalty > 0 ? Palette.danger : Palette.ink, compact: true)
                             }
+
+                            Text(finishedTripMetricExplanation(for: completedTrip))
+                                .font(.footnote.weight(.medium))
+                                .foregroundStyle(Palette.cocoa)
 
                             Button {
                                 shareFinishedTrip()
@@ -2674,7 +2682,7 @@ public struct RouteComparisonView: View {
                     )
 
                     liveDriveMetricCard(
-                        title: "Trip balance",
+                        title: liveDriveOverallResultTitle,
                         value: Self.netString(liveDriveDisplayedNetTimeGain),
                         tint: liveDriveDisplayedNetTimeGain >= 0 ? Palette.success : Palette.danger,
                         emphasis: .strong
@@ -3843,11 +3851,17 @@ public struct RouteComparisonView: View {
         """
         TimeThrottle trip result
         \(completedTrip.displayRouteTitle)
-        Time saved: \(Self.durationString(completedTrip.timeSavedBySpeeding))
-        Time under target pace: \(Self.durationString(completedTrip.timeLostBelowTargetPace))
-        Net result: \(Self.netString(completedTrip.netTimeGain))
+        Apple ETA baseline: \(Self.durationString(completedTrip.baselineRouteETAMinutes))
+        Overall vs Apple ETA: \(Self.netString(completedTrip.netTimeGain))
+        Above-target gain: \(Self.durationString(completedTrip.timeSavedBySpeeding))
+        Below-target loss: \(Self.durationString(completedTrip.timeLostBelowTargetPace))
         Fuel penalty: \(Self.currencyString(completedTrip.fuelPenalty))
         """
+    }
+
+    private func finishedTripMetricExplanation(for completedTrip: CompletedTripRecord) -> String {
+        let baselineETA = Self.durationString(completedTrip.baselineRouteETAMinutes)
+        return "Overall vs Apple ETA compares the whole trip to Apple Maps' baseline ETA of \(baselineETA). Above-target gain and below-target loss are measured against your chosen target pace."
     }
 
     private func liveDriveMetricCard(
@@ -3919,14 +3933,18 @@ public struct RouteComparisonView: View {
 
     private func liveDriveVerdict(for netTimeGain: Double) -> String {
         if netTimeGain > 10 {
-            return "You are still ahead after the time lost below target pace."
+            return "Overall, you finished comfortably ahead of the Apple Maps ETA."
         }
 
         if netTimeGain > 0 {
-            return "You only gained a little after the time lost below target pace."
+            return "Overall, you finished slightly ahead of the Apple Maps ETA."
         }
 
-        return "Time lost below target pace erased the gain."
+        if abs(netTimeGain) < 0.01 {
+            return "Overall, you matched the Apple Maps ETA."
+        }
+
+        return "Overall, you finished behind the Apple Maps ETA."
     }
 
     private var liveDriveVerdict: String {

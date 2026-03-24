@@ -56,7 +56,7 @@ struct TripHistoryScreen: View {
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(Palette.ink)
 
-                Text("Completed Live Drive trips will appear here with saved time, time under target pace, and fuel results.")
+                Text("Completed Live Drive trips will appear here with target-pace gain/loss, Apple ETA results, and fuel results.")
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(Palette.cocoa)
                     .multilineTextAlignment(.center)
@@ -85,9 +85,9 @@ private struct TripHistoryRow: View {
             }
 
             HStack(spacing: 8) {
-                StatPill(title: "Saved", value: durationString(trip.timeSavedBySpeeding), foreground: Palette.success, background: Palette.successBackground, compact: true)
-                StatPill(title: "Below pace", value: durationString(trip.timeLostBelowTargetPace), foreground: Palette.danger, background: Palette.dangerBackground, compact: true)
-                StatPill(title: "Net", value: netString(trip.netTimeGain), foreground: trip.netTimeGain >= 0 ? Palette.success : Palette.danger, background: Palette.pill, compact: true)
+                StatPill(title: "Target gain", value: durationString(trip.timeSavedBySpeeding), foreground: Palette.success, background: Palette.successBackground, compact: true)
+                StatPill(title: "Target loss", value: durationString(trip.timeLostBelowTargetPace), foreground: Palette.danger, background: Palette.dangerBackground, compact: true)
+                StatPill(title: "Vs ETA", value: netString(trip.netTimeGain), foreground: trip.netTimeGain >= 0 ? Palette.success : Palette.danger, background: Palette.pill, compact: true)
             }
         }
         .padding(14)
@@ -123,11 +123,15 @@ private struct TripHistoryDetailView: View {
                             ],
                             spacing: 12
                         ) {
-                            SummaryCard(title: "Time saved", value: durationString(trip.timeSavedBySpeeding), tint: Palette.success, compact: true)
-                            SummaryCard(title: "Below target pace", value: durationString(trip.timeLostBelowTargetPace), tint: Palette.danger, compact: true)
-                            SummaryCard(title: "Net result", value: netString(trip.netTimeGain), tint: trip.netTimeGain >= 0 ? Palette.success : Palette.danger, isProminent: true, compact: true)
+                            SummaryCard(title: "Above-target gain", value: durationString(trip.timeSavedBySpeeding), tint: Palette.success, compact: true)
+                            SummaryCard(title: "Below-target loss", value: durationString(trip.timeLostBelowTargetPace), tint: Palette.danger, compact: true)
+                            SummaryCard(title: "Overall vs Apple ETA", value: netString(trip.netTimeGain), tint: trip.netTimeGain >= 0 ? Palette.success : Palette.danger, isProminent: true, compact: true)
                             SummaryCard(title: "Fuel penalty", value: currencyString(trip.fuelPenalty), tint: trip.fuelPenalty > 0 ? Palette.danger : Palette.ink, compact: true)
                         }
+
+                        Text("Overall vs Apple ETA compares the whole trip to Apple Maps. Above-target gain and below-target loss are measured against your chosen target pace.")
+                            .font(.footnote.weight(.medium))
+                            .foregroundStyle(Palette.cocoa)
                     }
                 }
 

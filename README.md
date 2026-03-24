@@ -10,11 +10,21 @@ How much time did speed really buy you?
 
 **TimeThrottle** is an iPhone pace-analysis app that helps drivers understand what faster driving actually bought them.
 
-Apple Maps provides route lookup, autocomplete, route options, and the ETA baseline. TimeThrottle then tracks or compares pace tradeoffs such as time saved, time under target pace, fuel penalty, ticket-risk estimate, and overall trip balance.
+Apple Maps provides route lookup, autocomplete, route options, and the ETA baseline. TimeThrottle then tracks or compares pace tradeoffs such as above-target gain, below-target loss, fuel penalty, ticket-risk estimate, and overall result versus Apple ETA where that baseline exists.
 
 TimeThrottle does **not** provide built-in turn-by-turn navigation. In **Live Drive**, it can hand off navigation to Apple Maps, Google Maps, or Waze while TimeThrottle continues tracking the trip and comparing pace tradeoffs.
 
 > **How much time did speed really buy you?**
+
+## What's New in v1.3.1
+
+Use this block for GitHub, TestFlight, and App Store Connect release copy:
+
+> **TimeThrottle 1.3.1**
+>  
+> - Clarified finished-trip result labels so Above-target gain, Below-target loss, and Overall vs Apple ETA are clearly separated
+> - Updated Trip History, trip detail, and shared trip summaries to use the same Apple ETA baseline framing
+> - Tightened in-app and release-facing wording around finished-trip metrics for consistency
 
 ## What's New in v1.3
 
@@ -45,7 +55,7 @@ It can:
 - Track speed, distance, and trip progress with iPhone location services
 - Pause, resume, and end the active trip without losing the finished result
 - Compare live projected pace against the Apple ETA baseline
-- Estimate time saved, time under target pace, fuel penalty, and trip balance
+- Show above-target gain, below-target loss, fuel penalty, and overall result vs Apple ETA on completed trips
 - Keep completed trips visible for review, sharing, and optional Observed MPG refinement
 - Save completed Live Drive trips into local Trip History
 - Hand off navigation to Apple Maps, Google Maps, or Waze without claiming built-in navigation
@@ -74,9 +84,9 @@ It includes:
 - Fuel assumptions
 - Pace, fuel, and ticket-risk tradeoff output
 
-## Navigation Handoff in v1.3
+## Navigation Handoff in v1.3.1
 
-TimeThrottle 1.3 still keeps Apple Maps as the planning layer and Apple ETA baseline source.
+TimeThrottle 1.3.1 still keeps Apple Maps as the planning layer and Apple ETA baseline source.
 
 During Live Drive, users can choose:
 - **Apple Maps**
@@ -92,8 +102,9 @@ TimeThrottle is a **pace-analysis app**, not a navigation replacement.
 
 The app is designed to answer questions like:
 - Did driving faster meaningfully change the trip?
-- How much time was actually gained?
-- How much time was spent below the target pace?
+- How much above-target gain did the trip create?
+- How much below-target loss built up during the trip?
+- How did the finished trip land versus the Apple ETA baseline?
 - What was the fuel penalty?
 - Was the overall tradeoff worth it?
 
@@ -120,8 +131,8 @@ For the full policy, see [privacy-policy.md](/Users/anthonylarosa/SPEED%20APP/pr
 - **Platform:** iPhone / iOS only
 - **Deployment target:** iOS 17+
 - **Bundle ID:** `com.timethrottle.app`
-- **Current release:** v1.3
-- **Current build:** 3
+- **Current release:** v1.3.1
+- **Current build:** 4
 - **Primary app target:** `TimeThrottle.xcodeproj`
 - **Primary shared UI:** `Sources/SharedUI/RouteComparisonView.swift`
 

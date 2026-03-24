@@ -2,6 +2,30 @@
 
 All notable release-facing changes to **TimeThrottle** should be documented in this file.
 
+## v1.3.1 - March 24, 2026
+
+### What's New
+
+Use this block for GitHub releases, TestFlight notes, or App Store Connect:
+
+> **TimeThrottle 1.3.1**
+>  
+> - Clarified finished-trip result labels so Above-target gain, Below-target loss, and Overall vs Apple ETA are clearly separated
+> - Updated Trip History, trip detail, and shared trip summaries to use the same Apple ETA baseline framing
+> - Tightened in-app and release-facing wording around finished-trip metrics for consistency
+
+### Release Notes
+
+- No trip-analysis math changed in this update
+- Clarified that Above-target gain measures only time gained from above-target pace segments
+- Clarified that Below-target loss measures time lost while driving below target pace
+- Clarified that Overall vs Apple ETA is the completed-trip result against the Apple Maps ETA baseline
+- Updated share text, Trip History, trip detail, and release-facing copy to match the clarified result story
+
+### Release Positioning
+
+TimeThrottle 1.3.1 is a wording and consistency update focused on finished-trip clarity. Apple Maps still provides route lookup and ETA baseline planning, while TimeThrottle continues to track the trip and explain the result without claiming built-in turn-by-turn navigation.
+
 ## v1.3 - March 22, 2026
 
 ### What's New

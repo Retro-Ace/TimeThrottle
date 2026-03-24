@@ -1,6 +1,6 @@
 # Privacy Policy for TimeThrottle
 
-**Effective date:** March 22, 2026
+**Effective date:** March 24, 2026
 
 TimeThrottle is an iPhone pace-analysis app. It uses Apple Maps route planning as a baseline and, when enabled by the user, iPhone location services for Live Drive trip tracking.
 
@@ -62,7 +62,7 @@ TimeThrottle uses the information above only to:
 - Look up routes and baseline ETAs with Apple Maps
 - Show autocomplete suggestions for route entry
 - Track a live drive when the user enables location access
-- Compare pace and trip tradeoffs such as time saved, time under target pace, fuel penalty, and trip balance
+- Compare pace and trip tradeoffs such as above-target gain, below-target loss, fuel penalty, and overall result versus Apple ETA where that baseline exists
 - Save completed Live Drive trips on-device for later review
 - Hand off navigation to Apple Maps, Google Maps, or Waze when the user chooses that option
 
