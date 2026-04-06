@@ -2,6 +2,34 @@
 
 All notable release-facing changes to **TimeThrottle** should be documented in this file.
 
+## v1.3.2 - April 6, 2026
+
+### What's New
+
+Use this block for GitHub releases, TestFlight notes, or App Store Connect:
+
+> **TimeThrottle 1.3.2**
+>  
+> - Added a cleaner compact Live Drive HUD for in-motion use
+> - Improved one-screen HUD fit so trip status, Apple ETA, projected arrival, and controls are easier to reach
+> - Clarified HUD metric wording around Apple ETA and target-speed time
+> - Better balanced the lower HUD map area without claiming built-in navigation
+> - Kept the app focused on two modes: Live Drive and Compare
+
+### Release Notes
+
+- Added a compact in-app Live Drive HUD that opens when a drive starts
+- Kept current speed as the HUD hero metric while tightening the route header, metric cards, and controls
+- Added real trip-average-speed and projected-arrival context using existing Live Drive data
+- Kept Apple ETA as the baseline reference in the HUD and avoided fake traffic, road speed-limit, or turn-by-turn claims
+- Improved HUD control reachability so Pause / Resume and End Trip stay easier to reach
+- Rebalanced the lower HUD map area so it fills the remaining screen space more naturally
+- Left Compare and the Apple Maps planning baseline unchanged
+
+### Release Positioning
+
+TimeThrottle 1.3.2 is a Live Drive usability update focused on the compact in-app HUD. The app remains centered on Live Drive and Compare, Apple Maps still provides route lookup and ETA baseline planning, and TimeThrottle continues to analyze pace tradeoffs without claiming built-in turn-by-turn navigation.
+
 ## v1.3.1 - March 24, 2026
 
 ### What's New

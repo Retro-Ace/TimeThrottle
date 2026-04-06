@@ -26,7 +26,7 @@ private struct EditableSegment: Identifiable {
     }
 }
 
-private enum LiveDriveScreenState {
+private enum LiveDriveScreenState: Equatable {
     case setup
     case driving
     case tripComplete
@@ -94,6 +94,8 @@ public struct RouteComparisonView: View {
     @State private var liveDrivePostTripObservedMPGText = ""
     @State private var liveDriveNavigationProviderPending: NavigationProvider?
     @State private var liveDriveNavigationHandoffMessage: String?
+    @State private var isLiveDriveHUDPresented = false
+    @State private var liveDriveHUDWasDismissedForCurrentTrip = false
     @State private var isNavigationProviderChoicePresented = false
     @State private var isTripHistoryPresented = false
     @StateObject private var currentLocationResolver = CurrentLocationResolver()
@@ -378,6 +380,68 @@ public struct RouteComparisonView: View {
         liveDriveRouteContext?.routeLabel ?? liveDriveCurrentRouteLabel
     }
 
+    private var liveDriveHUDRoute: RouteEstimate? {
+        liveDriveCapturedRoute ?? liveDriveSetupRoute
+    }
+
+    private var liveDriveHUDRouteTitle: String {
+        guard let route = liveDriveHUDRoute else { return liveDriveRouteLabel }
+        return route.destinationName
+    }
+
+    private var liveDriveHUDRouteContextText: String {
+        guard let route = liveDriveHUDRoute else { return liveDriveRouteLabel }
+        return "From \(route.sourceName)"
+    }
+
+    private var liveDriveHUDRouteMetaText: String {
+        var parts: [String] = []
+
+        if let route = liveDriveHUDRoute {
+            let trimmedRouteName = route.routeName.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmedRouteName.isEmpty {
+                parts.append(trimmedRouteName)
+            }
+
+            parts.append("\(Self.milesString(route.distanceMiles)) mi")
+        } else if liveDriveBaselineDistanceMiles > 0 {
+            parts.append("\(Self.milesString(liveDriveBaselineDistanceMiles)) mi")
+        }
+
+        return parts.isEmpty ? liveDriveRouteLabel : parts.joined(separator: " • ")
+    }
+
+    private var liveDriveHUDNavigationLabel: String? {
+        switch preferredNavigationProvider {
+        case .appleMaps, .googleMaps, .waze:
+            return preferredNavigationProvider.rawValue
+        case .askEveryTime:
+            return liveDriveNavigationHandoffMessage == nil ? "Navigation app" : "Navigation status"
+        }
+    }
+
+    private var liveDriveHUDNavigationMessage: String? {
+        if let liveDriveNavigationHandoffMessage {
+            return liveDriveNavigationHandoffMessage
+        }
+
+        if preferredNavigationProvider == .askEveryTime {
+            return "You’ll choose a navigation app when the trip starts."
+        }
+
+        return "TimeThrottle tracks the trip. Your map app handles navigation."
+    }
+
+    private var showsLiveDriveHUDReopenButton: Bool {
+        liveDriveScreenState == .driving && liveDriveHUDWasDismissedForCurrentTrip
+    }
+
+    private var liveDriveHUDMapContent: AnyView? {
+        guard let selectedRoute = liveDriveHUDRoute else { return nil }
+        let routes = liveDriveRouteContext?.routes ?? liveDriveSetupRouteOptions
+        return AnyView(mapPreview(routes, selectedRoute.id))
+    }
+
     private var preferredNavigationProvider: NavigationProvider {
         NavigationProvider(rawValue: navigationProviderPreferenceRawValue) ?? .askEveryTime
     }
@@ -581,6 +645,57 @@ public struct RouteComparisonView: View {
         }
 
         return Palette.danger
+    }
+
+    private var liveDriveHUDAverageSpeed: Double {
+        if tracker.tripDuration > 0 {
+            return tracker.distanceTraveled / (tracker.tripDuration / 60)
+        }
+
+        return tracker.analysisResult.averageTripSpeed
+    }
+
+    private var liveDriveHUDAverageSpeedValue: String {
+        liveDriveHUDAverageSpeed > 0
+            ? "\(Self.speedString(liveDriveHUDAverageSpeed)) mph"
+            : "—"
+    }
+
+    private var liveDriveHUDAppleETAValue: String {
+        liveDriveBaselineETAMinutes > 0
+            ? Self.durationString(liveDriveBaselineETAMinutes)
+            : "—"
+    }
+
+    private var liveDriveHUDLiveETAValue: String {
+        if tracker.expectedArrivalTime != nil {
+            return liveDriveExpectedArrivalText
+        }
+
+        if liveDriveProjectedTravelMinutes > 0 {
+            return liveDriveProjectedTravelLabel
+        }
+
+        return "Collecting"
+    }
+
+    private var liveDriveHUDLiveETADetail: String {
+        if tracker.expectedArrivalTime != nil {
+            if abs(liveDriveDisplayedNetTimeGain) < 0.01 {
+                return "on Apple ETA"
+            }
+
+            let delta = Self.durationString(abs(liveDriveDisplayedNetTimeGain))
+            return liveDriveDisplayedNetTimeGain > 0
+                ? "\(delta) ahead of Apple ETA"
+                : "\(delta) behind Apple ETA"
+        }
+
+        if liveDriveProjectedTravelMinutes > 0 {
+            return "projected at current pace"
+        }
+
+        return "projected arrival"
     }
 
     private var liveDriveControlsSubtitle: String {
@@ -885,6 +1000,14 @@ public struct RouteComparisonView: View {
                 processLiveDriveNavigationHandoffIfNeeded()
             }
         }
+        .onChange(of: liveDriveScreenState) { _, newState in
+            switch newState {
+            case .driving:
+                presentLiveDriveHUDIfNeeded()
+            case .setup, .tripComplete:
+                isLiveDriveHUDPresented = false
+            }
+        }
         .onChange(of: tracker.permissionState) { _, newState in
             if newState == .denied || newState == .restricted {
                 liveDriveNavigationProviderPending = nil
@@ -922,6 +1045,17 @@ public struct RouteComparisonView: View {
         .sheet(isPresented: $isTripHistoryPresented) {
             TripHistoryScreen(store: tripHistoryStore, brandLogo: brandLogo)
         }
+        .fullScreenCover(isPresented: $isLiveDriveHUDPresented) {
+            liveDriveHUDView
+                .interactiveDismissDisabled()
+        }
+        .onChange(of: isNavigationProviderChoicePresented) { _, isPresented in
+            if isPresented {
+                isLiveDriveHUDPresented = false
+            } else {
+                presentLiveDriveHUDIfNeeded()
+            }
+        }
         .confirmationDialog(
             "Choose navigation app",
             isPresented: $isNavigationProviderChoicePresented,
@@ -947,6 +1081,39 @@ public struct RouteComparisonView: View {
         }
         #endif
     }
+
+    #if os(iOS)
+    private var liveDriveHUDView: some View {
+        LiveDriveHUDView(
+            statusTitle: liveDriveHeaderStatusTitle,
+            routeTitle: liveDriveHUDRouteTitle,
+            routeMeta: liveDriveHUDRouteMetaText,
+            currentSpeedValue: Self.speedString(tracker.currentSpeed),
+            averageSpeedValue: liveDriveHUDAverageSpeedValue,
+            appleETAValue: liveDriveHUDAppleETAValue,
+            liveETAValue: liveDriveHUDLiveETAValue,
+            liveETADetail: liveDriveHUDLiveETADetail,
+            aboveTargetValue: Self.durationString(liveDriveDisplayedTimeSaved),
+            belowTargetValue: Self.durationString(liveDriveDisplayedTimeLost),
+            navigationLabel: liveDriveHUDNavigationLabel,
+            mapContent: liveDriveHUDMapContent,
+            isPaused: tracker.isPaused,
+            onPauseResume: {
+                if tracker.isPaused {
+                    resumeLiveDrive()
+                } else {
+                    pauseLiveDrive()
+                }
+            },
+            onEndTrip: {
+                endLiveDrive()
+            },
+            onClose: {
+                dismissLiveDriveHUD()
+            }
+        )
+    }
+    #endif
 
     private var mobileScreen: some View {
         ZStack(alignment: .top) {
@@ -2305,6 +2472,25 @@ public struct RouteComparisonView: View {
                             }
                             .buttonStyle(.plain)
                         }
+
+                        if showsLiveDriveHUDReopenButton {
+                            Button {
+                                reopenLiveDriveHUD()
+                            } label: {
+                                Label("Open Drive HUD", systemImage: "gauge.with.dots.needle.67percent")
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(Palette.ink)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 12)
+                                    .background(Palette.panelAlt, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                    .overlay {
+                                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                            .stroke(Palette.surfaceBorder, lineWidth: 1)
+                                    }
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
 
                     if liveDriveScreenState == .tripComplete {
@@ -3292,6 +3478,7 @@ public struct RouteComparisonView: View {
               let selectedRoute = liveDriveSetupRoute else { return }
         liveDriveFinishedTrip = nil
         liveDrivePostTripObservedMPGText = ""
+        liveDriveHUDWasDismissedForCurrentTrip = false
         liveDriveRouteContext = LiveDriveRouteContext(
             routes: liveDriveSetupRouteOptions,
             selectedRouteID: selectedRoute.id,
@@ -3325,6 +3512,8 @@ public struct RouteComparisonView: View {
 
     private func endLiveDrive() {
         withAnimation(.snappy(duration: 0.24, extraBounce: 0)) {
+            isLiveDriveHUDPresented = false
+            liveDriveHUDWasDismissedForCurrentTrip = false
             liveDriveNavigationProviderPending = nil
             liveDriveNavigationHandoffMessage = nil
             isNavigationProviderChoicePresented = false
@@ -3335,6 +3524,8 @@ public struct RouteComparisonView: View {
 
     private func startNewLiveDrive() {
         withAnimation(.snappy(duration: 0.24, extraBounce: 0)) {
+            isLiveDriveHUDPresented = false
+            liveDriveHUDWasDismissedForCurrentTrip = false
             liveDriveRouteContext = nil
             liveDriveNavigationProviderPending = nil
             liveDriveNavigationHandoffMessage = nil
@@ -3343,6 +3534,23 @@ public struct RouteComparisonView: View {
             isNavigationProviderChoicePresented = false
             tracker.resetTrip()
         }
+    }
+
+    private func presentLiveDriveHUDIfNeeded() {
+        guard liveDriveScreenState == .driving else { return }
+        guard !liveDriveHUDWasDismissedForCurrentTrip else { return }
+        guard !isNavigationProviderChoicePresented else { return }
+        isLiveDriveHUDPresented = true
+    }
+
+    private func dismissLiveDriveHUD() {
+        liveDriveHUDWasDismissedForCurrentTrip = true
+        isLiveDriveHUDPresented = false
+    }
+
+    private func reopenLiveDriveHUD() {
+        liveDriveHUDWasDismissedForCurrentTrip = false
+        presentLiveDriveHUDIfNeeded()
     }
 
     private func processLiveDriveNavigationHandoffIfNeeded() {

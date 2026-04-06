@@ -16,6 +16,18 @@ TimeThrottle does **not** provide built-in turn-by-turn navigation. In **Live Dr
 
 > **How much time did speed really buy you?**
 
+## What's New in v1.3.2
+
+Use this block for GitHub, TestFlight, and App Store Connect release copy:
+
+> **TimeThrottle 1.3.2**
+>  
+> - Added a cleaner compact Live Drive HUD for in-motion use
+> - Improved one-screen HUD fit so trip status, Apple ETA, projected arrival, and controls are easier to reach
+> - Clarified HUD metric wording around Apple ETA and target-speed time
+> - Better balanced the lower HUD map area without claiming built-in navigation
+> - Kept the app focused on two modes: Live Drive and Compare
+
 ## What's New in v1.3.1
 
 Use this block for GitHub, TestFlight, and App Store Connect release copy:
@@ -54,6 +66,7 @@ It can:
 - Use Current Location as the default route start
 - Offer Apple Maps-style address autocomplete for route setup
 - Track speed, distance, and trip progress with iPhone location services
+- Open a compact in-app Drive HUD with current speed, Apple ETA, projected arrival, and pause/end controls
 - Pause, resume, and end the active trip without losing the finished result
 - Compare live projected pace against the Apple ETA baseline
 - Show above-target gain, below-target loss, fuel penalty, and overall result vs Apple ETA on completed trips
@@ -73,9 +86,22 @@ It includes:
 - Pace comparison input
 - Final result versus Apple ETA
 
-## Navigation Handoff in v1.3.1
+## Live Drive HUD in v1.3.2
 
-TimeThrottle 1.3.1 still keeps Apple Maps as the planning layer and Apple ETA baseline source.
+TimeThrottle 1.3.2 includes a compact in-app Live Drive HUD that opens when a drive starts.
+
+The HUD is designed to keep the most useful trip data easy to glance at:
+- Current speed as the primary metric
+- Apple ETA as the baseline route reference
+- Projected arrival using current trip progress
+- Time above target speed and time below target speed
+- Pause / Resume and End Trip controls
+
+It stays powered by the same real TimeThrottle trip state already used in Live Drive and does not claim built-in turn-by-turn navigation, live traffic, or road speed-limit data.
+
+## Navigation Handoff in v1.3.2
+
+TimeThrottle 1.3.2 still keeps Apple Maps as the planning layer and Apple ETA baseline source.
 
 During Live Drive, users can choose:
 - **Apple Maps**
@@ -120,8 +146,8 @@ For the full policy, see [privacy-policy.md](/Users/anthonylarosa/SPEED%20APP/pr
 - **Platform:** iPhone / iOS only
 - **Deployment target:** iOS 17+
 - **Bundle ID:** `com.timethrottle.app`
-- **Current release:** v1.3.1
-- **Current build:** 4
+- **Current release:** v1.3.2
+- **Current build:** 5
 - **Primary app target:** `TimeThrottle.xcodeproj`
 - **Primary shared UI:** `Sources/SharedUI/RouteComparisonView.swift`
 
@@ -133,6 +159,7 @@ For the full policy, see [privacy-policy.md](/Users/anthonylarosa/SPEED%20APP/pr
 - `SpeedCostCalculator.swift` — shared pace and fuel-tradeoff math
 - `TimeThrottleCalculator.swift` — shared trip-comparison math for Apple Maps ETA-baseline comparisons
 - `RouteModels.swift` — shared route, lookup, autocomplete, and mode models
+- `LiveDriveHUDView.swift` — compact in-app Live Drive HUD
 - `NavigationHandoffService.swift` — Apple Maps / Google Maps / Waze / Ask Every Time handoff behavior
 
 ## Repository Layout
