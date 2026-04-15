@@ -13,14 +13,9 @@ public struct CompletedTripRecord: Identifiable, Codable, Equatable, Sendable {
     public var elapsedDriveMinutes: Double
     public var averageTripSpeed: Double
     public var targetSpeed: Double
-    public var ratedMPG: Double
-    public var estimatedObservedMPG: Double?
-    public var enteredObservedMPG: Double?
-    public var fuelPricePerGallon: Double
     public var timeSavedBySpeeding: Double
     public var timeLostBelowTargetPace: Double
     public var netTimeGain: Double
-    public var fuelPenalty: Double
 
     public init(
         id: UUID = UUID(),
@@ -34,14 +29,9 @@ public struct CompletedTripRecord: Identifiable, Codable, Equatable, Sendable {
         elapsedDriveMinutes: Double,
         averageTripSpeed: Double,
         targetSpeed: Double,
-        ratedMPG: Double,
-        estimatedObservedMPG: Double? = nil,
-        enteredObservedMPG: Double? = nil,
-        fuelPricePerGallon: Double,
         timeSavedBySpeeding: Double,
         timeLostBelowTargetPace: Double,
-        netTimeGain: Double,
-        fuelPenalty: Double
+        netTimeGain: Double
     ) {
         self.id = id
         self.completedAt = completedAt
@@ -54,59 +44,13 @@ public struct CompletedTripRecord: Identifiable, Codable, Equatable, Sendable {
         self.elapsedDriveMinutes = elapsedDriveMinutes
         self.averageTripSpeed = averageTripSpeed
         self.targetSpeed = targetSpeed
-        self.ratedMPG = ratedMPG
-        self.estimatedObservedMPG = estimatedObservedMPG
-        self.enteredObservedMPG = enteredObservedMPG
-        self.fuelPricePerGallon = fuelPricePerGallon
         self.timeSavedBySpeeding = timeSavedBySpeeding
         self.timeLostBelowTargetPace = timeLostBelowTargetPace
         self.netTimeGain = netTimeGain
-        self.fuelPenalty = fuelPenalty
-    }
-
-    public var effectiveObservedMPG: Double? {
-        Self.normalizedObservedMPG(enteredObservedMPG) ?? Self.normalizedObservedMPG(estimatedObservedMPG)
     }
 
     public var displayRouteTitle: String {
         "\(sourceName) → \(destinationName)"
-    }
-
-    public func updatingObservedMPG(_ mpg: Double?) -> CompletedTripRecord {
-        var copy = self
-        copy.enteredObservedMPG = Self.normalizedObservedMPG(mpg)
-        copy.fuelPenalty = Self.fuelPenalty(
-            distanceMiles: distanceDrivenMiles > 0 ? distanceDrivenMiles : baselineRouteDistanceMiles,
-            ratedMPG: ratedMPG,
-            observedMPG: copy.effectiveObservedMPG,
-            fuelPricePerGallon: fuelPricePerGallon
-        )
-        return copy
-    }
-
-    public static func fuelPenalty(
-        distanceMiles: Double,
-        ratedMPG: Double,
-        observedMPG: Double?,
-        fuelPricePerGallon: Double
-    ) -> Double {
-        guard
-            distanceMiles > 0,
-            ratedMPG > 0,
-            let observedMPG = normalizedObservedMPG(observedMPG),
-            fuelPricePerGallon >= 0
-        else {
-            return 0
-        }
-
-        let baselineFuelUsedGallons = distanceMiles / ratedMPG
-        let actualFuelUsedGallons = distanceMiles / observedMPG
-        return max(actualFuelUsedGallons - baselineFuelUsedGallons, 0) * fuelPricePerGallon
-    }
-
-    private static func normalizedObservedMPG(_ mpg: Double?) -> Double? {
-        guard let mpg, mpg > 0 else { return nil }
-        return mpg
     }
 }
 

@@ -1,33 +1,41 @@
-TimeThrottle — Full Project Breakdown
+TimeThrottle — Full Project Breakdown (v1.4)
 
-Updated: March 19, 2026
+1. WHAT THE APP IS
 
-1) What the app is
+TimeThrottle is an iPhone Live Drive pace-analysis app built around one simple question:
 
-TimeThrottle is an iPhone pace-analysis app built around one question:
-“How much time did speed really buy you?”
+"How much time did speed really buy you?"
 
-It compares a user’s real or planned trip against a baseline and shows tradeoffs such as:
-- time saved
-- time under target pace
-- fuel penalty
-- ticket-risk estimate
-- overall trip balance
+It is not a built-in turn-by-turn navigation app.
 
-It is positioned as a trip-analysis tool, not a built-in navigation app.
+It uses Apple Maps as the route lookup and ETA-baseline layer, then tracks a real drive to show:
+- above-target gain
+- below-target loss
+- overall result versus Apple ETA
 
-2) What the app does now
+In Live Drive, the app can optionally hand off visible navigation to Apple Maps, Google Maps, or Waze while TimeThrottle keeps doing the trip tracking and pace analysis.
 
-A) Live Drive
-Live Drive is the real-time trip analysis mode.
-It can:
-- capture an Apple Maps route and ETA baseline
-- use Current Location as the default route start
-- offer Apple Maps-style address autocomplete for route setup
-- track speed, distance, and trip progress with iPhone location services
-- compare live projected pace against the Apple ETA baseline
-- estimate time saved, time under target pace, fuel penalty, and trip balance
-- hand off navigation to Apple Maps or Google Maps without claiming built-in navigation
+2. WHAT THE APP DOES NOW
+
+As of v1.4, the app is intentionally centered around one main experience:
+1) Live Drive
+
+A. Live Drive
+This is the real-time driving mode and the app’s full product focus.
+
+It lets the user:
+- choose a route baseline from Apple Maps
+- start from Current Location by default
+- use Apple Maps-style address autocomplete
+- calculate route options
+- choose a route
+- preview the route before starting
+- start a live tracked trip
+- see pace/tradeoff information during the drive
+- pause, resume, and end the trip
+- save the finished trip
+- share a finished-trip summary
+- reopen past trips in Trip History
 
 Live Drive setup includes:
 - From
@@ -38,355 +46,146 @@ Live Drive setup includes:
 - Apple ETA
 - Map preview
 - Target speed
-- MPG
-- Fuel price
 - Start Drive
 
-Live Drive active screen includes:
-- Live route map
-- Live comparison bar
-- Current speed
-- Distance driven
-- Time Under Target Pace
-- Trip balance
-- Stop Drive
-- End Trip
-
-B) Route
-Route mode compares a planned trip against an Apple Maps route and ETA baseline.
-It includes:
-- Apple Maps route lookup
-- Route options
-- Route preview
+Live Drive while active includes:
+- current speed
+- elapsed trip time / trip status
 - Apple ETA baseline
-- Pace comparison
-- Fuel and ticket-risk estimates
-- Comparison bars and trip summary output
+- projected arrival / live arrival context
+- time above target speed
+- time below target speed
+- distance
+- Pause / Resume
+- End Trip
+- optional in-app compact HUD
+- route/map context
+- optional external navigation handoff
 
-C) Manual
-Manual mode compares two pace scenarios across a hand-entered distance.
-It includes:
-- Distance entry
-- Speed A vs Speed B comparison
-- Average-speed or trip-duration comparison input
-- Fuel assumptions
-- Pace, fuel, and ticket-risk tradeoff output
+Live Drive finished-trip flow includes:
+- result-first summary
+- overall result / verdict
+- key trip stats
+- shareable summary
+- Trip History save path
 
-3) Major features that exist now
+3. BIGGEST CURRENT FEATURES
 
-- Apple Maps route integration with route lookup, route options, route selection, route preview, and Apple ETA as a baseline
-- Live comparison bars in Route mode and Live Drive
-- Live route map in Live Drive
-- “Was It Worth It?” / trip summary style outputs
-- Truthful pace-based wording instead of misleading “traffic” wording
-- Location permission handling for Live Drive
-- External navigation handoff in v1.2
-- Current Location as the default route start
-- Apple Maps-style address autocomplete
+- compact in-app Live Drive HUD
+- Apple Maps route lookup / route options / route preview / ETA baseline
+- external navigation handoff to Apple Maps / Google Maps / Waze / Ask Every Time
+- Trip History
+- shareable finished-trip summaries
 
-4) What v1.2 added
+4. CURRENT WORDING / PRODUCT FRAMING
 
-Version 1.2 is centered on External Navigation Handoff.
-It keeps Apple Maps as the planning layer and ETA baseline source, while allowing Live Drive to hand off visible navigation to:
-- Apple Maps
-- Google Maps
-- Ask Every Time
+The app now uses direct pace-based wording.
 
-v1.2 adds:
-- provider-agnostic navigation handoff
-- Apple Maps / Google Maps / Ask Every Time
-- fallback if Google Maps is not installed
-- Current Location default route start
-- Apple Maps-style autocomplete
-- cleaner Live Drive setup flow
-- stronger permission/background continuity handling for believable handoff
-- more consistent Live Drive / Route / Manual UI polish
+Examples:
+- Above-target gain
+- Below-target loss
+- Overall vs Apple ETA
+- projected arrival
 
-v1.2 does not add built-in turn-by-turn navigation.
+The app remains careful not to claim:
+- built-in turn-by-turn navigation
+- lane guidance
+- road speed-limit ownership
+- live traffic intelligence it does not truly own
 
-5) Development history / what was implemented over time
+5. DEVELOPMENT HISTORY
 
-Phase 1 — Core calculator idea
-- The project started as a simpler speed/time/fuel comparison app.
-- Early focus: time saved, extra fuel cost, and whether driving faster was “worth it.”
+- early stage: simpler iPhone pace-analysis concept
+- Apple Maps baseline stage: route lookup, route options, route preview, ETA baseline
+- Live Drive expansion stage: GPS tracking, route context preservation, finished-trip persistence
+- handoff stage: Apple Maps / Google Maps / Waze support
+- HUD stage: compact Live Drive HUD
+- v1.4: Live Drive-only simplification, removed non-Live and fuel-related product paths, improved HUD map follow behavior
 
-Phase 2 — Real iOS app target and release pipeline
-- The app became a real iPhone app with an Xcode target, signing, App Icon, screenshots, bundle ID, deployment target, privacy docs, and release prep.
-- Confirmed platform direction: iOS only, iPhone only.
+6. WHAT THE AGENTS DO
 
-Phase 3 — Apple Maps route comparison
-- Apple Maps route lookup, route options, route preview, and Apple ETA baseline were added.
-- This made the app feel much more real-world than a pure manual calculator.
+Dan — Implementation
+- app code
+- architecture
+- tracking logic
+- Apple Maps route integration
+- navigation handoff system
+- Current Location defaulting
+- Apple Maps autocomplete
+- Trip History
+- HUD implementation
+- release prep
+- Git pushes
+- simulator/build/archive prep
 
-Phase 4 — UX restructuring
-- Older framing was replaced by the cleaner mode-based structure:
-  - Live Drive
-  - Route
-  - Manual
-- This was a major usability improvement.
+Steve — UI / UX Design
+- HUD layout direction
+- spacing / hierarchy / clarity audits
+- wording tone
+- route-entry cleanup
+- finish-screen UX
+- release copy direction
 
-Phase 5 — Live Drive
-- Real GPS tracking was added.
-- Live Drive gained route selection before driving, route context preservation, live route map, live comparison bar, current speed, distance, and trip summary.
+Joe — QA / Release Review
+- QA passes
+- regression review
+- truthfulness review
+- state consistency review
+- release readiness
+- permission-state review
+- wording risk evaluation
 
-Phase 6 — Truthful wording cleanup
-- Misleading “traffic” wording was replaced with pace-based wording such as “time under target pace.”
-- This improved trustworthiness and product clarity.
+7. CURRENT FOLDER STRUCTURE
 
-Phase 7 — iOS-only cleanup
-- Mixed-platform leftovers were cleaned up.
-- The repo and project were aligned around the active iPhone app.
-
-Phase 8 — v1.2 polish and navigation handoff
-- External navigation handoff was added.
-- Current Location became the default route start.
-- Apple Maps-style autocomplete was added.
-- Background continuity and permission behavior were made more honest and reliable.
-- Multiple UI polish passes made Live Drive, Route, and Manual feel more like one product.
-
-Phase 9 — Repo/folder cleanup
-- Generated output and local machine state were moved out of version control using ignore rules.
-- Legacy resources and the stale macOS folder were removed.
-- The repo now reflects the real iPhone app more cleanly.
-
-6) Likely current folder structure
-
-TimeThrottle
-├── TimeThrottle.xcodeproj
-├── TimeThrottle.xcworkspace
-├── Package.swift
-├── README.md
+SPEED APP
+├── Assets.xcassets
+├── build
+├── dist
+├── Resources
+├── scripts
+├── Sources
+│   ├── Core
+│   ├── iOS
+│   └── SharedUI
+├── Tests
 ├── CHANGELOG.md
 ├── privacy-policy.md
-├── .gitignore
-├── scripts/
-│   └── build_ios_sim.sh
-├── Assets.xcassets/
-├── Resources/
-│   ├── iOS/
-│   │   └── Info.plist
-│   ├── LaunchScreen.storyboard
-│   └── TimeThrottleLogo/
-│       └── TimeThrottle.png
-├── Sources/
-│   ├── iOS/
-│   │   ├── TimeThrottleApp_iOS.swift
-│   │   ├── IOSRouteComparisonScreen.swift
-│   │   └── RoutePreviewMapView_iOS.swift
-│   ├── Core/
-│   │   ├── LiveDriveTracker.swift
-│   │   ├── TripAnalysisEngine.swift
-│   │   ├── TimeThrottleCalculator.swift
-│   │   └── SpeedCostCalculator.swift
-│   └── SharedUI/
-│       ├── RouteComparisonView.swift
-│       ├── RouteModels.swift
-│       ├── SharedComponents.swift
-│       ├── NavigationHandoffService.swift
-│       └── PlatformLayout.swift
-├── Tests/
-│   └── CoreTests/
-└── build/ and dist/ (generated output; now intended to be ignored, not tracked)
+├── README.md
+├── Package.swift
+├── TimeThrottle.xcodeproj
+└── dist-ios
 
-7) Important files and what they do
-
-- TimeThrottleApp_iOS.swift
-  App entry point for iOS.
-
-- IOSRouteComparisonScreen.swift
-  Hosts the main screen flow and starting mode/layout.
-
-- RouteComparisonView.swift
-  Main UI brain of the app.
-  Handles:
-  - Live Drive UI
-  - Route mode UI
-  - Manual mode UI
-  - route setup
-  - map preview
-  - comparison bars
-  - result cards
-  - Start/Stop/End Drive flow
-  - summary cards and labels
-
-- RoutePreviewMapView_iOS.swift
-  Displays iOS route previews and active route cards.
-
-- TimeThrottleCalculator.swift
-  Core trip math, especially segment/manual-style calculations.
-  Uses truthful naming such as timeUnderTargetPaceMinutes.
-
-- SpeedCostCalculator.swift
-  Speed/cost comparison math such as fuel penalty and trip summary components.
-
+Important current files include:
 - LiveDriveTracker.swift
-  Core Live Drive tracking service.
-  Handles:
-  - Core Location
-  - permission state
-  - trip start / stop / reset
-  - current speed
-  - distance traveled
-  - incremental updates
-  - inputs for trip summary calculations
-
 - TripAnalysisEngine.swift
-  Shared live trip analysis layer.
-  Interprets progress against baseline and produces TripSummary-style results.
-
+- TimeThrottleCalculator.swift
+- TripHistoryStore.swift
+- RouteComparisonView.swift
 - RouteModels.swift
-  Shared route-related models and state.
-  Handles:
-  - route options
-  - selected route
-  - baseline route context
-  - mode configuration
-  - autocomplete / endpoint state
-
 - NavigationHandoffService.swift
-  Handles Apple Maps / Google Maps / Ask Every Time handoff behavior added in v1.2.
+- TripHistoryViews.swift
+- LiveDriveHUDView.swift
+- LiveDriveHUDMapView_iOS.swift
+- TimeThrottleApp_iOS.swift
+- IOSRouteComparisonScreen.swift
+- RoutePreviewMapView_iOS.swift
 
-8) Release state right now
+8. RELEASE STATE RIGHT NOW
 
-Functional/product release state:
-- The app is now being positioned as TimeThrottle v1.2.
-- v1.2 includes external navigation handoff, current-location defaulting, Apple Maps autocomplete, Live Drive polish, and more consistent UI across the three modes.
+Current version:
+- Version: 1.4
+- Build: 6
 
-Important note:
-- One older uploaded Xcode project snapshot still showed MARKETING_VERSION = 1.0 and CURRENT_PROJECT_VERSION = 1.
-- Your newer docs/repo state position the app as v1.2 / build 2.
-- So the product/release framing is ahead of the older project snapshot that was captured earlier.
+Current release story:
+TimeThrottle 1.4 is a Live Drive-only simplification release.
 
-Build / QA state:
-- iOS only
-- iPhone only
-- successful recent build/validation commands include:
-  - swift build
-  - swift test
-  - xcodebuild -scheme TimeThrottle -destination 'generic/platform=iOS Simulator' build
-  - ./dist-ios
-- packaged simulator app exists at dist/iOSSimulator/TimeThrottle.app
-- latest QA verdict: ready for TestFlight
+It:
+- simplifies the app around Live Drive
+- removes planning and fuel-related product clutter
+- keeps Apple Maps as the route lookup / ETA-baseline layer
+- improves the HUD map follow and recenter behavior
+- keeps the finished-trip story focused on pace versus Apple ETA
 
-Recommended real-world validation still worth doing:
-- one highway drive
-- one city / stop-and-go drive
-- denied/restricted permission behavior on device
-- believable speed/distance behavior in real movement
-- battery sanity during an actual drive
+9. CURRENT PRODUCT SUMMARY
 
-9) Agent workflow and what each agent did
-
-Dan — Implementation / Architecture / Logic
-Dan handled most of the technical implementation work.
-Main contributions:
-- repo cleanup and iOS-only alignment
-- Live Drive services and summaries
-- fixing permission flow
-- replacing simulated Live Drive behavior with tracker-backed logic
-- refactoring tracking to incremental state updates
-- preserving Apple Maps route context into Live Drive
-- adding live comparison bar inputs
-- clearing naming blockers such as trafficMinutes -> timeUnderTargetPaceMinutes
-- implementing v1.2 navigation handoff
-- current-location defaulting
-- Apple Maps autocomplete
-- final cohesion/polish passes
-- repo/folder hygiene cleanup
-
-Steve — UI / UX / Product Structure / Release Copy
-Steve handled UI/UX structure, screen flow, audits, and release-facing wording.
-Main contributions:
-- pushed the cleaner Live Drive / Route / Manual structure
-- helped reshape Live Drive into Setup / Driving / Trip Complete thinking
-- reduced clutter while driving
-- improved labels and layout order
-- helped integrate route setup into Live Drive more naturally
-- placed the live map and live comparison bar more cleanly
-- audited spacing, hierarchy, helper-text repetition, selected-state consistency, and Manual mode polish gaps
-- created release copy pack for README, privacy policy direction, App Store Connect copy, GitHub release notes, and related wording
-
-Joe — QA / Validation / Release Readiness
-Joe handled audit, QA, semantic consistency, and release sign-off.
-Main contributions:
-- confirmed current iOS-only target state
-- verified iPhone-only direction
-- audited platform leftovers
-- flagged that early Live Drive behavior was still simulated/UI-side
-- identified first-run permission issues
-- flagged CPU/memory risks before incremental refactor
-- identified misleading “traffic” semantics
-- pushed wording cleanup for truthfulness
-- checked permission UX quality
-- confirmed wording consistency
-- gave final TestFlight-ready sign-off
-
-10) Release-facing version history
-
-v1.0
-- early real iPhone app target and release foundation
-- core calculator behavior
-- bundle ID, signing, App Icon, iOS deployment target, initial release pipeline
-
-v1.1 direction / intermediate growth
-- Apple Maps route comparison
-- Route mode and Manual mode cleanup
-- Live Drive foundation and truthfulness cleanup
-- stronger route baseline concept
-- better mode structure
-
-v1.2 — March 19, 2026
-What’s New:
-- Added external navigation handoff for Live Drive
-- Choose Apple Maps, Google Maps, or Ask Every Time
-- Current Location is now the default route start
-- Added Apple Maps-style address autocomplete
-- Cleaned up the Live Drive setup flow
-- Tightened truthful pace-based wording across the app
-- Refined Live Drive, Route, and Manual into a more consistent iPhone experience
-
-Release Notes:
-- Kept Apple Maps as the route lookup and ETA baseline layer
-- Added provider-agnostic Live Drive handoff to Apple Maps or Google Maps
-- Added clean fallback behavior when Google Maps is not installed
-- Preserved TimeThrottle as the trip-analysis engine during Live Drive
-- Added Current Location as the default route start for route setup
-- Added Apple Maps-style autocomplete for route address entry
-- Improved Live Drive setup hierarchy and visual consistency
-- Brought Manual mode closer to the same design system as Route and Live Drive
-- Kept pace-based wording truthful across Live Drive, Route, and Manual
-
-Release Positioning:
-TimeThrottle 1.2 is an iPhone pace-analysis release.
-It does not add built-in turn-by-turn navigation.
-Apple Maps still provides route lookup and ETA baseline planning, while Live Drive can optionally hand off navigation to Apple Maps or Google Maps and continue tracking pace tradeoffs.
-
-11) Privacy / data behavior as documented now
-
-- No user account is required
-- Apple Maps is used for route lookup, autocomplete resolution, and ETA baseline planning
-- Live Drive uses iPhone location services when enabled by the user
-- External navigation handoff is optional
-- Preferred navigation app choice is stored locally on-device
-- No cloud sync is included
-- No advertising SDK is included
-- No third-party analytics SDK is included
-- No crash-reporting SDK is included
-- TimeThrottle does not sell personal information
-
-12) Final plain-English summary
-
-TimeThrottle is now a real iPhone app with three clear modes:
-- Live Drive for real tracked drives
-- Route for Apple Maps-based trip comparisons
-- Manual for quick pace-and-cost math
-
-It uses Apple Maps as the planning and ETA baseline layer, then shows the tradeoff between time saved, time under target pace, fuel penalty, ticket risk, and trip balance.
-
-The biggest modern feature is Live Drive, and the biggest current release feature is v1.2’s external navigation handoff plus cleaner route setup.
-
-Overall state:
-- feature-complete enough for TestFlight
-- significantly more polished than the early calculator version
-- now organized as an iPhone pace-analysis product rather than a rough prototype
-- still worth real-world road testing before broader release confidence
+TimeThrottle is now a Live Drive-first iPhone pace-analysis app. It uses Apple Maps as the route and ETA-baseline layer, tracks real trips, supports optional external navigation handoff, saves completed trips locally, and focuses the product on pace gain, pace loss, and overall result versus Apple ETA.

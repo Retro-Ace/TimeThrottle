@@ -17,38 +17,6 @@ public struct RouteCoordinate: Sendable, Equatable {
     }
 }
 
-enum TripCompareEntryStyle: String, CaseIterable, Identifiable {
-    case averageSpeed = "Average speed"
-    case tripDuration = "Trip duration"
-
-    var id: String { rawValue }
-
-    var description: String {
-        switch self {
-        case .averageSpeed:
-            return "Enter the whole-trip average speed and compare it to the baseline pace."
-        case .tripDuration:
-            return "Enter the whole-trip duration and derive the average speed from distance and time."
-        }
-    }
-}
-
-public enum Mode: String, CaseIterable, Identifiable, Sendable {
-    case liveDrive = "Live Drive"
-    case route = "Compare"
-
-    public var id: String { rawValue }
-
-    public var description: String {
-        switch self {
-        case .liveDrive:
-            return "Track a drive live with GPS speed, distance, and trip analysis."
-        case .route:
-            return "Compare a trip against an Apple Maps route distance and ETA baseline."
-        }
-    }
-}
-
 public enum NavigationProvider: String, CaseIterable, Identifiable, Sendable {
     case appleMaps = "Apple Maps"
     case googleMaps = "Google Maps"
@@ -440,11 +408,7 @@ extension CurrentLocationResolver: CLLocationManagerDelegate {
 }
 
 public struct RouteComparisonConfiguration: Equatable, Sendable {
-    public var initialMode: Mode
-
-    public init(initialMode: Mode = .liveDrive) {
-        self.initialMode = initialMode
-    }
+    public init() {}
 }
 
 public enum RouteLookupError: LocalizedError {

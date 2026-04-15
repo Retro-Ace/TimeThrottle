@@ -7,7 +7,6 @@ public struct LiveDriveConfiguration: Equatable, Sendable {
     public var baselineRouteETAMinutes: Double
     public var baselineRouteDistanceMiles: Double
     public var targetSpeed: Double
-    public var fuelModel: TripFuelModel?
     public var locationUpdateThrottleSeconds: TimeInterval
     public var summaryUpdateIntervalSeconds: TimeInterval
     public var distanceFilterMeters: CLLocationDistance
@@ -17,7 +16,6 @@ public struct LiveDriveConfiguration: Equatable, Sendable {
         baselineRouteETAMinutes: Double = 0,
         baselineRouteDistanceMiles: Double = 0,
         targetSpeed: Double = 0,
-        fuelModel: TripFuelModel? = nil,
         locationUpdateThrottleSeconds: TimeInterval = 1,
         summaryUpdateIntervalSeconds: TimeInterval = 2,
         distanceFilterMeters: CLLocationDistance = 10,
@@ -26,7 +24,6 @@ public struct LiveDriveConfiguration: Equatable, Sendable {
         self.baselineRouteETAMinutes = baselineRouteETAMinutes
         self.baselineRouteDistanceMiles = baselineRouteDistanceMiles
         self.targetSpeed = targetSpeed
-        self.fuelModel = fuelModel
         self.locationUpdateThrottleSeconds = locationUpdateThrottleSeconds
         self.summaryUpdateIntervalSeconds = min(max(summaryUpdateIntervalSeconds, 1), 3)
         self.distanceFilterMeters = distanceFilterMeters
@@ -411,8 +408,7 @@ public final class LiveDriveTracker: NSObject, ObservableObject {
             state: analysisState,
             baselineRouteETAMinutes: configuration.baselineRouteETAMinutes,
             baselineRouteDistanceMiles: configuration.baselineRouteDistanceMiles,
-            targetSpeed: configuration.targetSpeed,
-            fuelModel: configuration.fuelModel
+            targetSpeed: configuration.targetSpeed
         )
 
         analysisResult = result

@@ -2,7 +2,7 @@ import XCTest
 @testable import TimeThrottleCore
 
 final class TripAnalysisEngineTests: XCTestCase {
-    func testTripAnalysisSeparatesSpeedGainBelowTargetPaceLossAndFuelPenalty() {
+    func testTripAnalysisSeparatesSpeedGainBelowTargetPaceLossAndOverallResult() {
         let start = Date(timeIntervalSince1970: 0)
         let samples = [
             SpeedSample(timestamp: start, speedMilesPerHour: 80),
@@ -14,12 +14,7 @@ final class TripAnalysisEngineTests: XCTestCase {
                 baselineRouteETAMinutes: 120,
                 distanceTraveledMiles: 120,
                 currentSpeedHistory: samples,
-                targetSpeed: 60,
-                fuelModel: TripFuelModel(
-                    ratedMPG: 30,
-                    observedMPG: 24,
-                    fuelPricePerGallon: 4
-                )
+                targetSpeed: 60
             )
         )
 
@@ -28,7 +23,6 @@ final class TripAnalysisEngineTests: XCTestCase {
         XCTAssertEqual(result.timeSavedBySpeeding, 30, accuracy: 0.0001)
         XCTAssertEqual(result.timeLostBelowTargetPace, 0, accuracy: 0.0001)
         XCTAssertEqual(result.netTimeDifference, 30, accuracy: 0.0001)
-        XCTAssertEqual(result.fuelCostPenalty, 4, accuracy: 0.0001)
         XCTAssertEqual(result.summary.netTimeGain, 30, accuracy: 0.0001)
     }
 
@@ -53,7 +47,6 @@ final class TripAnalysisEngineTests: XCTestCase {
         XCTAssertEqual(result.timeLostBelowTargetPace, 30, accuracy: 0.0001)
         XCTAssertEqual(result.netTimeDifference, -30, accuracy: 0.0001)
         XCTAssertEqual(result.summary.timeLostBelowTargetPace, 30, accuracy: 0.0001)
-        XCTAssertEqual(result.summary.fuelPenalty, 0, accuracy: 0.0001)
     }
 
     func testTripAnalysisTreatsStoppedIntervalsAsTimeLostBelowTargetPace() {

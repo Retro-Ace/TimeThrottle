@@ -8,100 +8,71 @@
 How much time did speed really buy you?
 </p>
 
-**TimeThrottle** is an iPhone pace-analysis app that helps drivers understand what faster driving actually bought them.
+**TimeThrottle** is an iPhone Live Drive pace-analysis app.
 
-Apple Maps provides route lookup, autocomplete, route options, and the ETA baseline. TimeThrottle then tracks or compares pace tradeoffs such as above-target gain, below-target loss, fuel penalty, and overall result versus Apple ETA where that baseline exists.
+Apple Maps provides route lookup, autocomplete, route options, and the ETA baseline. TimeThrottle then tracks your real drive and shows:
+- pace gain
+- pace loss
+- overall result versus Apple ETA
 
-TimeThrottle does **not** provide built-in turn-by-turn navigation. In **Live Drive**, it can hand off navigation to Apple Maps, Google Maps, or Waze while TimeThrottle continues tracking the trip and comparing pace tradeoffs.
+TimeThrottle does **not** provide built-in turn-by-turn navigation. During Live Drive it can hand off navigation to Apple Maps, Google Maps, or Waze while TimeThrottle continues tracking the trip.
 
-> **How much time did speed really buy you?**
+## What's New in v1.4
 
-## What's New in v1.3.2
+Use this block for GitHub releases, TestFlight notes, and App Store Connect:
 
-Use this block for GitHub, TestFlight, and App Store Connect release copy:
+> **TimeThrottle 1.4**
+>
+> - Simplified the app to focus on Live Drive
+> - Removed Compare mode and fuel-related inputs
+> - Improved Live Drive HUD with real-time map tracking and recenter behavior
+> - Cleaner trip results focused on pace versus Apple ETA
 
-> **TimeThrottle 1.3.2**
->  
-> - Added a cleaner compact Live Drive HUD for in-motion use
-> - Improved one-screen HUD fit so trip status, Apple ETA, projected arrival, and controls are easier to reach
-> - Clarified HUD metric wording around Apple ETA and target-speed time
-> - Better balanced the lower HUD map area without claiming built-in navigation
-> - Kept the app focused on two modes: Live Drive and Compare
-
-## What's New in v1.3.1
-
-Use this block for GitHub, TestFlight, and App Store Connect release copy:
-
-> **TimeThrottle 1.3.1**
->  
-> - Clarified finished-trip result labels so Above-target gain, Below-target loss, and Overall vs Apple ETA are clearly separated
-> - Updated Trip History, trip detail, and shared trip summaries to use the same Apple ETA baseline framing
-> - Tightened in-app and release-facing wording around finished-trip metrics for consistency
-> - Simplified the active iPhone app to two intentional modes: Live Drive and Compare
-
-## What's New in v1.3
-
-Use this block for GitHub, TestFlight, and App Store Connect release copy:
-
-> **TimeThrottle 1.3**
->  
-> - Added Pause, Resume, and End Trip controls for Live Drive
-> - Finished trips now stay visible after completion
-> - Added optional Observed MPG fuel refinement after a drive
-> - Added Trip History for completed Live Drive trips
-> - Added a shareable finished-trip summary
-> - Added Waze as a navigation handoff option
-> - Improved the navigation provider selector and trip-status timing
-> - Added a destination clear control during route setup
-> - Added a small safety reminder to obey traffic laws and road conditions
-
-## Core Modes
+## Core Product
 
 ### Live Drive
 
-Live Drive is the real-time trip analysis mode.
+Live Drive is the full product.
 
-It can:
-- Capture an Apple Maps route and ETA baseline
-- Use Current Location as the default route start
-- Offer Apple Maps-style address autocomplete for route setup
-- Track speed, distance, and trip progress with iPhone location services
-- Open a compact in-app Drive HUD with current speed, Apple ETA, projected arrival, and pause/end controls
-- Pause, resume, and end the active trip without losing the finished result
-- Compare live projected pace against the Apple ETA baseline
-- Show above-target gain, below-target loss, fuel penalty, and overall result vs Apple ETA on completed trips
-- Keep completed trips visible for review, sharing, and optional Observed MPG refinement
-- Save completed Live Drive trips into local Trip History
-- Hand off navigation to Apple Maps, Google Maps, or Waze without claiming built-in navigation
+It supports:
+- Apple Maps route lookup and ETA baseline
+- Current Location as the default start
+- Apple Maps-style address autocomplete
+- route options and route preview
+- live GPS tracking
+- pause, resume, and end trip controls
+- a compact in-app Live Drive HUD
+- Trip History for completed drives
+- shareable finished-trip summaries
+- optional navigation handoff to Apple Maps, Google Maps, or Waze
 
-### Compare
+### Live Drive HUD
 
-Compare is the Apple Maps ETA-baseline planning and simulation mode.
+The Live Drive HUD is a full-screen in-app driving view built from real TimeThrottle trip state.
 
-It includes:
-- Apple Maps route lookup
-- Route options
-- Route preview
+It shows:
+- current speed
+- trip status and elapsed time
 - Apple ETA baseline
-- Pace comparison input
-- Final result versus Apple ETA
-
-## Live Drive HUD in v1.3.2
-
-TimeThrottle 1.3.2 includes a compact in-app Live Drive HUD that opens when a drive starts.
-
-The HUD is designed to keep the most useful trip data easy to glance at:
-- Current speed as the primary metric
-- Apple ETA as the baseline route reference
-- Projected arrival using current trip progress
-- Time above target speed and time below target speed
+- projected arrival
+- time above target speed
+- time below target speed
+- distance driven
+- route/map context
 - Pause / Resume and End Trip controls
 
-It stays powered by the same real TimeThrottle trip state already used in Live Drive and does not claim built-in turn-by-turn navigation, live traffic, or road speed-limit data.
+The HUD map follows the user during a drive, stops following if the user pans away, and provides a clear recenter control.
 
-## Navigation Handoff in v1.3.2
+## Trip Results
 
-TimeThrottle 1.3.2 still keeps Apple Maps as the planning layer and Apple ETA baseline source.
+Finished trips focus on the pace story:
+- **Above-target gain** = time gained while driving above your target pace
+- **Below-target loss** = time lost while driving below your target pace
+- **Overall vs Apple ETA** = the finished trip result against the Apple Maps ETA baseline
+
+## Navigation Handoff
+
+TimeThrottle keeps Apple Maps as the route-planning and ETA-baseline layer.
 
 During Live Drive, users can choose:
 - **Apple Maps**
@@ -109,35 +80,16 @@ During Live Drive, users can choose:
 - **Waze**
 - **Ask Every Time**
 
-When a Live Drive starts, TimeThrottle starts trip tracking first, then opens the selected navigation app if background continuity requirements are met. If Google Maps or Waze is not installed, the app falls back cleanly instead of leaving the user stuck.
-
-## Product Positioning
-
-TimeThrottle is a **pace-analysis app**, not a navigation replacement.
-
-The app is designed to answer questions like:
-- Did driving faster meaningfully change the trip?
-- How much above-target gain did the trip create?
-- How much below-target loss built up during the trip?
-- How did the finished trip land versus the Apple ETA baseline?
-- What was the fuel penalty?
-- Was the overall tradeoff worth it?
-
-## Safety Note
-
-TimeThrottle includes a small reminder during Live Drive and trip review screens:
-
-> **Always obey traffic laws and road conditions.**
+TimeThrottle starts tracking first, then opens the selected navigation app if background-location requirements are met.
 
 ## Privacy at a Glance
 
 - No user account is required
 - Apple Maps is used for route lookup, autocomplete resolution, route options, and ETA baseline planning
 - Live Drive uses iPhone location services when the user enables them
-- External navigation handoff is optional
 - Completed Live Drive trips are stored locally on-device
 - The preferred navigation app choice is stored locally on-device
-- Sharing only happens when the user explicitly opens the iOS share sheet
+- Sharing only happens when the user explicitly uses the iOS share sheet
 
 For the full policy, see [privacy-policy.md](/Users/anthonylarosa/SPEED%20APP/privacy-policy.md).
 
@@ -146,8 +98,8 @@ For the full policy, see [privacy-policy.md](/Users/anthonylarosa/SPEED%20APP/pr
 - **Platform:** iPhone / iOS only
 - **Deployment target:** iOS 17+
 - **Bundle ID:** `com.timethrottle.app`
-- **Current release:** v1.3.2
-- **Current build:** 5
+- **Current release:** v1.4
+- **Current build:** 6
 - **Primary app target:** `TimeThrottle.xcodeproj`
 - **Primary shared UI:** `Sources/SharedUI/RouteComparisonView.swift`
 
@@ -155,11 +107,11 @@ For the full policy, see [privacy-policy.md](/Users/anthonylarosa/SPEED%20APP/pr
 
 - `LiveDriveTracker.swift` — Live Drive tracking, permission state, speed, and distance updates
 - `TripHistoryStore.swift` — local persistence for completed Live Drive trips
-- `TripAnalysisEngine.swift` — live pace/trip summary generation
-- `SpeedCostCalculator.swift` — shared pace and fuel-tradeoff math
-- `TimeThrottleCalculator.swift` — shared trip-comparison math for Apple Maps ETA-baseline comparisons
-- `RouteModels.swift` — shared route, lookup, autocomplete, and mode models
+- `TripAnalysisEngine.swift` — live pace and trip summary generation
+- `TimeThrottleCalculator.swift` — shared target-pace time-delta helper
+- `RouteModels.swift` — shared route, lookup, autocomplete, and navigation-provider models
 - `LiveDriveHUDView.swift` — compact in-app Live Drive HUD
+- `LiveDriveHUDMapView_iOS.swift` — HUD map follow and recenter behavior
 - `NavigationHandoffService.swift` — Apple Maps / Google Maps / Waze / Ask Every Time handoff behavior
 
 ## Repository Layout
@@ -167,21 +119,16 @@ For the full policy, see [privacy-policy.md](/Users/anthonylarosa/SPEED%20APP/pr
 ```text
 TimeThrottle
 ├── TimeThrottle.xcodeproj
-├── TimeThrottle.xcworkspace
 ├── README.md
 ├── CHANGELOG.md
 ├── privacy-policy.md
 ├── Assets.xcassets
 ├── Resources
-│   ├── iOS
-│   ├── LaunchScreen.storyboard
-│   └── TimeThrottleLogo
 ├── Sources
 │   ├── Core
 │   ├── SharedUI
 │   └── iOS
 ├── Tests
-│   └── CoreTests
 ├── scripts
 └── dist-ios
 ```

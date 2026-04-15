@@ -8,7 +8,7 @@ import TimeThrottleSharedUI
 struct IOSRouteComparisonScreen: View {
     var body: some View {
         RouteComparisonView(
-            configuration: RouteComparisonConfiguration(initialMode: .liveDrive),
+            configuration: RouteComparisonConfiguration(),
             brandLogo: brandLogoImage
         ) { routes, selectedRouteID in
             RoutePreviewMapView(routes: routes, selectedRouteID: selectedRouteID)

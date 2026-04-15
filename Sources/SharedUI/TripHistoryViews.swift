@@ -56,7 +56,7 @@ struct TripHistoryScreen: View {
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(Palette.ink)
 
-                Text("Completed Live Drive trips will appear here with target-pace gain/loss, Apple ETA results, and fuel results.")
+                Text("Completed Live Drive trips will appear here with target-pace gain/loss and Apple ETA results.")
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(Palette.cocoa)
                     .multilineTextAlignment(.center)
@@ -126,7 +126,6 @@ private struct TripHistoryDetailView: View {
                             SummaryCard(title: "Above-target gain", value: durationString(trip.timeSavedBySpeeding), tint: Palette.success, compact: true)
                             SummaryCard(title: "Below-target loss", value: durationString(trip.timeLostBelowTargetPace), tint: Palette.danger, compact: true)
                             SummaryCard(title: "Overall vs Apple ETA", value: netString(trip.netTimeGain), tint: trip.netTimeGain >= 0 ? Palette.success : Palette.danger, isProminent: true, compact: true)
-                            SummaryCard(title: "Fuel penalty", value: currencyString(trip.fuelPenalty), tint: trip.fuelPenalty > 0 ? Palette.danger : Palette.ink, compact: true)
                         }
 
                         Text("Overall vs Apple ETA compares the whole trip to Apple Maps. Above-target gain and below-target loss are measured against your chosen target pace.")
@@ -144,7 +143,7 @@ private struct TripHistoryDetailView: View {
                         DetailRow(title: "Elapsed drive time", subtitle: trip.completedAt.formatted(date: .abbreviated, time: .shortened), value: durationString(trip.elapsedDriveMinutes), tint: Palette.ink, compact: true)
                         DetailRow(title: "Distance driven", subtitle: "Measured during Live Drive", value: "\(milesString(trip.distanceDrivenMiles)) mi", tint: Palette.ink, compact: true)
                         DetailRow(title: "Average trip speed", subtitle: "Whole-drive pace", value: "\(speedString(trip.averageTripSpeed)) mph", tint: Palette.ink, compact: true)
-                        DetailRow(title: "Fuel model", subtitle: fuelModelSubtitle, value: fuelModelValue, tint: Palette.ink, compact: true)
+                        DetailRow(title: "Target speed", subtitle: "Chosen before the drive started", value: "\(speedString(trip.targetSpeed)) mph", tint: Palette.ink, compact: true)
                     }
                 }
 
@@ -190,18 +189,6 @@ private struct TripHistoryDetailView: View {
         }
     }
 
-    private var fuelModelSubtitle: String {
-        if trip.enteredObservedMPG != nil {
-            return "Using the observed MPG you entered after the trip."
-        }
-
-        return "Using the live estimated MPG because no observed MPG was entered."
-    }
-
-    private var fuelModelValue: String {
-        let observedMPG = trip.effectiveObservedMPG.map(speedString) ?? "n/a"
-        return "Rated \(speedString(trip.ratedMPG)) mpg • Observed \(observedMPG) mpg"
-    }
 }
 
 private func durationString(_ minutes: Double) -> String {
@@ -235,12 +222,4 @@ private func milesString(_ miles: Double) -> String {
 
 private func speedString(_ speed: Double) -> String {
     String(format: "%.0f", speed)
-}
-
-private func currencyString(_ amount: Double) -> String {
-    let formatter = NumberFormatter()
-    formatter.numberStyle = .currency
-    formatter.maximumFractionDigits = 2
-    formatter.minimumFractionDigits = 2
-    return formatter.string(from: NSNumber(value: amount)) ?? "$0.00"
 }

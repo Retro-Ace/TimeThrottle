@@ -10,44 +10,25 @@ public struct SpeedSample: Equatable, Sendable {
     }
 }
 
-public struct TripFuelModel: Equatable, Sendable {
-    public var ratedMPG: Double
-    public var observedMPG: Double
-    public var fuelPricePerGallon: Double
-
-    public init(
-        ratedMPG: Double = 0,
-        observedMPG: Double = 0,
-        fuelPricePerGallon: Double = 0
-    ) {
-        self.ratedMPG = ratedMPG
-        self.observedMPG = observedMPG
-        self.fuelPricePerGallon = fuelPricePerGallon
-    }
-}
-
 public struct TripAnalysisInput: Equatable, Sendable {
     public var baselineRouteETAMinutes: Double
     public var baselineRouteDistanceMiles: Double
     public var distanceTraveledMiles: Double
     public var currentSpeedHistory: [SpeedSample]
     public var targetSpeed: Double
-    public var fuelModel: TripFuelModel?
 
     public init(
         baselineRouteETAMinutes: Double = 0,
         baselineRouteDistanceMiles: Double = 0,
         distanceTraveledMiles: Double = 0,
         currentSpeedHistory: [SpeedSample] = [],
-        targetSpeed: Double = 0,
-        fuelModel: TripFuelModel? = nil
+        targetSpeed: Double = 0
     ) {
         self.baselineRouteETAMinutes = baselineRouteETAMinutes
         self.baselineRouteDistanceMiles = baselineRouteDistanceMiles
         self.distanceTraveledMiles = distanceTraveledMiles
         self.currentSpeedHistory = currentSpeedHistory
         self.targetSpeed = targetSpeed
-        self.fuelModel = fuelModel
     }
 }
 
@@ -95,18 +76,15 @@ public struct TripAnalysisUpdate: Equatable, Sendable {
 public struct TripSummary: Equatable, Sendable {
     public var timeSavedBySpeeding: Double
     public var timeLostBelowTargetPace: Double
-    public var fuelPenalty: Double
     public var netTimeGain: Double
 
     public init(
         timeSavedBySpeeding: Double = 0,
         timeLostBelowTargetPace: Double = 0,
-        fuelPenalty: Double = 0,
         netTimeGain: Double = 0
     ) {
         self.timeSavedBySpeeding = timeSavedBySpeeding
         self.timeLostBelowTargetPace = timeLostBelowTargetPace
-        self.fuelPenalty = fuelPenalty
         self.netTimeGain = netTimeGain
     }
 }
@@ -121,7 +99,6 @@ public struct TripAnalysisResult: Equatable, Sendable {
     public var timeSavedBySpeeding: Double
     public var timeLostBelowTargetPace: Double
     public var netTimeDifference: Double
-    public var fuelCostPenalty: Double
     public var summary: TripSummary
 
     public init(
@@ -134,7 +111,6 @@ public struct TripAnalysisResult: Equatable, Sendable {
         timeSavedBySpeeding: Double = 0,
         timeLostBelowTargetPace: Double = 0,
         netTimeDifference: Double = 0,
-        fuelCostPenalty: Double = 0,
         summary: TripSummary = TripSummary()
     ) {
         self.baselineRouteETAMinutes = baselineRouteETAMinutes
@@ -146,7 +122,6 @@ public struct TripAnalysisResult: Equatable, Sendable {
         self.timeSavedBySpeeding = timeSavedBySpeeding
         self.timeLostBelowTargetPace = timeLostBelowTargetPace
         self.netTimeDifference = netTimeDifference
-        self.fuelCostPenalty = fuelCostPenalty
         self.summary = summary
     }
 }
@@ -197,8 +172,7 @@ public enum TripAnalysisEngine {
         state: TripAnalysisState,
         baselineRouteETAMinutes: Double,
         baselineRouteDistanceMiles: Double = 0,
-        targetSpeed: Double,
-        fuelModel: TripFuelModel? = nil
+        targetSpeed: Double
     ) -> TripAnalysisResult {
         guard
             state.distanceTraveledMiles > 0,
@@ -219,14 +193,6 @@ public enum TripAnalysisEngine {
         }
 
         let remainingTravelMinutes = max(projectedTravelMinutes - state.actualTravelMinutes, 0)
-        let fuelCostPenalty = fuelPenalty(
-            baselineRouteETAMinutes: baselineRouteETAMinutes,
-            actualTravelMinutes: projectedTravelMinutes,
-            distanceTraveledMiles: resolvedBaselineDistanceMiles,
-            targetSpeed: targetSpeed,
-            averageTripSpeed: averageTripSpeed,
-            fuelModel: fuelModel
-        )
         let netTimeDifference: Double
         if baselineRouteETAMinutes > 0 {
             netTimeDifference = baselineRouteETAMinutes - projectedTravelMinutes
@@ -237,7 +203,6 @@ public enum TripAnalysisEngine {
         let summary = TripSummary(
             timeSavedBySpeeding: state.timeSavedBySpeeding,
             timeLostBelowTargetPace: state.timeLostBelowTargetPace,
-            fuelPenalty: fuelCostPenalty,
             netTimeGain: netTimeDifference
         )
 
@@ -251,7 +216,6 @@ public enum TripAnalysisEngine {
             timeSavedBySpeeding: state.timeSavedBySpeeding,
             timeLostBelowTargetPace: state.timeLostBelowTargetPace,
             netTimeDifference: netTimeDifference,
-            fuelCostPenalty: fuelCostPenalty,
             summary: summary
         )
     }
@@ -283,8 +247,7 @@ public enum TripAnalysisEngine {
             state: state,
             baselineRouteETAMinutes: input.baselineRouteETAMinutes,
             baselineRouteDistanceMiles: input.baselineRouteDistanceMiles,
-            targetSpeed: input.targetSpeed,
-            fuelModel: input.fuelModel
+            targetSpeed: input.targetSpeed
         )
     }
 
@@ -316,38 +279,5 @@ public enum TripAnalysisEngine {
         }
 
         return state
-    }
-
-    private static func fuelPenalty(
-        baselineRouteETAMinutes: Double,
-        actualTravelMinutes: Double,
-        distanceTraveledMiles: Double,
-        targetSpeed: Double,
-        averageTripSpeed: Double,
-        fuelModel: TripFuelModel?
-    ) -> Double {
-        guard
-            let fuelModel,
-            fuelModel.ratedMPG > 0,
-            fuelModel.observedMPG > 0,
-            fuelModel.fuelPricePerGallon >= 0
-        else {
-            return 0
-        }
-
-        let speedCostSummary = SpeedCostCalculator.summarize(
-            input: SpeedCostInput(
-                distanceMiles: distanceTraveledMiles,
-                speedLimit: targetSpeed,
-                averageTripSpeed: averageTripSpeed,
-                baselineTravelMinutes: baselineRouteETAMinutes,
-                actualTravelMinutes: actualTravelMinutes,
-                ratedMPG: fuelModel.ratedMPG,
-                observedMPG: fuelModel.observedMPG,
-                fuelPricePerGallon: fuelModel.fuelPricePerGallon
-            )
-        )
-
-        return speedCostSummary.fuelCostPenalty
     }
 }

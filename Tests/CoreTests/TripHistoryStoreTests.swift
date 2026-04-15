@@ -27,13 +27,9 @@ final class TripHistoryStoreTests: XCTestCase {
             elapsedDriveMinutes: 54,
             averageTripSpeed: 55,
             targetSpeed: 65,
-            ratedMPG: 30,
-            estimatedObservedMPG: 26,
-            fuelPricePerGallon: 4,
             timeSavedBySpeeding: 6,
             timeLostBelowTargetPace: 0,
-            netTimeGain: 6,
-            fuelPenalty: 1.02
+            netTimeGain: 6
         )
 
         let newerTrip = CompletedTripRecord(
@@ -47,13 +43,9 @@ final class TripHistoryStoreTests: XCTestCase {
             elapsedDriveMinutes: 170,
             averageTripSpeed: 68.8,
             targetSpeed: 75,
-            ratedMPG: 28,
-            estimatedObservedMPG: 23,
-            fuelPricePerGallon: 3.75,
             timeSavedBySpeeding: 10,
             timeLostBelowTargetPace: 0,
-            netTimeGain: 10,
-            fuelPenalty: 4.63
+            netTimeGain: 10
         )
 
         await MainActor.run {
@@ -76,7 +68,19 @@ final class TripHistoryStoreTests: XCTestCase {
         XCTAssertEqual(reloadedTrips.first?.id, newerTrip.id)
     }
 
-    func testUpdatingObservedMPGRecalculatesFuelPenalty() {
+    func testSavingExistingTripReplacesMatchingRecord() async {
+        let suiteName = "TripHistoryStoreTests-Update-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let store = await MainActor.run {
+            TripHistoryStore(
+                userDefaults: UserDefaults(suiteName: suiteName)!,
+                storageKey: "trip-history-update-tests"
+            )
+        }
+
         let trip = CompletedTripRecord(
             sourceName: "Chicago",
             destinationName: "Milwaukee",
@@ -87,18 +91,24 @@ final class TripHistoryStoreTests: XCTestCase {
             elapsedDriveMinutes: 88,
             averageTripSpeed: 62.7,
             targetSpeed: 70,
-            ratedMPG: 30,
-            estimatedObservedMPG: 26,
-            fuelPricePerGallon: 4,
             timeSavedBySpeeding: 2,
             timeLostBelowTargetPace: 0,
-            netTimeGain: 2,
-            fuelPenalty: 1.89
+            netTimeGain: 2
         )
 
-        let updatedTrip = trip.updatingObservedMPG(24)
+        var updatedTrip = trip
+        updatedTrip.netTimeGain = 4
+        updatedTrip.timeSavedBySpeeding = 4
 
-        XCTAssertEqual(updatedTrip.enteredObservedMPG ?? 0, 24, accuracy: 0.0001)
-        XCTAssertEqual(updatedTrip.fuelPenalty, 3.0666666667, accuracy: 0.0001)
+        await MainActor.run {
+            store.save(trip)
+            store.save(updatedTrip)
+        }
+
+        let savedTrips = await MainActor.run { store.trips }
+        XCTAssertEqual(savedTrips.count, 1)
+        XCTAssertEqual(savedTrips.first?.id, trip.id)
+        XCTAssertEqual(savedTrips.first?.netTimeGain ?? 0, 4, accuracy: 0.0001)
+        XCTAssertEqual(savedTrips.first?.timeSavedBySpeeding ?? 0, 4, accuracy: 0.0001)
     }
 }

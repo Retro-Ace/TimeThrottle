@@ -7,25 +7,6 @@ import TimeThrottleCore
 import UIKit
 #endif
 
-private struct EditableSegment: Identifiable {
-    let id: UUID
-    var label: String
-    var speedText: String
-    var minutesText: String
-
-    init(
-        id: UUID = UUID(),
-        label: String,
-        speedText: String,
-        minutesText: String
-    ) {
-        self.id = id
-        self.label = label
-        self.speedText = speedText
-        self.minutesText = minutesText
-    }
-}
-
 private enum LiveDriveScreenState: Equatable {
     case setup
     case driving
@@ -56,20 +37,6 @@ public struct RouteComparisonView: View {
 
     @Environment(\.scenePhase) private var scenePhase
     @FocusState private var focusedRouteAddressField: RouteAddressField?
-    @State private var selectedMode: Mode
-    @State private var speedLimitText = "70"
-    @State private var mode: CalculationMode = .simple
-    @State private var segments: [EditableSegment] = [
-        EditableSegment(label: "Open road", speedText: "80", minutesText: "18"),
-        EditableSegment(label: "Rush hour", speedText: "45", minutesText: "25"),
-        EditableSegment(label: "Cruising", speedText: "72", minutesText: "14")
-    ]
-
-    @State private var milesDrivenText = "42"
-    @State private var tripCompareEntryStyle: TripCompareEntryStyle = .averageSpeed
-    @State private var comparisonAverageSpeedText = "80"
-    @State private var comparisonTripMinutesText = "30"
-
     @State private var routeOriginInputMode: RouteOriginInputMode = .currentLocation
     @State private var fromAddressText = ""
     @State private var fromResolvedPlace: ResolvedRoutePlace?
@@ -82,16 +49,12 @@ public struct RouteComparisonView: View {
     @State private var isCalculatingRoute = false
     @State private var routeLookupGeneration = 0
     @State private var didRunCaptureBootstrap = false
-    @State private var captureScrollTarget: String?
     @State private var shareSheetItems: [Any] = []
     @State private var isShareSheetPresented = false
     @AppStorage("timethrottle.preferredNavigationProvider") private var navigationProviderPreferenceRawValue = NavigationProvider.askEveryTime.rawValue
     @State private var liveDriveTargetSpeedText = "78"
-    @State private var liveDriveMPGText = "24"
-    @State private var liveDriveFuelPriceText = "3.79"
     @State private var liveDriveRouteContext: LiveDriveRouteContext?
     @State private var liveDriveFinishedTrip: CompletedTripRecord?
-    @State private var liveDrivePostTripObservedMPGText = ""
     @State private var liveDriveNavigationProviderPending: NavigationProvider?
     @State private var liveDriveNavigationHandoffMessage: String?
     @State private var isLiveDriveHUDPresented = false
@@ -103,18 +66,16 @@ public struct RouteComparisonView: View {
     @StateObject private var tracker = LiveDriveTracker()
     @StateObject private var tripHistoryStore = TripHistoryStore()
 
-    private static let routePreviewCaptureID = "routePreviewCaptureSection"
-
     public init<MapPreview: View>(
         configuration: RouteComparisonConfiguration = RouteComparisonConfiguration(),
         brandLogo: Image? = nil,
         @ViewBuilder mapPreview: @escaping ([RouteEstimate], UUID?) -> MapPreview
     ) {
+        _ = configuration
         self.brandLogo = brandLogo
         self.mapPreview = { routes, selectedRouteID in
             AnyView(mapPreview(routes, selectedRouteID))
         }
-        _selectedMode = State(initialValue: configuration.initialMode)
     }
 
     private var isMobileLayout: Bool {
@@ -178,24 +139,7 @@ public struct RouteComparisonView: View {
     }
 
     private var isPolishedLiveDriveSetup: Bool {
-        isMobileLayout && selectedMode == .liveDrive && liveDriveScreenState == .setup
-    }
-
-    private var captureSectionName: String? {
-        ProcessInfo.processInfo.environment["TIMETHROTTLE_CAPTURE_SECTION"]
-    }
-
-    private var speedLimit: Double? {
-        Self.number(from: speedLimitText)
-    }
-
-    private var validSegments: [DriveSegment] {
-        segments.compactMap { parsedSegment(for: $0) }
-    }
-
-    private var segmentSummary: CalculationSummary {
-        guard let speedLimit else { return CalculationSummary() }
-        return TimeThrottleCalculator.summarize(speedLimit: speedLimit, segments: validSegments, mode: mode)
+        isMobileLayout && liveDriveScreenState == .setup
     }
 
     private var routeSourceEndpoint: RouteLookupEndpoint? {
@@ -284,63 +228,8 @@ public struct RouteComparisonView: View {
         return !routeOptionsAreCurrent
     }
 
-    private var tripDistanceMiles: Double? {
-        activeRouteEstimate?.distanceMiles
-    }
-
-    private var comparisonBaselineSpeed: Double? {
-        guard
-            let route = activeRouteEstimate,
-            route.distanceMiles > 0,
-            route.expectedTravelMinutes > 0
-        else {
-            return nil
-        }
-
-        return route.distanceMiles / (route.expectedTravelMinutes / 60)
-    }
-
-    private var tripComparisonInput: TripComparisonInput? {
-        switch tripCompareEntryStyle {
-        case .averageSpeed:
-            guard let averageSpeed = Self.number(from: comparisonAverageSpeedText), averageSpeed > 0 else {
-                return nil
-            }
-            return .averageSpeed(averageSpeed)
-        case .tripDuration:
-            guard let tripDurationMinutes = Self.number(from: comparisonTripMinutesText), tripDurationMinutes > 0 else {
-                return nil
-            }
-            return .tripDurationMinutes(tripDurationMinutes)
-        }
-    }
-
-    private var tripComparisonSummary: TripComparisonSummary {
-        guard
-            let baselineSpeed = comparisonBaselineSpeed,
-            let distanceMiles = tripDistanceMiles,
-            let input = tripComparisonInput
-        else {
-            return TripComparisonSummary()
-        }
-
-        return TimeThrottleCalculator.compareTrip(
-            distanceMiles: distanceMiles,
-            speedLimit: baselineSpeed,
-            input: input
-        )
-    }
-
     private var liveDriveTargetSpeed: Double? {
         Self.number(from: liveDriveTargetSpeedText)
-    }
-
-    private var liveDriveMPG: Double? {
-        Self.number(from: liveDriveMPGText)
-    }
-
-    private var liveDriveFuelPrice: Double? {
-        Self.number(from: liveDriveFuelPriceText)
     }
 
     private var liveDriveIsRunning: Bool {
@@ -439,7 +328,11 @@ public struct RouteComparisonView: View {
     private var liveDriveHUDMapContent: AnyView? {
         guard let selectedRoute = liveDriveHUDRoute else { return nil }
         let routes = liveDriveRouteContext?.routes ?? liveDriveSetupRouteOptions
+        #if os(iOS)
+        return AnyView(LiveDriveHUDMapView(routes: routes, selectedRouteID: selectedRoute.id))
+        #else
         return AnyView(mapPreview(routes, selectedRoute.id))
+        #endif
     }
 
     private var preferredNavigationProvider: NavigationProvider {
@@ -504,12 +397,6 @@ public struct RouteComparisonView: View {
         return max(55, (liveDriveTargetSpeed ?? 72) - 12)
     }
 
-    private var liveDriveEstimatedObservedMPG: Double? {
-        guard let ratedMPG = liveDriveMPG, ratedMPG > 0 else { return nil }
-        let speedDelta = max(0, (liveDriveTargetSpeed ?? 0) - liveDriveBaselineSpeed)
-        return max(1, ratedMPG - speedDelta * 0.22)
-    }
-
     private var liveDriveDisplayedTimeSaved: Double {
         liveDriveFinishedTrip?.timeSavedBySpeeding ?? tracker.tripSummary.timeSavedBySpeeding
     }
@@ -518,18 +405,8 @@ public struct RouteComparisonView: View {
         liveDriveFinishedTrip?.timeLostBelowTargetPace ?? tracker.tripSummary.timeLostBelowTargetPace
     }
 
-    private var liveDriveDisplayedFuelPenalty: Double {
-        liveDriveFinishedTrip?.fuelPenalty ?? tracker.tripSummary.fuelPenalty
-    }
-
     private var liveDriveDisplayedNetTimeGain: Double {
         liveDriveFinishedTrip?.netTimeGain ?? tracker.tripSummary.netTimeGain
-    }
-
-    private var liveDriveObservedMPGEntry: Double? {
-        let trimmed = liveDrivePostTripObservedMPGText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return nil }
-        return Self.number(from: trimmed)
     }
 
     private var liveDriveConfigurationForStart: LiveDriveConfiguration? {
@@ -537,13 +414,7 @@ public struct RouteComparisonView: View {
             let route = activeRouteEstimate,
             !routeNeedsRefresh,
             let targetSpeed = liveDriveTargetSpeed,
-            let ratedMPG = liveDriveMPG,
-            let observedMPG = liveDriveEstimatedObservedMPG,
-            let fuelPrice = liveDriveFuelPrice,
-            targetSpeed > 0,
-            ratedMPG > 0,
-            observedMPG > 0,
-            fuelPrice >= 0
+            targetSpeed > 0
         else {
             return nil
         }
@@ -551,12 +422,7 @@ public struct RouteComparisonView: View {
         return LiveDriveConfiguration(
             baselineRouteETAMinutes: route.expectedTravelMinutes,
             baselineRouteDistanceMiles: route.distanceMiles,
-            targetSpeed: targetSpeed,
-            fuelModel: TripFuelModel(
-                ratedMPG: ratedMPG,
-                observedMPG: observedMPG,
-                fuelPricePerGallon: fuelPrice
-            )
+            targetSpeed: targetSpeed
         )
     }
 
@@ -711,99 +577,19 @@ public struct RouteComparisonView: View {
         }
     }
 
-    private var hasTripComparisonResult: Bool {
-        tripComparisonSummary.distanceMiles > 0 &&
-        tripComparisonSummary.speedLimit > 0 &&
-        tripComparisonSummary.comparisonTravelMinutes > 0 &&
-        tripComparisonSummary.comparisonAverageSpeed > 0
-    }
-
     private var heroSubtitle: String {
-        switch selectedMode {
-        case .liveDrive:
-            switch liveDriveScreenState {
-            case .setup:
-                return "Set up a live trip with GPS tracking, Apple Maps routing, and cost analysis."
-            case .driving:
-                return "A minimal dashboard focused on live speed, below-target loss, and overall progress vs Apple ETA."
-            case .tripComplete:
-                return "Review the trip summary, then end the trip when you are done."
-            }
-        case .route:
-            return "Compare your trip against an Apple Maps route and ETA baseline."
+        switch liveDriveScreenState {
+        case .setup:
+            return "Set up a live trip with GPS tracking, Apple Maps routing, and pace analysis."
+        case .driving:
+            return "A compact dashboard focused on live speed, target-pace results, and progress vs Apple ETA."
+        case .tripComplete:
+            return "Review the finished trip summary, then start the next drive when you are ready."
         }
     }
 
     private var baselineSummaryTitle: String {
         "Apple Maps ETA"
-    }
-
-    private var paceStatTitle: String {
-        "Over/under route pace"
-    }
-
-    private var baselineDetailSubtitle: String {
-        guard let route = activeRouteEstimate else {
-            return "Calculate an Apple Maps route"
-        }
-
-        if route.routeName.isEmpty {
-            return "\(route.sourceName) to \(route.destinationName)"
-        }
-
-        return "\(route.routeName) from \(route.sourceName) to \(route.destinationName)"
-    }
-
-    private var comparisonDetailsIntro: String {
-        "This mode compares your trip against Apple Maps route distance and estimated travel time for the selected route."
-    }
-
-    private var differenceDetailSubtitle: String {
-        "Apple Maps ETA minus your trip time"
-    }
-
-    private var comparisonDifferenceTint: Color {
-        guard hasTripComparisonResult else { return Palette.cocoa }
-        if abs(tripComparisonSummary.timeDeltaMinutes) < 0.01 {
-            return Palette.ink
-        }
-        return tripComparisonSummary.timeDeltaMinutes > 0 ? Palette.success : Palette.danger
-    }
-
-    private var comparisonTripTint: Color {
-        guard hasTripComparisonResult else { return Palette.ink }
-        if abs(tripComparisonSummary.timeDeltaMinutes) < 0.01 {
-            return Palette.ink
-        }
-        return tripComparisonSummary.timeDeltaMinutes > 0 ? Palette.success : Palette.danger
-    }
-
-    private var comparisonSpeedDelta: Double {
-        tripComparisonSummary.comparisonAverageSpeed - tripComparisonSummary.speedLimit
-    }
-
-    private var comparisonSpeedPillForeground: Color {
-        guard hasTripComparisonResult else { return Palette.ink }
-        if abs(comparisonSpeedDelta) < 0.01 {
-            return Palette.ink
-        }
-        return comparisonSpeedDelta > 0 ? Palette.success : Palette.danger
-    }
-
-    private var comparisonSpeedPillBackground: Color {
-        guard hasTripComparisonResult else { return Palette.pill }
-        if abs(comparisonSpeedDelta) < 0.01 {
-            return Palette.pill
-        }
-        return comparisonSpeedDelta > 0 ? Palette.successBackground : Palette.dangerBackground
-    }
-
-    private var comparisonAverageSpeedTint: Color {
-        guard hasTripComparisonResult else { return Palette.ink }
-        if abs(comparisonSpeedDelta) < 0.01 {
-            return Palette.ink
-        }
-        return comparisonSpeedDelta > 0 ? Palette.success : Palette.danger
     }
 
     private var routeStatusText: String {
@@ -871,74 +657,6 @@ public struct RouteComparisonView: View {
         }
 
         return Palette.panelAlt
-    }
-
-    private var summaryPlaceholderValue: String {
-        "────────"
-    }
-
-    private var summaryPlaceholderTint: Color {
-        .secondary
-    }
-
-    private var baselineSummaryValue: String {
-        hasTripComparisonResult ? Self.durationString(tripComparisonSummary.legalTravelMinutes) : summaryPlaceholderValue
-    }
-
-    private var baselineSummaryTint: Color {
-        hasTripComparisonResult ? Palette.ink : summaryPlaceholderTint
-    }
-
-    private var comparisonTripSummaryValue: String {
-        hasTripComparisonResult ? Self.durationString(tripComparisonSummary.comparisonTravelMinutes) : summaryPlaceholderValue
-    }
-
-    private var comparisonTripSummaryTint: Color {
-        hasTripComparisonResult ? comparisonTripTint : summaryPlaceholderTint
-    }
-
-    private var comparisonDifferenceSummaryValue: String {
-        hasTripComparisonResult ? Self.netString(tripComparisonSummary.timeDeltaMinutes) : summaryPlaceholderValue
-    }
-
-    private var comparisonDifferenceSummaryTint: Color {
-        hasTripComparisonResult ? comparisonDifferenceTint : summaryPlaceholderTint
-    }
-
-    private var compareResultSummaryTitle: String {
-        "Result vs Apple ETA"
-    }
-
-    private var compareResultSectionTitle: String {
-        "Compare result"
-    }
-
-    private var compareResultSectionSubtitle: String {
-        "See how your trip compares to the selected Apple Maps ETA baseline."
-    }
-
-    private var comparisonMilesStatValue: String {
-        hasTripComparisonResult ? "\(Self.milesString(tripComparisonSummary.distanceMiles)) mi" : summaryPlaceholderValue
-    }
-
-    private var comparisonMilesStatForeground: Color {
-        hasTripComparisonResult ? Palette.ink : summaryPlaceholderTint
-    }
-
-    private var comparisonAverageSpeedStatValue: String {
-        hasTripComparisonResult ? "\(Self.speedString(tripComparisonSummary.comparisonAverageSpeed)) mph" : summaryPlaceholderValue
-    }
-
-    private var comparisonAverageSpeedStatForeground: Color {
-        hasTripComparisonResult ? comparisonAverageSpeedTint : summaryPlaceholderTint
-    }
-
-    private var comparisonPaceStatValue: String {
-        hasTripComparisonResult ? overUnderPaceText : summaryPlaceholderValue
-    }
-
-    private var comparisonPaceStatForeground: Color {
-        hasTripComparisonResult ? comparisonSpeedPillForeground : summaryPlaceholderTint
     }
 
     private var isCalculateRouteDisabled: Bool {
@@ -1028,15 +746,6 @@ public struct RouteComparisonView: View {
             if tracker.isTracking {
                 processLiveDriveNavigationHandoffIfNeeded()
             }
-        }
-        .onChange(of: selectedMode) { _, _ in
-            if routeOriginInputMode == .currentLocation {
-                currentLocationResolver.requestCurrentLocationIfNeeded()
-            }
-        }
-        .onChange(of: liveDrivePostTripObservedMPGText) { _, _ in
-            guard liveDriveFinishedTrip != nil else { return }
-            updateFinishedTripObservedMPG()
         }
         #if os(iOS)
         .sheet(isPresented: $isShareSheetPresented) {
@@ -1163,75 +872,43 @@ public struct RouteComparisonView: View {
     }
 
     private var desktopBody: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                VStack(spacing: 0) {
-                    desktopHeaderSection
-                    glassDivider
+        ScrollView {
+            VStack(spacing: 0) {
+                desktopHeaderSection
+                glassDivider
 
-                    VStack(alignment: .leading, spacing: Layout.sectionSpacing) {
-                        controls
-                        summarySection
-                        contentSection
-                    }
-                    .padding(.horizontal, Layout.screenPadding)
-                    .padding(.top, Layout.sectionSpacing)
-                    .padding(.bottom, Layout.screenPadding)
-                    .background(Palette.workspace)
+                VStack(alignment: .leading, spacing: Layout.sectionSpacing) {
+                    controls
+                    summarySection
+                    contentSection
                 }
+                .padding(.horizontal, Layout.screenPadding)
+                .padding(.top, Layout.sectionSpacing)
+                .padding(.bottom, Layout.screenPadding)
+                .background(Palette.workspace)
             }
-            .onChange(of: captureScrollTarget) { _, target in
-                guard let target else { return }
-                withAnimation(nil) {
-                    proxy.scrollTo(target, anchor: .top)
-                }
-            }
-            .background(Palette.workspace.ignoresSafeArea())
         }
+        .background(Palette.workspace.ignoresSafeArea())
     }
 
     private var mobileBody: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                VStack(spacing: 0) {
-                    mobileHeaderSection
-                    glassDivider
+        ScrollView {
+            VStack(spacing: 0) {
+                mobileHeaderSection
+                glassDivider
 
-                    VStack(alignment: .leading, spacing: Layout.sectionSpacing) {
-                        switch selectedMode {
-                        case .liveDrive:
-                            mobileLiveDriveFlow
-                        case .route:
-                            mobileTripCompareFlow
-                        }
-                    }
-                    .padding(.horizontal, mobileContentHorizontalPadding)
-                    .padding(.top, Layout.sectionSpacing)
-                    .padding(.bottom, Layout.screenPadding)
-                    .background(isPolishedLiveDriveSetup ? Color.clear : Palette.workspace)
+                VStack(alignment: .leading, spacing: Layout.sectionSpacing) {
+                    mobileLiveDriveFlow
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, mobileContentHorizontalPadding)
+                .padding(.top, Layout.sectionSpacing)
+                .padding(.bottom, Layout.screenPadding)
+                .background(isPolishedLiveDriveSetup ? Color.clear : Palette.workspace)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .background(isPolishedLiveDriveSetup ? Color.white : Palette.workspace)
-            .onChange(of: captureScrollTarget) { _, target in
-                guard let target else { return }
-                withAnimation(nil) {
-                    proxy.scrollTo(target, anchor: .top)
-                }
-            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-    }
-
-    private var mobileTripCompareFlow: some View {
-        Group {
-            switch selectedMode {
-            case .route:
-                mobileRouteModeFlow
-            case .liveDrive:
-                EmptyView()
-            }
-        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(isPolishedLiveDriveSetup ? Color.white : Palette.workspace)
     }
 
     private var mobileLiveDriveFlow: some View {
@@ -1261,19 +938,6 @@ public struct RouteComparisonView: View {
             }
         }
         .animation(.snappy(duration: 0.28, extraBounce: 0), value: liveDriveScreenState)
-    }
-
-    private var mobileRouteModeFlow: some View {
-        VStack(alignment: .leading, spacing: Layout.sectionSpacing) {
-            mobileRouteInputSection
-
-            if let route = activeRouteEstimate {
-                mobileMapPreviewSection(route: route)
-            }
-
-            mobileRouteComparisonInputSection
-            mobileTripComparisonResultSection
-        }
     }
 
     private var headerBackground: some View {
@@ -1323,9 +987,7 @@ public struct RouteComparisonView: View {
             }
 
             HStack(spacing: 12) {
-                modePicker
-                    .frame(width: 250)
-
+                tripHistoryShortcutButton
                 platformBadge
             }
         }
@@ -1344,7 +1006,7 @@ public struct RouteComparisonView: View {
                 .frame(maxWidth: .infinity, alignment: .center)
 
             VStack(spacing: 6) {
-                Text(selectedMode.rawValue)
+                Text("Live Drive")
                     .font(.headline.weight(.semibold))
                     .foregroundStyle(Color.white.opacity(0.82))
 
@@ -1356,10 +1018,10 @@ public struct RouteComparisonView: View {
             }
             .frame(maxWidth: .infinity)
 
-            if selectedMode == .liveDrive, liveDriveScreenState != .setup {
+            if liveDriveScreenState != .setup {
                 liveDriveHeaderStatus
             } else {
-                modePicker
+                tripHistoryShortcutButton
             }
         }
         .padding(.horizontal, Layout.screenPadding)
@@ -1371,24 +1033,6 @@ public struct RouteComparisonView: View {
             headerBackground
                 .ignoresSafeArea(.container, edges: .top)
         }
-    }
-
-    private var modePicker: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Mode")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(Color.white.opacity(0.82))
-
-            Picker("Mode", selection: $selectedMode) {
-                ForEach(Mode.allCases) { mode in
-                    Text(mode.rawValue).tag(mode)
-                }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .tint(Palette.success)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var liveDriveHeaderStatus: some View {
@@ -1457,183 +1101,8 @@ public struct RouteComparisonView: View {
 
     @ViewBuilder
     private var controls: some View {
-        switch selectedMode {
-        case .liveDrive:
-            liveDriveSetupSection
-        case .route:
-            tripCompareControls
-        }
+        liveDriveSetupSection
     }
-
-    private var segmentControls: some View {
-        SectionCard {
-            Group {
-                if isMobileLayout {
-                    VStack(alignment: .leading, spacing: Layout.innerSpacing) {
-                        segmentSpeedLimitPanel
-                        segmentModePanel
-                    }
-                } else {
-                    HStack(alignment: .top, spacing: Layout.innerSpacing) {
-                        segmentSpeedLimitPanel
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        segmentModePanel
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                }
-            }
-        }
-    }
-
-    private var segmentSpeedLimitPanel: some View {
-        InsetPanel {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Posted speed limit")
-                    .font(inputLabelFont)
-                    .foregroundStyle(Palette.cocoa)
-
-                HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    BrandedTextField(
-                        text: $speedLimitText,
-                        placeholder: "70",
-                        width: 110,
-                        fontSize: 26,
-                        fontWeight: .bold,
-                        compact: isMobileLayout
-                    )
-
-                    Text("mph")
-                        .font(unitFont)
-                        .foregroundStyle(Palette.cocoa)
-                }
-            }
-        }
-    }
-
-    private var segmentModePanel: some View {
-        InsetPanel {
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Calculation mode")
-                    .font(inputLabelFont)
-                    .foregroundStyle(Palette.cocoa)
-
-                Picker("Calculation mode", selection: $mode) {
-                    ForEach(CalculationMode.allCases) { mode in
-                        Text(mode.rawValue).tag(mode)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .tint(Palette.success)
-
-                Text(mode.footnote)
-                    .font(panelDescriptionFont)
-                    .foregroundStyle(Palette.cocoa)
-            }
-        }
-    }
-
-    private var tripCompareControls: some View {
-        SectionCard {
-            Group {
-                if isMobileLayout {
-                    VStack(alignment: .leading, spacing: Layout.innerSpacing) {
-                        inputStylePanel
-                        InsetPanel {
-                            appleMapsRouteInputs
-                        }
-                        InsetPanel {
-                            comparisonPaceInputs
-                        }
-                    }
-                } else {
-                    VStack(alignment: .leading, spacing: Layout.innerSpacing) {
-                        inputStylePanel
-                            .frame(width: Layout.sidePanelWidth, alignment: .leading)
-
-                        HStack(alignment: .top, spacing: Layout.innerSpacing) {
-                            InsetPanel {
-                                appleMapsRouteInputs
-                            }
-
-                            InsetPanel {
-                                comparisonPaceInputs
-                            }
-                            .frame(width: Layout.sidePanelWidth, alignment: .leading)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private var mobileRouteInputSection: some View {
-        SectionCard {
-            VStack(alignment: .leading, spacing: Layout.innerSpacing) {
-                mobileSectionHeader(
-                    title: "Route input",
-                    subtitle: "Choose start and destination, then capture the Apple Maps baseline."
-                )
-
-                InsetPanel {
-                    appleMapsRouteInputs
-                }
-            }
-        }
-    }
-
-    private var mobileRouteComparisonInputSection: some View {
-        SectionCard {
-            VStack(alignment: .leading, spacing: Layout.innerSpacing) {
-                mobileSectionHeader(
-                    title: "Trip pace",
-                    subtitle: "Enter your trip pace and compare it to the selected Apple Maps baseline."
-                )
-                inputStylePanel
-                InsetPanel {
-                    comparisonPaceInputs
-                }
-            }
-        }
-    }
-
-    private var comparisonPaceInputs: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            if tripCompareEntryStyle == .averageSpeed {
-                compactMetricField(title: "Your average speed", text: $comparisonAverageSpeedText, placeholder: "80", unit: "mph")
-            } else {
-                compactMetricField(title: "Your trip time", text: $comparisonTripMinutesText, placeholder: "30", unit: "min")
-            }
-
-            Text("Compared against the Apple Maps route distance and ETA. Average trip speed comes from the speed field or derived duration.")
-                .font(panelDescriptionFont)
-                .foregroundStyle(Palette.cocoa)
-        }
-    }
-
-    private var inputStylePanel: some View {
-        InsetPanel {
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Input style")
-                    .font(inputLabelFont)
-                    .foregroundStyle(Palette.cocoa)
-
-                Picker("Input style", selection: $tripCompareEntryStyle) {
-                    ForEach(TripCompareEntryStyle.allCases) { entryStyle in
-                        Text(entryStyle.rawValue).tag(entryStyle)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .tint(Palette.success)
-
-                Text(tripCompareEntryStyle.description)
-                    .font(panelDescriptionFont)
-                    .foregroundStyle(Palette.cocoa)
-            }
-        }
-    }
-
 
     private var appleMapsRouteInputs: some View {
         VStack(alignment: .leading, spacing: isPolishedLiveDriveSetup ? 10 : 12) {
@@ -2011,12 +1480,7 @@ public struct RouteComparisonView: View {
 
     @ViewBuilder
     private var summarySection: some View {
-        switch selectedMode {
-        case .liveDrive:
-            liveDriveSummarySection
-        case .route:
-            tripComparisonSummarySection
-        }
+        liveDriveSummarySection
     }
 
     private var liveDriveSetupSection: some View {
@@ -2180,7 +1644,7 @@ public struct RouteComparisonView: View {
             VStack(alignment: .leading, spacing: Layout.innerSpacing) {
                 mobileSectionHeader(
                     title: "Live comparison",
-                    subtitle: "Compare the captured Apple Maps ETA to your live projected trip time."
+                    subtitle: "Track the captured Apple Maps ETA against your live projected trip time."
                 )
 
                 VStack(alignment: .leading, spacing: 10) {
@@ -2252,12 +1716,6 @@ public struct RouteComparisonView: View {
                         tint: liveDriveVerdictTint,
                         isNarrative: true
                     )
-
-                    liveDriveSummaryBlock(
-                        title: "Extra fuel burned",
-                        value: Self.currencyString(liveDriveDisplayedFuelPenalty),
-                        tint: liveDriveDisplayedFuelPenalty > 0 ? Palette.danger : Palette.ink
-                    )
                 }
             }
         }
@@ -2270,7 +1728,7 @@ public struct RouteComparisonView: View {
                 VStack(alignment: .leading, spacing: Layout.innerSpacing) {
                     mobileSectionHeader(
                         title: "Trip result",
-                        subtitle: "Review the finished result, share it, or refine the fuel estimate."
+                        subtitle: "Review the finished result or share it."
                     )
 
                     InsetPanel {
@@ -2314,7 +1772,6 @@ public struct RouteComparisonView: View {
                                 SummaryCard(title: "Above-target gain", value: Self.durationString(completedTrip.timeSavedBySpeeding), tint: Palette.success, compact: true)
                                 SummaryCard(title: "Below-target loss", value: Self.durationString(completedTrip.timeLostBelowTargetPace), tint: Palette.danger, compact: true)
                                 SummaryCard(title: liveDriveOverallResultTitle, value: Self.netString(completedTrip.netTimeGain), tint: completedTrip.netTimeGain >= 0 ? Palette.success : Palette.danger, isProminent: true, compact: true)
-                                SummaryCard(title: "Fuel penalty", value: Self.currencyString(completedTrip.fuelPenalty), tint: completedTrip.fuelPenalty > 0 ? Palette.danger : Palette.ink, compact: true)
                             }
 
                             Text(finishedTripMetricExplanation(for: completedTrip))
@@ -2333,48 +1790,6 @@ public struct RouteComparisonView: View {
                                     .background(Palette.success, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                             }
                             .buttonStyle(.plain)
-
-                            Rectangle()
-                                .fill(Color.black.opacity(0.06))
-                                .frame(height: 1)
-
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("Refine fuel result")
-                                    .font(.headline.weight(.semibold))
-                                    .foregroundStyle(Palette.ink)
-
-                                Text("Observed MPG (optional)")
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(Palette.cocoa)
-
-                                HStack(alignment: .center, spacing: 10) {
-                                    BrandedTextField(
-                                        text: $liveDrivePostTripObservedMPGText,
-                                        placeholder: completedTrip.estimatedObservedMPG.map { Self.speedString($0) } ?? "24",
-                                        fontSize: 24,
-                                        fontWeight: .bold,
-                                        compact: true
-                                    )
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                                    Text("mpg")
-                                        .font(.subheadline.weight(.semibold))
-                                        .foregroundStyle(Palette.cocoa)
-
-                                    if !liveDrivePostTripObservedMPGText.isEmpty {
-                                        Button("Clear") {
-                                            liveDrivePostTripObservedMPGText = ""
-                                        }
-                                        .buttonStyle(.plain)
-                                        .font(.subheadline.weight(.semibold))
-                                        .foregroundStyle(Palette.success)
-                                    }
-                                }
-
-                                Text(liveDriveObservedMPGHelperText(for: completedTrip))
-                                    .font(panelDescriptionFont)
-                                    .foregroundStyle(Palette.cocoa)
-                            }
                         }
                     }
                 }
@@ -2544,125 +1959,6 @@ public struct RouteComparisonView: View {
         }
     }
 
-    private var segmentSummarySection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Trip balance")
-                .font(sectionHeaderFont)
-                .foregroundStyle(Palette.ink)
-
-            if isMobileLayout {
-                VStack(spacing: 12) {
-                    SummaryCard(
-                        title: "Time saved",
-                        value: Self.durationString(segmentSummary.savedMinutes),
-                        tint: Palette.success,
-                        compact: true
-                    )
-                    SummaryCard(
-                        title: "Lost vs Target Pace",
-                        value: Self.durationString(segmentSummary.lostMinutes),
-                        tint: Palette.danger,
-                        compact: true
-                    )
-                    SummaryCard(
-                        title: "Trip balance",
-                        value: Self.netString(segmentSummary.netMinutes),
-                        tint: segmentSummary.netMinutes >= 0 ? Palette.success : Palette.danger,
-                        compact: true
-                    )
-                }
-
-                mobilePillGrid(
-                    items: [
-                        StatPill(title: "Minutes above limit", value: Self.durationString(segmentSummary.speedingMinutes), compact: true),
-                        StatPill(title: "Minutes under target pace", value: Self.durationString(segmentSummary.timeUnderTargetPaceMinutes), compact: true),
-                        StatPill(title: "Valid segments", value: "\(validSegments.count)", compact: true)
-                    ]
-                )
-            } else {
-                HStack(spacing: 12) {
-                    SummaryCard(
-                        title: "Time saved",
-                        value: Self.durationString(segmentSummary.savedMinutes),
-                        tint: Palette.success
-                    )
-                    SummaryCard(
-                        title: "Lost vs Target Pace",
-                        value: Self.durationString(segmentSummary.lostMinutes),
-                        tint: Palette.danger
-                    )
-                    SummaryCard(
-                        title: "Trip balance",
-                        value: Self.netString(segmentSummary.netMinutes),
-                        tint: segmentSummary.netMinutes >= 0 ? Palette.success : Palette.danger
-                    )
-                }
-
-                HStack(spacing: 10) {
-                    StatPill(title: "Minutes above limit", value: Self.durationString(segmentSummary.speedingMinutes))
-                    StatPill(title: "Minutes under target pace", value: Self.durationString(segmentSummary.timeUnderTargetPaceMinutes))
-                    StatPill(title: "Valid segments", value: "\(validSegments.count)")
-                }
-            }
-        }
-    }
-
-    private var tripComparisonSummarySection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            brandedSectionHeader(
-                title: compareResultSectionTitle,
-                subtitle: compareResultSectionSubtitle
-            )
-
-            if isMobileLayout {
-                VStack(spacing: 12) {
-                    SummaryCard(
-                        title: baselineSummaryTitle,
-                        value: baselineSummaryValue,
-                        tint: baselineSummaryTint,
-                        compact: true
-                    )
-                    SummaryCard(
-                        title: "Your trip",
-                        value: comparisonTripSummaryValue,
-                        tint: comparisonTripSummaryTint,
-                        compact: true
-                    )
-                    SummaryCard(
-                        title: compareResultSummaryTitle,
-                        value: comparisonDifferenceSummaryValue,
-                        tint: comparisonDifferenceSummaryTint,
-                        isProminent: true,
-                        compact: true
-                    )
-                }
-
-                comparisonMetricGrid(compact: true)
-            } else {
-                HStack(spacing: 12) {
-                    SummaryCard(
-                        title: baselineSummaryTitle,
-                        value: baselineSummaryValue,
-                        tint: baselineSummaryTint
-                    )
-                    SummaryCard(
-                        title: "Your trip",
-                        value: comparisonTripSummaryValue,
-                        tint: comparisonTripSummaryTint
-                    )
-                    SummaryCard(
-                        title: compareResultSummaryTitle,
-                        value: comparisonDifferenceSummaryValue,
-                        tint: comparisonDifferenceSummaryTint,
-                        isProminent: true
-                    )
-                }
-
-                comparisonMetricGrid(compact: false)
-            }
-        }
-    }
-
     @ViewBuilder
     private func mobilePillGrid(items: [StatPill]) -> some View {
         LazyVGrid(
@@ -2678,285 +1974,9 @@ public struct RouteComparisonView: View {
         }
     }
 
-    private func comparisonMetricGrid(compact: Bool) -> some View {
-        LazyVGrid(
-            columns: [
-                GridItem(.flexible(), spacing: 12),
-                GridItem(.flexible(), spacing: 12)
-            ],
-            spacing: 12
-        ) {
-            HStack {
-                StatPill(
-                    title: "Miles",
-                    value: comparisonMilesStatValue,
-                    foreground: comparisonMilesStatForeground,
-                    compact: compact
-                )
-                Spacer(minLength: 0)
-            }
-
-            HStack {
-                StatPill(
-                    title: "Avg speed",
-                    value: comparisonAverageSpeedStatValue,
-                    foreground: comparisonAverageSpeedStatForeground,
-                    compact: compact
-                )
-                Spacer(minLength: 0)
-            }
-
-            HStack {
-                StatPill(
-                    title: paceStatTitle,
-                    value: comparisonPaceStatValue,
-                    foreground: comparisonPaceStatForeground,
-                    background: comparisonSpeedPillBackground,
-                    compact: compact
-                )
-                Spacer(minLength: 0)
-            }
-            .gridCellColumns(2)
-        }
-    }
-
-    private func brandedSectionHeader(title: String, subtitle: String) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            sectionLogoBadge
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(sectionHeaderFont)
-                    .foregroundStyle(Palette.ink)
-                Text(subtitle)
-                    .font(descriptionFont)
-                    .foregroundStyle(Palette.cocoa)
-            }
-        }
-    }
-
-    private func brandedPanelHeader(title: String, subtitle: String? = nil) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            sectionLogoBadge
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(panelHeaderFont)
-                    .foregroundStyle(Palette.ink)
-
-                if let subtitle, !subtitle.isEmpty {
-                    Text(subtitle)
-                        .font(panelDescriptionFont)
-                        .foregroundStyle(Palette.cocoa)
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var sectionLogoBadge: some View {
-        if let brandLogo {
-            brandLogo
-                .renderingMode(.template)
-                .resizable()
-                .interpolation(.high)
-                .scaledToFit()
-                .frame(width: 32, height: 32)
-                .foregroundStyle(Palette.cocoa.opacity(0.85))
-        } else {
-            Image(systemName: "gauge.with.needle")
-                .font(.system(size: 24, weight: .semibold))
-                .foregroundStyle(Palette.cocoa.opacity(0.85))
-                .frame(width: 32, height: 32)
-        }
-    }
-
     @ViewBuilder
     private var contentSection: some View {
-        switch selectedMode {
-        case .liveDrive:
-            liveDriveContentSection
-        case .route:
-            comparisonDetailsSection
-        }
-    }
-
-    private var segmentsSection: some View {
-        SectionCard {
-            VStack(alignment: .leading, spacing: Layout.innerSpacing) {
-                if isMobileLayout {
-                    VStack(alignment: .leading, spacing: 10) {
-                        segmentSectionIntro
-                        addSegmentButton
-                    }
-                } else {
-                    HStack {
-                        segmentSectionIntro
-
-                        Spacer()
-
-                        addSegmentButton
-                    }
-                }
-
-                VStack(spacing: 12) {
-                    ForEach($segments) { $segment in
-                        segmentRow(segment: $segment)
-                    }
-                }
-            }
-        }
-    }
-
-    private var segmentSectionIntro: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Drive segments")
-                .font(sectionHeaderFont)
-                .foregroundStyle(Palette.ink)
-            Text("Each row is a chunk of the drive at a roughly steady speed.")
-                .font(descriptionFont)
-                .foregroundStyle(Palette.cocoa)
-        }
-    }
-
-    private var addSegmentButton: some View {
-        Button {
-            addSegment()
-        } label: {
-            Label("Add segment", systemImage: "plus")
-        }
-        .buttonStyle(.borderedProminent)
-        .tint(Palette.ink)
-    }
-
-    private var comparisonDetailsSection: some View {
-        SectionCard {
-            VStack(alignment: .leading, spacing: Layout.innerSpacing) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Comparison details")
-                        .font(sectionHeaderFont)
-                        .foregroundStyle(Palette.ink)
-                    Text(comparisonDetailsIntro)
-                        .font(descriptionFont)
-                        .foregroundStyle(Palette.cocoa)
-                }
-
-                if let route = activeRouteEstimate {
-                    routePreviewSection(routes: activeRouteOptions, selectedRoute: route)
-                        .id(Self.routePreviewCaptureID)
-                }
-
-                if hasTripComparisonResult {
-                    if isMobileLayout {
-                        VStack(spacing: 10) {
-                            comparisonDetailCards
-                        }
-                    } else {
-                        LazyVGrid(
-                            columns: [
-                                GridItem(.flexible(minimum: 220), spacing: 10),
-                                GridItem(.flexible(minimum: 220), spacing: 10)
-                            ],
-                            spacing: 10
-                        ) {
-                            comparisonDetailCards
-                        }
-                    }
-                } else {
-                    Text(emptyComparisonPrompt)
-                        .font(descriptionFont)
-                        .foregroundStyle(Palette.cocoa)
-                        .padding(isMobileLayout ? 14 : 18)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Palette.panelAlt, in: RoundedRectangle(cornerRadius: Layout.innerCorner, style: .continuous))
-                }
-            }
-        }
-    }
-
-    private var mobileTripComparisonResultSection: some View {
-        SectionCard {
-            VStack(alignment: .leading, spacing: 12) {
-                brandedPanelHeader(
-                    title: compareResultSectionTitle,
-                    subtitle: compareResultSectionSubtitle
-                )
-
-                VStack(spacing: 12) {
-                    SummaryCard(
-                        title: baselineSummaryTitle,
-                        value: baselineSummaryValue,
-                        tint: baselineSummaryTint,
-                        compact: true
-                    )
-                    SummaryCard(
-                        title: "Your trip",
-                        value: comparisonTripSummaryValue,
-                        tint: comparisonTripSummaryTint,
-                        compact: true
-                    )
-                    SummaryCard(
-                        title: compareResultSummaryTitle,
-                        value: comparisonDifferenceSummaryValue,
-                        tint: comparisonDifferenceSummaryTint,
-                        isProminent: true,
-                        compact: true
-                    )
-                }
-
-                comparisonMetricGrid(compact: true)
-
-                if !hasTripComparisonResult {
-                    mobileHelperCard("Calculate the Apple Maps route, then enter your trip speed or duration to see the final result against the baseline.")
-                }
-            }
-        }
-    }
-
-    private func mobileMapPreviewSection(route: RouteEstimate) -> some View {
-        SectionCard {
-            VStack(alignment: .leading, spacing: Layout.innerSpacing) {
-                mobileSectionHeader(
-                    title: "Map preview",
-                    subtitle: route.routeName.isEmpty ? "\(route.sourceName) to \(route.destinationName)" : route.routeName
-                )
-                routePreviewSection(routes: activeRouteOptions, selectedRoute: route)
-            }
-        }
-        .id(Self.routePreviewCaptureID)
-    }
-
-    private var comparisonDetailCards: some View {
-        Group {
-            DetailRow(
-                title: baselineSummaryTitle,
-                subtitle: baselineDetailSubtitle,
-                value: Self.durationString(tripComparisonSummary.legalTravelMinutes),
-                tint: Palette.ink,
-                compact: isMobileLayout
-            )
-            DetailRow(
-                title: "Your trip",
-                subtitle: comparisonTravelSubtitle,
-                value: Self.durationString(tripComparisonSummary.comparisonTravelMinutes),
-                tint: comparisonTripTint,
-                compact: isMobileLayout
-            )
-            DetailRow(
-                title: tripCompareEntryStyle == .tripDuration ? "Derived average speed" : "Average speed entered",
-                subtitle: "Whole-trip average based on the Apple Maps route distance",
-                value: "\(Self.speedString(tripComparisonSummary.comparisonAverageSpeed)) mph",
-                tint: comparisonAverageSpeedTint,
-                compact: isMobileLayout
-            )
-            DetailRow(
-                title: compareResultSummaryTitle,
-                subtitle: differenceDetailSubtitle,
-                value: Self.netString(tripComparisonSummary.timeDeltaMinutes),
-                tint: comparisonDifferenceTint,
-                compact: isMobileLayout
-            )
-        }
+        liveDriveContentSection
     }
 
     @ViewBuilder
@@ -3072,16 +2092,11 @@ public struct RouteComparisonView: View {
 
     private var liveDriveAssumptionsSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Trip assumptions")
+            Text("Target pace")
                 .font(inputLabelFont)
                 .foregroundStyle(Palette.cocoa)
 
-            HStack(alignment: .top, spacing: 12) {
-                compactMetricField(title: "Target speed", text: $liveDriveTargetSpeedText, placeholder: "78", unit: "mph")
-                compactMetricField(title: "MPG", text: $liveDriveMPGText, placeholder: "24", unit: "mpg")
-            }
-
-            compactMetricField(title: "Fuel price", text: $liveDriveFuelPriceText, placeholder: "3.79", unit: "/ gal")
+            compactMetricField(title: "Target speed", text: $liveDriveTargetSpeedText, placeholder: "78", unit: "mph")
         }
     }
 
@@ -3281,40 +2296,6 @@ public struct RouteComparisonView: View {
         content
     }
 
-    private var comparisonTravelSubtitle: String {
-        switch tripCompareEntryStyle {
-        case .averageSpeed:
-            return "\(Self.milesString(tripComparisonSummary.distanceMiles)) miles at \(Self.speedString(tripComparisonSummary.comparisonAverageSpeed)) mph average"
-        case .tripDuration:
-            return "\(Self.durationString(tripComparisonSummary.comparisonTravelMinutes)) across \(Self.milesString(tripComparisonSummary.distanceMiles)) miles"
-        }
-    }
-
-    private var emptyComparisonPrompt: String {
-        if normalizedFromAddress.isEmpty || normalizedToAddress.isEmpty {
-            return "Choose a route start, enter a destination, calculate the Apple Maps route, and then enter your trip speed or time."
-        }
-
-        if routeNeedsRefresh {
-            return "The route inputs changed after the last lookup. Recalculate the Apple Maps route before comparing."
-        }
-
-        return "Calculate the Apple Maps route, then enter your trip speed or duration to compare against the selected route."
-    }
-
-    private var overUnderPaceText: String {
-        guard hasTripComparisonResult else { return summaryPlaceholderValue }
-
-        if abs(comparisonSpeedDelta) < 0.01 {
-            return "At pace"
-        }
-
-        if comparisonSpeedDelta > 0 {
-            return "\(Self.speedString(comparisonSpeedDelta)) over"
-        }
-
-        return "\(Self.speedString(abs(comparisonSpeedDelta))) under"
-    }
     private func makeCompletedTripRecord() -> CompletedTripRecord? {
         guard let routeContext = liveDriveRouteContext else { return nil }
 
@@ -3324,7 +2305,6 @@ public struct RouteComparisonView: View {
         let averageTripSpeed = tracker.tripDuration > 0
             ? tracker.distanceTraveled / (tracker.tripDuration / 60)
             : tracker.analysisResult.averageTripSpeed
-        let estimatedObservedMPG = liveDriveEstimatedObservedMPG
 
         return CompletedTripRecord(
             completedAt: Date(),
@@ -3337,32 +2317,10 @@ public struct RouteComparisonView: View {
             elapsedDriveMinutes: tracker.tripDuration,
             averageTripSpeed: averageTripSpeed,
             targetSpeed: liveDriveTargetSpeed ?? tracker.configuration.targetSpeed,
-            ratedMPG: liveDriveMPG ?? tracker.configuration.fuelModel?.ratedMPG ?? 0,
-            estimatedObservedMPG: estimatedObservedMPG,
-            enteredObservedMPG: liveDriveObservedMPGEntry,
-            fuelPricePerGallon: liveDriveFuelPrice ?? tracker.configuration.fuelModel?.fuelPricePerGallon ?? 0,
             timeSavedBySpeeding: tracker.tripSummary.timeSavedBySpeeding,
             timeLostBelowTargetPace: tracker.tripSummary.timeLostBelowTargetPace,
-            netTimeGain: tracker.tripSummary.netTimeGain,
-            fuelPenalty: CompletedTripRecord.fuelPenalty(
-                distanceMiles: tracker.distanceTraveled > 0 ? tracker.distanceTraveled : routeContext.baselineRouteDistanceMiles,
-                ratedMPG: liveDriveMPG ?? tracker.configuration.fuelModel?.ratedMPG ?? 0,
-                observedMPG: liveDriveObservedMPGEntry ?? estimatedObservedMPG,
-                fuelPricePerGallon: liveDriveFuelPrice ?? tracker.configuration.fuelModel?.fuelPricePerGallon ?? 0
-            )
+            netTimeGain: tracker.tripSummary.netTimeGain
         )
-    }
-
-    private func liveDriveObservedMPGHelperText(for completedTrip: CompletedTripRecord) -> String {
-        if completedTrip.enteredObservedMPG != nil {
-            return "Fuel penalty is using your observed MPG."
-        }
-
-        if let estimatedObservedMPG = completedTrip.estimatedObservedMPG {
-            return "Leave this blank to keep the live estimate of \(Self.speedString(estimatedObservedMPG)) mpg."
-        }
-
-        return "Enter observed MPG if you want to recalculate true fuel burn after the drive."
     }
 
     private func finishedTripShareText(for completedTrip: CompletedTripRecord) -> String {
@@ -3373,7 +2331,6 @@ public struct RouteComparisonView: View {
         Overall vs Apple ETA: \(Self.netString(completedTrip.netTimeGain))
         Above-target gain: \(Self.durationString(completedTrip.timeSavedBySpeeding))
         Below-target loss: \(Self.durationString(completedTrip.timeLostBelowTargetPace))
-        Fuel penalty: \(Self.currencyString(completedTrip.fuelPenalty))
         """
     }
 
@@ -3477,7 +2434,6 @@ public struct RouteComparisonView: View {
         guard let configuration = liveDriveConfigurationForStart,
               let selectedRoute = liveDriveSetupRoute else { return }
         liveDriveFinishedTrip = nil
-        liveDrivePostTripObservedMPGText = ""
         liveDriveHUDWasDismissedForCurrentTrip = false
         liveDriveRouteContext = LiveDriveRouteContext(
             routes: liveDriveSetupRouteOptions,
@@ -3530,7 +2486,6 @@ public struct RouteComparisonView: View {
             liveDriveNavigationProviderPending = nil
             liveDriveNavigationHandoffMessage = nil
             liveDriveFinishedTrip = nil
-            liveDrivePostTripObservedMPGText = ""
             isNavigationProviderChoicePresented = false
             tracker.resetTrip()
         }
@@ -3651,15 +2606,7 @@ public struct RouteComparisonView: View {
     private func finalizeCompletedTrip() {
         guard let completedTrip = makeCompletedTripRecord() else { return }
         liveDriveFinishedTrip = completedTrip
-        liveDrivePostTripObservedMPGText = completedTrip.enteredObservedMPG.map { Self.speedString($0) } ?? ""
         tripHistoryStore.save(completedTrip)
-    }
-
-    private func updateFinishedTripObservedMPG() {
-        guard let completedTrip = liveDriveFinishedTrip else { return }
-        let updatedTrip = completedTrip.updatingObservedMPG(liveDriveObservedMPGEntry)
-        liveDriveFinishedTrip = updatedTrip
-        tripHistoryStore.save(updatedTrip)
     }
 
     private func shareFinishedTrip() {
@@ -3778,7 +2725,6 @@ public struct RouteComparisonView: View {
         hoveredRouteID = nil
         routeErrorMessage = nil
         isCalculatingRoute = false
-        captureScrollTarget = nil
     }
 
     private func calculateAppleMapsRoute() {
@@ -3816,9 +2762,6 @@ public struct RouteComparisonView: View {
                     hoveredRouteID = nil
                     routeErrorMessage = nil
                     isCalculatingRoute = false
-                    if captureSectionName == "routePreview" {
-                        captureScrollTarget = Self.routePreviewCaptureID
-                    }
                 }
             } catch {
                 await MainActor.run {
@@ -3829,119 +2772,6 @@ public struct RouteComparisonView: View {
                 }
             }
         }
-    }
-
-    private func segmentRow(segment: Binding<EditableSegment>) -> some View {
-        let parsed = parsedSegment(for: segment.wrappedValue)
-        let delta = parsed.flatMap { item in
-            speedLimit.map { limit in
-                switch mode {
-                case .simple:
-                    if item.speed > limit { return item.minutes }
-                    if item.speed < limit { return -item.minutes }
-                    return 0
-                case .speedAdjusted:
-                    return TimeThrottleCalculator.timeDeltaComparedToLimit(speedLimit: limit, segment: item)
-                }
-            }
-        }
-
-        return Group {
-            if isMobileLayout {
-                VStack(alignment: .leading, spacing: 12) {
-                    BrandedTextField(
-                        text: segment.label,
-                        placeholder: "Segment label",
-                        fontSize: 17,
-                        fontWeight: .semibold,
-                        compact: true
-                    )
-
-                    HStack(spacing: 12) {
-                        segmentMetricField(
-                            title: "Speed",
-                            text: segment.speedText,
-                            placeholder: "75"
-                        )
-
-                        segmentMetricField(
-                            title: "Minutes",
-                            text: segment.minutesText,
-                            placeholder: "15"
-                        )
-                    }
-
-                    HStack(spacing: 12) {
-                        ResultChip(delta: delta, formatter: Self.durationString)
-                        Spacer()
-                        deleteSegmentButton(id: segment.wrappedValue.id)
-                    }
-                }
-            } else {
-                HStack(spacing: 12) {
-                    BrandedTextField(
-                        text: segment.label,
-                        placeholder: "Segment label",
-                        fontSize: 17,
-                        fontWeight: .semibold,
-                        compact: false
-                    )
-                    .frame(minWidth: 160)
-
-                    segmentMetricField(
-                        title: "Speed",
-                        text: segment.speedText,
-                        placeholder: "75"
-                    )
-
-                    segmentMetricField(
-                        title: "Minutes",
-                        text: segment.minutesText,
-                        placeholder: "15"
-                    )
-
-                    Spacer()
-
-                    ResultChip(delta: delta, formatter: Self.durationString)
-
-                    deleteSegmentButton(id: segment.wrappedValue.id)
-                }
-            }
-        }
-        .padding(isMobileLayout ? 12 : 14)
-        .background(Palette.panelAlt, in: RoundedRectangle(cornerRadius: Layout.innerCorner, style: .continuous))
-    }
-
-    private func segmentMetricField(
-        title: String,
-        text: Binding<String>,
-        placeholder: String
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title)
-                .font(isMobileLayout ? .caption.weight(.semibold) : .system(size: 11, weight: .semibold, design: .rounded))
-                .foregroundStyle(Palette.cocoa)
-
-            BrandedTextField(
-                text: text,
-                placeholder: placeholder,
-                width: 92,
-                fontSize: 17,
-                fontWeight: .bold,
-                compact: isMobileLayout
-            )
-        }
-    }
-
-    private func deleteSegmentButton(id: UUID) -> some View {
-        Button(role: .destructive) {
-            removeSegment(id: id)
-        } label: {
-            Image(systemName: "trash")
-        }
-        .buttonStyle(.bordered)
-        .tint(Palette.danger)
-        .disabled(segments.count == 1)
     }
 
     private func timeComparisonRows(
@@ -3977,33 +2807,6 @@ public struct RouteComparisonView: View {
         }
     }
 
-    private func addSegment() {
-        segments.append(
-            EditableSegment(
-                label: "Segment \(segments.count + 1)",
-                speedText: speedLimitText.isEmpty ? "70" : speedLimitText,
-                minutesText: "10"
-            )
-        )
-    }
-
-    private func removeSegment(id: UUID) {
-        segments.removeAll { $0.id == id }
-    }
-
-    private func parsedSegment(for editable: EditableSegment) -> DriveSegment? {
-        guard
-            let speed = Self.number(from: editable.speedText),
-            let minutes = Self.number(from: editable.minutesText),
-            speed > 0,
-            minutes > 0
-        else {
-            return nil
-        }
-
-        return DriveSegment(id: editable.id, speed: speed, minutes: minutes)
-    }
-
     private static func number(from text: String) -> Double? {
         Double(text.trimmingCharacters(in: .whitespacesAndNewlines))
     }
@@ -4035,23 +2838,6 @@ public struct RouteComparisonView: View {
         }
 
         return minutes > 0 ? "\(durationString(minutes)) saved" : "\(durationString(abs(minutes))) lost"
-    }
-
-    private static func lossString(_ minutes: Double) -> String {
-        guard minutes > 0.01 else { return "0m" }
-        return "-\(durationString(minutes))"
-    }
-
-    private static func currencyPenaltyString(_ amount: Double) -> String {
-        if abs(amount) < 0.005 {
-            return "$0.00"
-        }
-
-        return amount > 0 ? "+\(currencyString(amount))" : "-\(currencyString(abs(amount)))"
-    }
-
-    private static func currencyString(_ amount: Double) -> String {
-        String(format: "$%.2f", amount)
     }
 
     private static func milesString(_ miles: Double) -> String {

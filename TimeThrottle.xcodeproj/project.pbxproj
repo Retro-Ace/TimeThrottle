@@ -11,7 +11,6 @@
 		A10000000000000000000002 /* RoutePreviewMapView_iOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* RoutePreviewMapView_iOS.swift */; };
 		A10000000000000000000003 /* IOSRouteComparisonScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000005 /* IOSRouteComparisonScreen.swift */; };
 		A10000000000000000000004 /* TimeThrottleCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000006 /* TimeThrottleCalculator.swift */; };
-		A10000000000000000000005 /* SpeedCostCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000007 /* SpeedCostCalculator.swift */; };
 		A10000000000000000000006 /* RouteComparisonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000008 /* RouteComparisonView.swift */; };
 		A10000000000000000000007 /* RouteModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000009 /* RouteModels.swift */; };
 		A10000000000000000000008 /* SharedComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000A /* SharedComponents.swift */; };
@@ -25,6 +24,7 @@
 		A10000000000000000000010 /* TripHistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000013 /* TripHistoryStore.swift */; };
 		A10000000000000000000011 /* TripHistoryViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000014 /* TripHistoryViews.swift */; };
 		A10000000000000000000012 /* LiveDriveHUDView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000015 /* LiveDriveHUDView.swift */; };
+		A10000000000000000000013 /* LiveDriveHUDMapView_iOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000016 /* LiveDriveHUDMapView_iOS.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -33,7 +33,6 @@
 		A20000000000000000000004 /* RoutePreviewMapView_iOS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoutePreviewMapView_iOS.swift; sourceTree = "<group>"; };
 		A20000000000000000000005 /* IOSRouteComparisonScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSRouteComparisonScreen.swift; sourceTree = "<group>"; };
 		A20000000000000000000006 /* TimeThrottleCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeThrottleCalculator.swift; sourceTree = "<group>"; };
-		A20000000000000000000007 /* SpeedCostCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeedCostCalculator.swift; sourceTree = "<group>"; };
 		A20000000000000000000008 /* RouteComparisonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouteComparisonView.swift; sourceTree = "<group>"; };
 		A20000000000000000000009 /* RouteModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouteModels.swift; sourceTree = "<group>"; };
 		A2000000000000000000000A /* SharedComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedComponents.swift; sourceTree = "<group>"; };
@@ -48,6 +47,7 @@
 		A20000000000000000000013 /* TripHistoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripHistoryStore.swift; sourceTree = "<group>"; };
 		A20000000000000000000014 /* TripHistoryViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripHistoryViews.swift; sourceTree = "<group>"; };
 		A20000000000000000000015 /* LiveDriveHUDView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveDriveHUDView.swift; sourceTree = "<group>"; };
+		A20000000000000000000016 /* LiveDriveHUDMapView_iOS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveDriveHUDMapView_iOS.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -95,6 +95,7 @@
 				A20000000000000000000003 /* TimeThrottleApp_iOS.swift */,
 				A20000000000000000000004 /* RoutePreviewMapView_iOS.swift */,
 				A20000000000000000000005 /* IOSRouteComparisonScreen.swift */,
+				A20000000000000000000016 /* LiveDriveHUDMapView_iOS.swift */,
 			);
 			path = iOS;
 			sourceTree = "<group>";
@@ -103,7 +104,6 @@
 			isa = PBXGroup;
 			children = (
 				A20000000000000000000006 /* TimeThrottleCalculator.swift */,
-				A20000000000000000000007 /* SpeedCostCalculator.swift */,
 				A20000000000000000000010 /* TripAnalysisEngine.swift */,
 				A20000000000000000000011 /* LiveDriveTracker.swift */,
 				A20000000000000000000013 /* TripHistoryStore.swift */,
@@ -211,7 +211,6 @@
 				A10000000000000000000002 /* RoutePreviewMapView_iOS.swift in Sources */,
 				A10000000000000000000003 /* IOSRouteComparisonScreen.swift in Sources */,
 				A10000000000000000000004 /* TimeThrottleCalculator.swift in Sources */,
-				A10000000000000000000005 /* SpeedCostCalculator.swift in Sources */,
 				A10000000000000000000006 /* RouteComparisonView.swift in Sources */,
 				A10000000000000000000007 /* RouteModels.swift in Sources */,
 				A10000000000000000000008 /* SharedComponents.swift in Sources */,
@@ -222,6 +221,7 @@
 				A10000000000000000000010 /* TripHistoryStore.swift in Sources */,
 				A10000000000000000000011 /* TripHistoryViews.swift in Sources */,
 				A10000000000000000000012 /* LiveDriveHUDView.swift in Sources */,
+				A10000000000000000000013 /* LiveDriveHUDMapView_iOS.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -263,7 +263,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 1.3.2;
+				MARKETING_VERSION = 1.4;
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = com.timethrottle.app;
 				SDKROOT = iphoneos;
@@ -307,7 +307,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 1.3.2;
+				MARKETING_VERSION = 1.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.timethrottle.app;
 				SDKROOT = iphoneos;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -323,7 +323,8 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
+				DEVELOPMENT_TEAM = GRYEGJ3MAY;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Resources/iOS/Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.navigation";
@@ -332,7 +333,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.3.2;
+				MARKETING_VERSION = 1.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.timethrottle.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -349,7 +350,8 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
+				DEVELOPMENT_TEAM = GRYEGJ3MAY;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Resources/iOS/Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.navigation";
@@ -358,7 +360,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.3.2;
+				MARKETING_VERSION = 1.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.timethrottle.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;

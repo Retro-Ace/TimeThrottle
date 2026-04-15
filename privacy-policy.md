@@ -1,8 +1,8 @@
 # Privacy Policy for TimeThrottle
 
-**Effective date:** March 24, 2026
+**Effective date:** April 15, 2026
 
-TimeThrottle is an iPhone pace-analysis app. It uses Apple Maps route planning as a baseline and, when enabled by the user, iPhone location services for Live Drive trip tracking.
+TimeThrottle is an iPhone Live Drive pace-analysis app. It uses Apple Maps route planning as the route and ETA baseline layer and, when enabled by the user, iPhone location services for live trip tracking.
 
 This policy describes what the current app build uses, how that information is used, and what choices users have.
 
@@ -13,10 +13,12 @@ This policy describes what the current app build uses, how that information is u
 If you use **Live Drive**, TimeThrottle may request access to your device location.
 
 Location is used to:
-- Measure current speed
-- Measure distance traveled
-- Track live trip progress
-- Compare the active trip against the selected Apple Maps route baseline
+- measure current speed
+- measure distance traveled
+- track live trip progress
+- estimate projected arrival
+- compare the active trip against the selected Apple Maps ETA baseline
+- keep the HUD map centered on the current drive when follow mode is active
 
 If you choose external navigation handoff during Live Drive, the app may request **Always Location** so tracking can continue while Apple Maps, Google Maps, or Waze is open.
 
@@ -24,56 +26,51 @@ If location access is denied or restricted, Live Drive will not function as inte
 
 ### 2. Route and Search Information
 
-If you use **Compare** or the setup flow for **Live Drive**, TimeThrottle may use:
+During Live Drive setup, TimeThrottle may use:
 - Current Location as a route start when selected
-- Typed start and destination addresses
+- typed start and destination addresses
 - Apple Maps autocomplete suggestions
 - Apple Maps route options
-- Route distance
+- route distance
 - Apple ETA baseline
 
-This information is used to plan the route, display route options, and compare your pace against a route baseline.
+This information is used to plan the route, display route options, and establish the Apple ETA baseline for the drive.
 
-### 3. Compare and Trip Inputs
+### 3. Trip Inputs
 
-If you use **Compare** or enter pace/fuel assumptions for **Live Drive**, TimeThrottle uses values you enter, such as:
-- Average speed
-- Trip duration
-- Live Drive target speed
-- Live Drive MPG and fuel price assumptions
-- Optional Observed MPG after a finished trip
+TimeThrottle uses pace inputs you enter during Live Drive setup, such as:
+- target speed
 
-These values are used only to perform the calculations shown in the app.
+These values are used only to perform the pace-analysis calculations shown in the app.
 
 ### 4. Locally Stored App Data
 
 TimeThrottle stores some app state on-device using local iOS app storage.
 
 This currently includes:
-- Your preferred external navigation choice for Live Drive
-- Completed Live Drive trip history
-- Finished-trip fuel refinement if you choose to enter Observed MPG after a trip
+- your preferred external navigation choice for Live Drive
+- completed Live Drive trip history
 
-These local records support features such as **Apple Maps**, **Google Maps**, **Waze**, and **Ask Every Time** handoff selection, plus local Trip History review after a Live Drive ends.
+These local records support handoff selection and Trip History review after a Live Drive ends.
 
 ## How TimeThrottle Uses This Information
 
 TimeThrottle uses the information above only to:
-- Look up routes and baseline ETAs with Apple Maps
-- Show autocomplete suggestions for route entry
-- Track a live drive when the user enables location access
-- Compare pace and trip tradeoffs such as above-target gain, below-target loss, fuel penalty, and overall result versus Apple ETA where that baseline exists
-- Save completed Live Drive trips on-device for later review
-- Hand off navigation to Apple Maps, Google Maps, or Waze when the user chooses that option
+- look up routes and baseline ETAs with Apple Maps
+- show autocomplete suggestions for route entry
+- track a live drive when the user enables location access
+- calculate above-target gain, below-target loss, and overall result versus Apple ETA
+- save completed Live Drive trips on-device for later review
+- hand off navigation to Apple Maps, Google Maps, or Waze when the user chooses that option
 
 ## External Services and Handoff
 
 ### Apple Maps
 
 TimeThrottle uses Apple Maps for:
-- Route lookup
-- Address/autocomplete resolution
-- Route options
+- route lookup
+- address/autocomplete resolution
+- route options
 - ETA baseline planning
 
 ### Google Maps
@@ -96,11 +93,11 @@ If you choose to share a finished trip result, TimeThrottle passes the share tex
 
 Based on the current app repository and build configuration:
 
-- No user account is required
-- No cloud sync is included
-- No advertising SDK is included
-- No third-party analytics SDK is included
-- No crash-reporting SDK is included
+- no user account is required
+- no cloud sync is included
+- no advertising SDK is included
+- no third-party analytics SDK is included
+- no crash-reporting SDK is included
 - TimeThrottle does not sell personal information
 
 ## Data Storage
@@ -108,21 +105,19 @@ Based on the current app repository and build configuration:
 The current app is designed to operate primarily on-device.
 
 The verified on-device data currently stored by the app includes:
-- The selected external navigation provider for Live Drive
-- Completed Live Drive trip history
-- Optional Observed MPG refinements you enter for finished trips
+- the selected external navigation provider for Live Drive
+- completed Live Drive trip history
 
-Route calculations, Compare inputs, and Live Drive comparisons are otherwise performed in the app during normal use.
+Route calculations and Live Drive comparisons are otherwise performed in the app during normal use.
 
 ## Your Choices
 
 You can:
-- Use **Compare** without starting Live Drive tracking
-- Use **Compare** with a custom route start if you do not want to use Current Location
-- Deny location access
-- Change location access later in iPhone Settings
-- Choose Apple Maps, Google Maps, Waze, or Ask Every Time for Live Drive handoff
-- Pause, resume, or end a Live Drive at any time
+- deny location access
+- change location access later in iPhone Settings
+- choose Apple Maps, Google Maps, Waze, or Ask Every Time for Live Drive handoff
+- pause, resume, or end a Live Drive at any time
+- delete completed trips from Trip History
 
 If you do not grant the location access needed for Live Drive, TimeThrottle will show a clear permission state and Live Drive tracking will not continue as intended.
 
