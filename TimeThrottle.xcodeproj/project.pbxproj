@@ -10,7 +10,7 @@
 		A10000000000000000000001 /* TimeThrottleApp_iOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000003 /* TimeThrottleApp_iOS.swift */; };
 		A10000000000000000000002 /* RoutePreviewMapView_iOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* RoutePreviewMapView_iOS.swift */; };
 		A10000000000000000000003 /* IOSRouteComparisonScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000005 /* IOSRouteComparisonScreen.swift */; };
-		A10000000000000000000004 /* TimeThrottleCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000006 /* TimeThrottleCalculator.swift */; };
+		A10000000000000000000004 /* PaceAnalysisMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000006 /* PaceAnalysisMath.swift */; };
 		A10000000000000000000006 /* RouteComparisonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000008 /* RouteComparisonView.swift */; };
 		A10000000000000000000007 /* RouteModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000009 /* RouteModels.swift */; };
 		A10000000000000000000008 /* SharedComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000A /* SharedComponents.swift */; };
@@ -32,7 +32,7 @@
 		A20000000000000000000003 /* TimeThrottleApp_iOS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeThrottleApp_iOS.swift; sourceTree = "<group>"; };
 		A20000000000000000000004 /* RoutePreviewMapView_iOS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoutePreviewMapView_iOS.swift; sourceTree = "<group>"; };
 		A20000000000000000000005 /* IOSRouteComparisonScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSRouteComparisonScreen.swift; sourceTree = "<group>"; };
-		A20000000000000000000006 /* TimeThrottleCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeThrottleCalculator.swift; sourceTree = "<group>"; };
+		A20000000000000000000006 /* PaceAnalysisMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaceAnalysisMath.swift; sourceTree = "<group>"; };
 		A20000000000000000000008 /* RouteComparisonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouteComparisonView.swift; sourceTree = "<group>"; };
 		A20000000000000000000009 /* RouteModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouteModels.swift; sourceTree = "<group>"; };
 		A2000000000000000000000A /* SharedComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedComponents.swift; sourceTree = "<group>"; };
@@ -103,7 +103,7 @@
 		A30000000000000000000005 /* Core */ = {
 			isa = PBXGroup;
 			children = (
-				A20000000000000000000006 /* TimeThrottleCalculator.swift */,
+				A20000000000000000000006 /* PaceAnalysisMath.swift */,
 				A20000000000000000000010 /* TripAnalysisEngine.swift */,
 				A20000000000000000000011 /* LiveDriveTracker.swift */,
 				A20000000000000000000013 /* TripHistoryStore.swift */,
@@ -163,7 +163,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1600;
-				LastUpgradeCheck = 2630;
+				LastUpgradeCheck = 2640;
 				TargetAttributes = {
 					A60000000000000000000001 = {
 						CreatedOnToolsVersion = 16.0;
@@ -210,7 +210,7 @@
 				A10000000000000000000001 /* TimeThrottleApp_iOS.swift in Sources */,
 				A10000000000000000000002 /* RoutePreviewMapView_iOS.swift in Sources */,
 				A10000000000000000000003 /* IOSRouteComparisonScreen.swift in Sources */,
-				A10000000000000000000004 /* TimeThrottleCalculator.swift in Sources */,
+				A10000000000000000000004 /* PaceAnalysisMath.swift in Sources */,
 				A10000000000000000000006 /* RouteComparisonView.swift in Sources */,
 				A10000000000000000000007 /* RouteModels.swift in Sources */,
 				A10000000000000000000008 /* SharedComponents.swift in Sources */,
@@ -231,6 +231,7 @@
 		A71000000000000000000001 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
 				CLANG_WARN_BOOL_CONVERSION = YES;
@@ -276,6 +277,7 @@
 		A71000000000000000000002 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
 				CLANG_WARN_BOOL_CONVERSION = YES;

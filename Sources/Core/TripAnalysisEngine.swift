@@ -149,8 +149,8 @@ public enum TripAnalysisEngine {
             if update.speedMilesPerHour <= 0 {
                 delta = -update.deltaTimeMinutes
             } else {
-                delta = TimeThrottleCalculator.timeDeltaComparedToLimit(
-                    speedLimit: targetSpeed,
+                delta = PaceAnalysisMath.timeDeltaAgainstTargetPace(
+                    targetSpeed: targetSpeed,
                     segment: DriveSegment(
                         speed: update.speedMilesPerHour,
                         minutes: update.deltaTimeMinutes
