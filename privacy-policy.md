@@ -17,7 +17,7 @@ Location is used to:
 - measure distance traveled
 - track live trip progress
 - estimate projected arrival
-- compare the active trip against the selected Apple Maps ETA baseline
+- measure the active trip against the selected Apple Maps ETA baseline
 - keep the HUD map centered on the current drive when follow mode is active
 
 If you choose external navigation handoff during Live Drive, the app may request **Always Location** so tracking can continue while Apple Maps, Google Maps, or Waze is open.
