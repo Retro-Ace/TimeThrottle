@@ -39,7 +39,7 @@ Supports:
 
 ### v1.4 focus
 - removed non-Live product paths
-- removed old fuel-related logic
+- removed old non-Live tradeoff logic
 - simplified trip results and Trip History
 - improved HUD map follow and recenter behavior
 

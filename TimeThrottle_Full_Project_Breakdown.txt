@@ -100,7 +100,7 @@ The app remains careful not to claim:
 - Live Drive expansion stage: GPS tracking, route context preservation, finished-trip persistence
 - handoff stage: Apple Maps / Google Maps / Waze support
 - HUD stage: compact Live Drive HUD
-- v1.4: Live Drive-only simplification, removed non-Live and fuel-related product paths, improved HUD map follow behavior
+- v1.4: Live Drive-only simplification, removed non-Live product paths, improved HUD map follow behavior
 
 6. WHAT THE AGENTS DO
 
@@ -181,7 +181,7 @@ TimeThrottle 1.4 is a Live Drive-only simplification release.
 
 It:
 - simplifies the app around Live Drive
-- removes planning and fuel-related product clutter
+- removes planning clutter from the old product structure
 - keeps Apple Maps as the route lookup / ETA-baseline layer
 - improves the HUD map follow and recenter behavior
 - keeps the finished-trip story focused on pace versus Apple ETA

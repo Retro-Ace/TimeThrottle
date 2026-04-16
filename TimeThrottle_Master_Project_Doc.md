@@ -80,7 +80,7 @@ TimeThrottle does **not** currently claim:
 - Live Drive expansion: GPS tracking, route context preservation, finished-trip persistence
 - handoff stage: Apple Maps / Google Maps / Waze external navigation handoff
 - HUD stage: compact in-app Live Drive HUD
-- v1.4: Live Drive-only simplification, removed planning/fuel features, improved HUD map follow behavior
+- v1.4: Live Drive-only simplification, removed old non-Live features, improved HUD map follow behavior
 
 ## Repo / App Structure
 

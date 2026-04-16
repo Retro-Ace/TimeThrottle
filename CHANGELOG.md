@@ -11,14 +11,14 @@ Use this block for GitHub releases, TestFlight notes, or App Store Connect:
 > **TimeThrottle 1.4**
 >
 > - Simplified the app to focus on Live Drive
-> - Removed Compare mode and fuel-related inputs
+> - Removed extra planning inputs and old tradeoff assumptions
 > - Improved Live Drive HUD with real-time map tracking and recenter behavior
 > - Cleaner trip results focused on pace versus Apple ETA
 
 ### Release Notes
 
-- Removed Compare mode to simplify the app experience
-- Removed fuel and MPG-related inputs and outputs
+- Removed the separate planning mode to simplify the app experience
+- Removed old tradeoff-assumption inputs and outputs
 - Refocused the app around Live Drive and Apple ETA comparison
 - Improved Live Drive HUD with real-time map follow and recenter behavior
 - Simplified trip results and Trip History to focus on pace and time
@@ -29,4 +29,4 @@ TimeThrottle 1.4 is a Live Drive-only simplification release. Apple Maps remains
 
 ## Earlier releases
 
-Earlier release notes are preserved in git history. The current product truth is now Live Drive-focused and no longer includes separate planning or fuel-tradeoff features.
+Earlier release notes are preserved in git history. The current product truth is now Live Drive-focused and no longer includes separate planning features.
