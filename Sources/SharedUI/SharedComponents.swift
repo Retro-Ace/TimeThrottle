@@ -106,14 +106,14 @@ struct BrandedTextField: View {
             .textFieldStyle(.plain)
             .font(.system(size: resolvedFontSize, weight: fontWeight, design: .rounded))
             .foregroundStyle(Palette.ink)
-            .padding(.horizontal, compact ? 14 : 13)
-            .frame(width: width, height: compact ? 46 : 44, alignment: .leading)
+            .padding(.horizontal, compact ? 12 : 13)
+            .frame(width: width, height: compact ? 42 : 44, alignment: .leading)
             .background(Color.white.opacity(0.97), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .stroke(Palette.surfaceBorder, lineWidth: 1)
             }
-            .shadow(color: .black.opacity(0.03), radius: compact ? 10 : 8, y: compact ? 4 : 3)
+            .shadow(color: .black.opacity(0.03), radius: compact ? 8 : 8, y: compact ? 3 : 3)
     }
 }
 

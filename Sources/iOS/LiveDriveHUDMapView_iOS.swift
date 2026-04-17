@@ -39,9 +39,29 @@ struct LiveDriveHUDMapView: View {
                         }
                 }
                 .buttonStyle(.plain)
-                .padding(12)
+                .padding(.trailing, recenterHorizontalPadding)
+                .padding(.bottom, recenterBottomPadding)
+                .zIndex(1)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var recenterBottomPadding: CGFloat {
+        max(activeWindowSafeAreaInsets.bottom, 16) + 32
+    }
+
+    private var recenterHorizontalPadding: CGFloat {
+        max(activeWindowSafeAreaInsets.right, 0) + 22
+    }
+
+    private var activeWindowSafeAreaInsets: UIEdgeInsets {
+        let scenes = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+
+        let activeScene = scenes.first(where: { $0.activationState == .foregroundActive }) ?? scenes.first
+        let keyWindow = activeScene?.windows.first(where: \.isKeyWindow)
+        return keyWindow?.safeAreaInsets ?? .zero
     }
 }
 
@@ -66,6 +86,14 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
         mapView.isPitchEnabled = false
         mapView.pointOfInterestFilter = .excludingAll
         mapView.userTrackingMode = .follow
+        let followPanRecognizer = UIPanGestureRecognizer(
+            target: context.coordinator,
+            action: #selector(Coordinator.handleUserPan(_:))
+        )
+        followPanRecognizer.cancelsTouchesInView = false
+        followPanRecognizer.delegate = context.coordinator
+        mapView.addGestureRecognizer(followPanRecognizer)
+
         return mapView
     }
 
@@ -74,7 +102,7 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
         context.coordinator.update(mapView: mapView)
     }
 
-    final class Coordinator: NSObject, MKMapViewDelegate {
+    final class Coordinator: NSObject, MKMapViewDelegate, UIGestureRecognizerDelegate {
         var parent: LiveDriveHUDTrackingMap
 
         private var lastRouteSignature = ""
@@ -84,6 +112,33 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
 
         init(parent: LiveDriveHUDTrackingMap) {
             self.parent = parent
+        }
+
+        @objc
+        func handleUserPan(_ recognizer: UIPanGestureRecognizer) {
+            guard let mapView = recognizer.view as? MKMapView else { return }
+
+            switch recognizer.state {
+            case .began, .changed:
+                userInitiatedMapChange = true
+
+                if mapView.userTrackingMode != .none {
+                    mapView.setUserTrackingMode(.none, animated: false)
+                }
+
+                if parent.isFollowingUser {
+                    parent.isFollowingUser = false
+                }
+            default:
+                break
+            }
+        }
+
+        func gestureRecognizer(
+            _ gestureRecognizer: UIGestureRecognizer,
+            shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
+        ) -> Bool {
+            true
         }
 
         func update(mapView: MKMapView) {
@@ -253,6 +308,10 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
         }
 
         func mapView(_ mapView: MKMapView, regionWillChangeAnimated animated: Bool) {
+            if userInitiatedMapChange {
+                return
+            }
+
             userInitiatedMapChange = mapView.gestureRecognizers?.contains(where: {
                 switch $0.state {
                 case .began, .changed:

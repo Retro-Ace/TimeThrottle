@@ -1,4 +1,4 @@
-# TimeThrottle — Master Project Document (v1.4)
+# TimeThrottle — Master Project Document (v1.4.2)
 
 ## Overview
 
@@ -7,15 +7,15 @@
 > **How much time did speed really buy you?**
 
 The app uses **Apple Maps** for route lookup, route options, autocomplete, and the ETA baseline. During a real drive, TimeThrottle tracks the trip and shows:
-- pace gain
-- pace loss
-- overall result versus Apple ETA
+- Time Saved
+- Time Lost
+- projected arrival versus the Apple ETA baseline
 
 TimeThrottle is **not** a built-in turn-by-turn navigation app. It can optionally hand off navigation to **Apple Maps, Google Maps, or Waze** while continuing to track the trip.
 
 ## Current Product Structure
 
-As of **v1.4**, the active iPhone product is intentionally centered on **Live Drive only**.
+As of **v1.4.2**, the active iPhone product is intentionally centered on **Live Drive only**.
 
 ### Live Drive
 
@@ -36,9 +36,9 @@ Live Drive supports:
 Finished trips focus on pace and time only.
 
 Result language:
-- **Above-target gain** = time gained while driving above your target pace
-- **Below-target loss** = time lost while driving below your target pace
-- **Overall vs Apple ETA** = completed trip result against the Apple Maps ETA baseline
+- **Time Saved** = time saved against the Apple Maps ETA baseline
+- **Time Lost** = time lost against the Apple Maps ETA baseline
+- **Overall vs Apple ETA baseline** = completed trip result against the Apple Maps ETA baseline
 
 ## Live Drive HUD
 
@@ -50,6 +50,7 @@ The compact Live Drive HUD is one of the most important current product features
 - compact route/header footprint
 - faster access to Pause / Resume and End Trip
 - supportive map context without pretending to be full navigation
+- clear ETA / Arrive / Time Saved / Time Lost hierarchy
 
 ### HUD map behavior
 - follows the user by default
@@ -80,7 +81,7 @@ TimeThrottle does **not** currently claim:
 - Live Drive expansion: GPS tracking, route context preservation, finished-trip persistence
 - handoff stage: Apple Maps / Google Maps / Waze external navigation handoff
 - HUD stage: compact in-app Live Drive HUD
-- v1.4: Live Drive-only simplification, removed old non-Live features, improved HUD map follow behavior
+- v1.4.2: Live Drive-only simplification, removed old non-Live features, improved HUD map follow behavior
 
 ## Repo / App Structure
 
@@ -106,9 +107,9 @@ SPEED APP
 
 ## Current Release State
 
-- **Version:** 1.4
+- **Version:** 1.4.2
 - **Build:** 6
 
 ## Plain-English Summary
 
-**TimeThrottle is now a Live Drive-first iPhone pace-analysis app. It uses Apple Maps as the route and ETA-baseline layer, tracks real trips, saves Trip History locally, supports optional external navigation handoff, and focuses finished-trip results on pace gain, pace loss, and overall result versus Apple ETA.**
+**TimeThrottle is now a Live Drive-first iPhone pace-analysis app. It uses Apple Maps as the route and ETA-baseline layer, tracks real trips, saves Trip History locally, supports optional external navigation handoff, and focuses finished-trip results on Time Saved, Time Lost, and projected arrival versus Apple ETA baseline.**

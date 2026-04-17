@@ -59,7 +59,7 @@ TimeThrottle uses the information above only to:
 - look up routes and baseline ETAs with Apple Maps
 - show autocomplete suggestions for route entry
 - track a live drive when the user enables location access
-- calculate above-target gain, below-target loss, and overall result versus Apple ETA
+- calculate Time Saved, Time Lost, and projected arrival versus the Apple ETA baseline
 - save completed Live Drive trips on-device for later review
 - hand off navigation to Apple Maps, Google Maps, or Waze when the user chooses that option
 

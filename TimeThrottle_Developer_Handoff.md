@@ -1,4 +1,4 @@
-# TimeThrottle — Developer Handoff (v1.4)
+# TimeThrottle — Developer Handoff (v1.4.2)
 
 ## Project Summary
 
@@ -9,9 +9,9 @@ TimeThrottle is an **iPhone Live Drive pace-analysis app** built around one ques
 It is not a built-in turn-by-turn navigation app.
 
 The app uses **Apple Maps** as the route lookup and ETA-baseline layer. During a real drive, it tracks:
-- above-target gain
-- below-target loss
-- overall result versus Apple ETA
+- Time Saved
+- Time Lost
+- projected arrival versus the Apple ETA baseline
 
 ## Current Product Direction
 
@@ -31,17 +31,17 @@ Supports:
 - finished-trip sharing
 - optional Apple Maps / Google Maps / Waze handoff
 
-## v1.4 State
+## v1.4.2 State
 
 ### Version / build
-- **Version:** 1.4
+- **Version:** 1.4.2
 - **Build:** 6
 
-### v1.4 focus
-- removed non-Live product paths
-- removed old non-Live tradeoff logic
-- simplified trip results and Trip History
+### v1.4.2 focus
+- simplified the product around Live Drive
+- updated the HUD to center on Current Speed, ETA, Arrive, Time Saved, and Time Lost
 - improved HUD map follow and recenter behavior
+- kept Trip History and external navigation handoff aligned with the Live Drive flow
 
 ## Important product truth constraints
 
@@ -87,7 +87,7 @@ TimeThrottle can safely show:
 - compact route/address footprint
 - easier access to Pause / Resume / End Trip
 - Apple ETA and projected arrival context
-- above-target and below-target pace time
+- Time Saved and Time Lost
 - lower map context without pretending to be full navigation
 
 ### Current HUD map behavior
@@ -121,7 +121,7 @@ SPEED APP
 
 ## Release / Packaging Notes
 
-- current release target: **v1.4 / build 6**
+- current release target: **v1.4.2 / build 6**
 - simulator build path: `./dist-ios`
 - current simulator bundle output: `dist/iOSSimulator/TimeThrottle.app`
 
@@ -139,4 +139,4 @@ Protect:
 
 ## Final Plain-English Summary
 
-TimeThrottle is now a Live Drive-only pace-analysis app. It uses Apple Maps for route lookup and ETA baseline planning, tracks real trips, stores Trip History locally, supports optional external navigation handoff, and focuses the product on pace gain, pace loss, and overall result versus Apple ETA.
+TimeThrottle is now a Live Drive-only pace-analysis app. It uses Apple Maps for route lookup and ETA baseline planning, tracks real trips, stores Trip History locally, supports optional external navigation handoff, and focuses the product on Time Saved, Time Lost, and projected arrival versus Apple ETA baseline.

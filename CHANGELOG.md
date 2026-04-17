@@ -2,30 +2,30 @@
 
 All notable release-facing changes to **TimeThrottle** should be documented in this file.
 
-## v1.4 - April 15, 2026
+## v1.4.2 - April 16, 2026
 
 ### What's New
 
 Use this block for GitHub releases, TestFlight notes, or App Store Connect:
 
-> **TimeThrottle 1.4**
+> **TimeThrottle 1.4.2**
 >
-> - Simplified the app to focus on Live Drive
-> - Removed extra planning inputs and old tradeoff assumptions
-> - Improved Live Drive HUD with real-time map tracking and recenter behavior
-> - Cleaner trip results focused on pace versus Apple ETA
+> - Simplified the app around Live Drive
+> - Updated the HUD to focus on Current Speed, ETA, Arrive, Time Saved, and Time Lost
+> - Improved the live map with user follow and recenter behavior
+> - Removed legacy planning concepts from the product story
 
 ### Release Notes
 
-- Removed the separate planning mode to simplify the app experience
-- Removed old tradeoff-assumption inputs and outputs
-- Refocused the app around Live Drive and Apple ETA comparison
-- Improved Live Drive HUD with real-time map follow and recenter behavior
-- Simplified trip results and Trip History to focus on pace and time
+- Simplified the app around Live Drive
+- Updated the HUD to focus on Current Speed, ETA, Arrive, Time Saved, and Time Lost
+- Improved the live map with user follow and recenter behavior
+- Removed legacy planning concepts from the product story
+- Kept Trip History and finished-trip results centered on the Apple Maps ETA baseline
 
 ### Release Positioning
 
-TimeThrottle 1.4 is a Live Drive-only simplification release. Apple Maps remains the route lookup and ETA-baseline layer, Live Drive remains the core experience, and the app continues to avoid claiming built-in turn-by-turn navigation.
+TimeThrottle 1.4.2 is a Live Drive-only simplification release. Apple Maps remains the route lookup and ETA-baseline layer, Live Drive remains the core experience, and the app continues to avoid claiming built-in turn-by-turn navigation.
 
 ## Earlier releases
 

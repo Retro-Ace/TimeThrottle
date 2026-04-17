@@ -83,7 +83,11 @@ public struct RouteComparisonView: View {
     }
 
     private var heroHeight: CGFloat {
-        isMobileLayout ? 160 : 260
+        if isMobileLayout {
+            return liveDriveScreenState == .setup ? 118 : 160
+        }
+
+        return 260
     }
 
     private var heroLogoHeight: CGFloat {
@@ -254,11 +258,7 @@ public struct RouteComparisonView: View {
 
     private var liveDriveCurrentRouteLabel: String {
         guard let route = activeRouteEstimate, !routeNeedsRefresh else {
-            if routeNeedsRefresh {
-                return "Route inputs changed. Recalculate the Apple Maps route before starting."
-            }
-
-            return "Calculate the Apple Maps route to capture your baseline ETA and distance."
+            return ""
         }
 
         let routeName = route.routeName.isEmpty ? "\(route.sourceName) to \(route.destinationName)" : route.routeName
@@ -580,7 +580,7 @@ public struct RouteComparisonView: View {
     private var heroSubtitle: String {
         switch liveDriveScreenState {
         case .setup:
-            return "Set up a live trip with GPS tracking, Apple Maps routing, and pace analysis."
+            return ""
         case .driving:
             return "A compact dashboard focused on live speed, target-pace results, and progress vs Apple ETA."
         case .tripComplete:
@@ -612,15 +612,11 @@ public struct RouteComparisonView: View {
             return "\(optionsLabel) • Selected: \(Self.milesString(route.distanceMiles)) mi • \(Self.durationString(route.expectedTravelMinutes))"
         }
 
-        if routeNeedsRefresh {
-            return "Route inputs changed. Recalculate the route."
-        }
-
         if let routeErrorMessage {
             return routeErrorMessage
         }
 
-        return "Choose a route start, enter a destination, and calculate the route."
+        return ""
     }
 
     private var routeStatusForeground: Color {
@@ -661,6 +657,10 @@ public struct RouteComparisonView: View {
 
     private var isCalculateRouteDisabled: Bool {
         isCalculatingRoute || routeSourceEndpoint == nil || routeDestinationEndpoint == nil
+    }
+
+    private var shouldShowRouteStatus: Bool {
+        isCalculatingRoute || activeRouteEstimate != nil || routeErrorMessage != nil
     }
 
     private var isStartLiveDriveDisabled: Bool {
@@ -795,6 +795,7 @@ public struct RouteComparisonView: View {
     private var liveDriveHUDView: some View {
         LiveDriveHUDView(
             statusTitle: liveDriveHeaderStatusTitle,
+            milesDrivenValue: "\(Self.milesString(tracker.distanceTraveled)) mi",
             routeTitle: liveDriveHUDRouteTitle,
             routeMeta: liveDriveHUDRouteMetaText,
             currentSpeedValue: Self.speedString(tracker.currentSpeed),
@@ -901,7 +902,7 @@ public struct RouteComparisonView: View {
                     mobileLiveDriveFlow
                 }
                 .padding(.horizontal, mobileContentHorizontalPadding)
-                .padding(.top, Layout.sectionSpacing)
+                .padding(.top, isPolishedLiveDriveSetup ? 8 : Layout.sectionSpacing)
                 .padding(.bottom, Layout.screenPadding)
                 .background(isPolishedLiveDriveSetup ? Color.clear : Palette.workspace)
             }
@@ -912,7 +913,7 @@ public struct RouteComparisonView: View {
     }
 
     private var mobileLiveDriveFlow: some View {
-        VStack(alignment: .leading, spacing: Layout.sectionSpacing) {
+        VStack(alignment: .leading, spacing: liveDriveScreenState == .setup ? 10 : Layout.sectionSpacing) {
             switch liveDriveScreenState {
             case .setup:
                 liveDriveSetupSection
@@ -1001,32 +1002,32 @@ public struct RouteComparisonView: View {
     }
 
     private var mobileHeaderSection: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: liveDriveScreenState == .setup ? 6 : 12) {
             logoLockup
                 .frame(maxWidth: .infinity, alignment: .center)
 
-            VStack(spacing: 6) {
+            VStack(spacing: liveDriveScreenState == .setup ? 2 : 6) {
                 Text("Live Drive")
                     .font(.headline.weight(.semibold))
                     .foregroundStyle(Color.white.opacity(0.82))
 
-                Text(heroSubtitle)
-                    .font(heroSubtitleFont)
-                    .foregroundStyle(Color.white.opacity(0.92))
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: 320)
+                if liveDriveScreenState != .setup {
+                    Text(heroSubtitle)
+                        .font(heroSubtitleFont)
+                        .foregroundStyle(Color.white.opacity(0.92))
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: 320)
+                }
             }
             .frame(maxWidth: .infinity)
 
             if liveDriveScreenState != .setup {
                 liveDriveHeaderStatus
-            } else {
-                tripHistoryShortcutButton
             }
         }
         .padding(.horizontal, Layout.screenPadding)
-        .padding(.top, 30)
-        .padding(.bottom, 16)
+        .padding(.top, liveDriveScreenState == .setup ? 18 : 30)
+        .padding(.bottom, liveDriveScreenState == .setup ? 8 : 16)
         .safeAreaPadding(.top, 26)
         .frame(maxWidth: .infinity, minHeight: heroHeight, alignment: .bottom)
         .background {
@@ -1105,7 +1106,7 @@ public struct RouteComparisonView: View {
     }
 
     private var appleMapsRouteInputs: some View {
-        VStack(alignment: .leading, spacing: isPolishedLiveDriveSetup ? 10 : 12) {
+        VStack(alignment: .leading, spacing: isPolishedLiveDriveSetup ? 8 : 12) {
             Text("From")
                 .font(inputLabelFont)
                 .foregroundStyle(Palette.cocoa)
@@ -1136,12 +1137,9 @@ public struct RouteComparisonView: View {
 
             routeAutocompleteList(suggestions: toSuggestions, field: .to)
 
-            HStack {
-                Spacer()
-                calculateRouteButton
+            if shouldShowRouteStatus {
+                routeStatusView
             }
-
-            routeStatusView
         }
     }
 
@@ -1159,7 +1157,7 @@ public struct RouteComparisonView: View {
                                 : Palette.cocoa
                         )
                         .padding(.horizontal, 14)
-                        .padding(.vertical, isPolishedLiveDriveSetup ? 9 : 10)
+                        .padding(.vertical, isPolishedLiveDriveSetup ? 8 : 10)
                         .frame(maxWidth: .infinity)
                         .background(
                             routeOriginModeBackground(for: mode),
@@ -1262,7 +1260,7 @@ public struct RouteComparisonView: View {
                     }
                 }
                 .padding(.horizontal, 14)
-                .padding(.vertical, 13)
+                .padding(.vertical, 10)
                 .background(Color.white.opacity(0.96), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                 .overlay {
                     RoundedRectangle(cornerRadius: 18, style: .continuous)
@@ -1358,14 +1356,14 @@ public struct RouteComparisonView: View {
                 .accessibilityLabel("Clear destination")
             }
         }
-        .padding(.horizontal, isPolishedLiveDriveSetup ? 16 : 14)
-        .frame(minHeight: isPolishedLiveDriveSetup ? 56 : 50, alignment: .leading)
+        .padding(.horizontal, isPolishedLiveDriveSetup ? 14 : 14)
+        .frame(minHeight: isPolishedLiveDriveSetup ? 52 : 50, alignment: .leading)
         .background(routeInputBackground, in: RoundedRectangle(cornerRadius: isPolishedLiveDriveSetup ? 18 : 14, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: isPolishedLiveDriveSetup ? 18 : 14, style: .continuous)
                 .stroke(routeInputBorder(for: field), lineWidth: 1)
         }
-        .shadow(color: isPolishedLiveDriveSetup ? .black.opacity(0.04) : .clear, radius: 14, y: 6)
+        .shadow(color: isPolishedLiveDriveSetup ? .black.opacity(0.04) : .clear, radius: 12, y: 5)
     }
 
     @ViewBuilder
@@ -1412,33 +1410,13 @@ public struct RouteComparisonView: View {
         }
     }
 
-    private var calculateRouteButton: some View {
-        Button {
-            focusedRouteAddressField = nil
-            autocompleteController.clear()
-            calculateAppleMapsRoute()
-        } label: {
-            Label(isCalculatingRoute ? "Calculating route" : "Calculate route", systemImage: "map")
-                .font(.headline)
-                .foregroundStyle(Color.white)
-                .padding(.horizontal, 18)
-                .padding(.vertical, 12)
-                .background(Palette.success, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .shadow(color: Palette.success.opacity(0.25), radius: 3, y: 2)
-        }
-        .buttonStyle(.plain)
-        .opacity(isCalculateRouteDisabled ? 0.55 : 1)
-        .disabled(isCalculateRouteDisabled)
-        .accessibilityIdentifier("calculate-route-button")
-    }
-
     private func compactMetricField(
         title: String,
         text: Binding<String>,
         placeholder: String,
         unit: String
     ) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 4) {
             Text(title)
                 .font(inputLabelFont)
                 .foregroundStyle(Palette.cocoa)
@@ -1474,7 +1452,7 @@ public struct RouteComparisonView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.horizontal, isMobileLayout ? 12 : 13)
-        .padding(.vertical, isMobileLayout ? 9 : 10)
+        .padding(.vertical, isMobileLayout ? 7 : 10)
         .background(routeStatusBackground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
@@ -1485,7 +1463,7 @@ public struct RouteComparisonView: View {
 
     private var liveDriveSetupSection: some View {
         SectionCard {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .top, spacing: 12) {
                     mobileSectionHeader(
                         title: "Live drive setup",
@@ -1498,19 +1476,17 @@ public struct RouteComparisonView: View {
                 }
 
                 InsetPanel {
-                    VStack(alignment: .leading, spacing: Layout.innerSpacing) {
+                    VStack(alignment: .leading, spacing: 8) {
                         appleMapsRouteInputs
                     }
                 }
 
                 if let route = liveDriveSetupRoute {
                     routePreviewSection(routes: liveDriveSetupRouteOptions, selectedRoute: route)
-                } else {
-                    mobileHelperCard(liveDriveCurrentRouteLabel)
                 }
 
                 InsetPanel {
-                    VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 10) {
                         liveDriveNavigationProviderSection
 
                         if let liveDriveNavigationHandoffMessage {
@@ -1547,7 +1523,7 @@ public struct RouteComparisonView: View {
                                 .foregroundStyle(Color.white)
                                 .frame(maxWidth: .infinity)
                                 .padding(.horizontal, 18)
-                                .padding(.vertical, 14)
+                                .padding(.vertical, 13)
                                 .background(Palette.success, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                                 .shadow(color: Palette.success.opacity(0.20), radius: 3, y: 2)
                         }
@@ -1995,7 +1971,7 @@ public struct RouteComparisonView: View {
     }
 
     private func mobileSectionHeader(title: String, subtitle: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 3) {
             Text(title)
                 .font(panelHeaderFont)
                 .foregroundStyle(Palette.ink)
@@ -2006,12 +1982,12 @@ public struct RouteComparisonView: View {
     }
 
     private var liveDriveNavigationProviderSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             Label("Navigation App", systemImage: "arrow.triangle.turn.up.right.circle.fill")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Palette.ink)
 
-            VStack(spacing: 8) {
+            VStack(spacing: 6) {
                 ForEach(NavigationProvider.allCases) { provider in
                     let isSelected = preferredNavigationProvider == provider
 
@@ -2035,7 +2011,7 @@ public struct RouteComparisonView: View {
                                 .foregroundStyle(isSelected ? Palette.success : Palette.cocoa.opacity(0.5))
                         }
                         .padding(.horizontal, 14)
-                        .padding(.vertical, 12)
+                        .padding(.vertical, 10)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(
                             isSelected ? Palette.successBackground : Palette.panel,
@@ -2091,7 +2067,7 @@ public struct RouteComparisonView: View {
     }
 
     private var liveDriveAssumptionsSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 6) {
             Text("Target pace")
                 .font(inputLabelFont)
                 .foregroundStyle(Palette.cocoa)
@@ -2192,7 +2168,7 @@ public struct RouteComparisonView: View {
     private func routePreviewSection(routes: [RouteEstimate], selectedRoute: RouteEstimate) -> some View {
         Group {
             if isMobileLayout {
-                VStack(alignment: .leading, spacing: Layout.innerSpacing) {
+                VStack(alignment: .leading, spacing: 8) {
                     routeOptionsPanel(routes: routes, selectedRoute: selectedRoute)
                     routeMapPanel(routes: routes, selectedRoute: selectedRoute)
                 }
@@ -2205,7 +2181,7 @@ public struct RouteComparisonView: View {
                 }
             }
         }
-        .padding(isMobileLayout ? 12 : 14)
+        .padding(isMobileLayout ? 10 : 14)
         .background(Palette.panel, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 14, style: .continuous)

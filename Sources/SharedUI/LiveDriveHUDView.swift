@@ -2,6 +2,7 @@ import SwiftUI
 
 struct LiveDriveHUDView: View {
     let statusTitle: String
+    let milesDrivenValue: String
     let routeTitle: String
     let routeMeta: String
     let currentSpeedValue: String
@@ -31,37 +32,33 @@ struct LiveDriveHUDView: View {
                 )
                 .ignoresSafeArea()
 
-                ScrollView(showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: 0) {
+                    VStack(alignment: .leading, spacing: 4) {
                         topBar
                         routeCard
-                        heroSpeedCard
-                        primaryMetricsGrid
+                        primaryCardSection
+                        middleMetricRow
                         controlsSection
-
-                        if let mapContent {
-                            Spacer(minLength: 4)
-                            mapSection(
-                                mapContent: mapContent,
-                                viewportHeight: geometry.size.height
-                            )
-                        }
                     }
-                    .frame(
-                        minHeight: geometry.size.height - geometry.safeAreaInsets.top - geometry.safeAreaInsets.bottom - 12,
-                        alignment: .top
-                    )
-                    .padding(.horizontal, 14)
-                    .padding(.top, 6)
-                    .padding(.bottom, 12)
+                    .padding(.horizontal, 10)
+                    .padding(.top, 3)
+
+                    if let mapContent {
+                        mapSection(
+                            mapContent: mapContent,
+                            viewportHeight: geometry.size.height,
+                            bottomInset: geometry.safeAreaInsets.bottom
+                        )
+                    }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
         }
     }
 
     private var topBar: some View {
-        HStack(spacing: 12) {
-            HStack(spacing: 8) {
+        HStack(alignment: .top, spacing: 8) {
+            HStack(spacing: 7) {
                 Image(systemName: isPaused ? "pause.circle.fill" : "location.fill")
                     .font(.caption.weight(.bold))
 
@@ -81,7 +78,9 @@ struct LiveDriveHUDView: View {
                     .stroke(Color.white.opacity(0.08), lineWidth: 1)
             }
 
-            Spacer(minLength: 10)
+            Spacer(minLength: 6)
+
+            milesDrivenSummary
 
             Button(action: onClose) {
                 Image(systemName: "chevron.down")
@@ -97,12 +96,29 @@ struct LiveDriveHUDView: View {
             }
             .buttonStyle(.plain)
         }
-        .padding(.top, 2)
+        .padding(.top, 1)
+    }
+
+    private var milesDrivenSummary: some View {
+        VStack(alignment: .trailing, spacing: 1) {
+            Text("Miles Driven")
+                .font(.system(size: 9, weight: .semibold, design: .rounded))
+                .foregroundStyle(Color.white.opacity(0.54))
+
+            Text(milesDrivenValue)
+                .font(.system(size: 10, weight: .medium, design: .rounded))
+                .foregroundStyle(Color.white.opacity(0.76))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(Color.white.opacity(0.03), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     private var routeCard: some View {
-        HStack(alignment: .top, spacing: 8) {
-            VStack(alignment: .leading, spacing: 3) {
+        HStack(alignment: .top, spacing: 6) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(routeTitle)
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
                     .foregroundStyle(Color.white.opacity(0.94))
@@ -128,26 +144,27 @@ struct LiveDriveHUDView: View {
                     .lineLimit(1)
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(panelBackground)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(hudCardFill(cornerRadius: 18))
+        .overlay(hudCardBorder(cornerRadius: 18, opacity: 0.06))
     }
 
     private var heroSpeedCard: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 7) {
                 Text("Current speed")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(Color.white.opacity(0.66))
 
-                Spacer(minLength: 8)
+                Spacer(minLength: 6)
 
                 avgSpeedChip
             }
 
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(currentSpeedValue)
-                    .font(.system(size: 70, weight: .bold, design: .rounded))
+                    .font(.system(size: 56, weight: .bold, design: .rounded))
                     .foregroundStyle(Color.white)
                     .minimumScaleFactor(0.7)
                     .lineLimit(1)
@@ -158,82 +175,139 @@ struct LiveDriveHUDView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-        .background(panelBackground)
-        .overlay {
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(Palette.success.opacity(0.26), lineWidth: 1.2)
-        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, minHeight: topSectionHeight, maxHeight: topSectionHeight, alignment: .leading)
+        .background(hudCardFill(cornerRadius: 20))
+        .overlay(hudCardBorder(cornerRadius: 20, color: Palette.success.opacity(0.26), lineWidth: 1.2))
     }
 
     private var avgSpeedChip: some View {
         HStack(spacing: 4) {
             Image(systemName: "gauge.with.dots.needle.33percent")
-                .font(.caption2.weight(.semibold))
+                .font(.caption.weight(.semibold))
 
             Text("Avg \(averageSpeedValue)")
-                .font(.caption2.weight(.semibold))
+                .font(.caption.weight(.semibold))
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
         }
         .foregroundStyle(Color.white.opacity(0.68))
-        .padding(.horizontal, 8)
-        .padding(.vertical, 5)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
         .background(Color.white.opacity(0.06), in: Capsule())
     }
 
-    private var primaryMetricsGrid: some View {
-        LazyVGrid(
-            columns: [
-                GridItem(.flexible(), spacing: 8),
-                GridItem(.flexible(), spacing: 8)
-            ],
-            spacing: 8
-        ) {
-            compactMetricCard(
-                title: "APPLE ETA",
-                detail: "baseline route time",
-                value: appleETAValue
+    private var primaryCardSection: some View {
+        HStack(alignment: .top, spacing: 4) {
+            heroSpeedCard
+
+            infoStackPanel
+                .frame(maxWidth: .infinity, minHeight: topSectionHeight, maxHeight: topSectionHeight)
+        }
+    }
+
+    private var infoStackPanel: some View {
+        VStack(spacing: 3) {
+            infoStackItem(
+                title: "ETA",
+                value: appleETAValue,
+                detail: "Apple baseline"
             )
 
-            compactMetricCard(
+            Rectangle()
+                .fill(Color.white.opacity(0.05))
+                .frame(height: 1)
+
+            infoStackItem(
                 title: "ARRIVE",
-                detail: liveETADetail,
-                value: liveETAValue
+                value: liveETAValue,
+                detail: liveETADetail
             )
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, minHeight: topSectionHeight, maxHeight: topSectionHeight, alignment: .topLeading)
+        .background(hudCardFill(cornerRadius: 20))
+        .overlay(hudCardBorder(cornerRadius: 20, opacity: 0.06))
+    }
 
+    private func infoStackItem(
+        title: String,
+        value: String,
+        detail: String
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(title)
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .foregroundStyle(Color.white.opacity(0.68))
+                .lineLimit(1)
+
+            Text(value)
+                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .foregroundStyle(Color.white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+
+            Text(detail)
+                .font(.system(size: 9.5, weight: .medium, design: .rounded))
+                .foregroundStyle(Color.white.opacity(0.36))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+    }
+
+    private var middleMetricRow: some View {
+        HStack(spacing: 4) {
             compactMetricCard(
-                title: "Time above\ntarget speed",
+                title: "Time Saved",
                 value: aboveTargetValue,
-                tint: Palette.success
+                tint: Palette.success,
+                minHeight: 56,
+                valueSize: 20
             )
 
             compactMetricCard(
-                title: "Time below\ntarget speed",
+                title: "Time Lost",
                 value: belowTargetValue,
-                tint: Palette.danger
+                tint: Palette.danger,
+                minHeight: 56,
+                valueSize: 20
             )
         }
     }
 
     private func mapSection(
         mapContent: AnyView,
-        viewportHeight: CGFloat
+        viewportHeight: CGFloat,
+        bottomInset: CGFloat
     ) -> some View {
         mapContent
-            .frame(height: min(176, max(116, viewportHeight * 0.2)))
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .opacity(0.8)
-            .overlay {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(Color.white.opacity(0.04), lineWidth: 1)
-            }
+            .frame(maxWidth: .infinity)
+            .frame(
+                minHeight: max(330, viewportHeight * 0.50),
+                idealHeight: viewportHeight * 0.58,
+                maxHeight: .infinity,
+                alignment: .bottom
+            )
+            .padding(.top, 2)
+            .padding(.bottom, -bottomInset)
+            .ignoresSafeArea(edges: .bottom)
+            .clipShape(
+                UnevenRoundedRectangle(
+                    topLeadingRadius: 16,
+                    bottomLeadingRadius: 0,
+                    bottomTrailingRadius: 0,
+                    topTrailingRadius: 16,
+                    style: .continuous
+                )
+            )
     }
 
     private var controlsSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 4) {
                 compactActionButton(
                     title: isPaused ? "Resume" : "Pause",
                     systemImage: isPaused ? "play.fill" : "pause.fill",
@@ -256,6 +330,7 @@ struct LiveDriveHUDView: View {
             Text("Always obey traffic laws and road conditions.")
                 .font(.caption2.weight(.medium))
                 .foregroundStyle(Color.white.opacity(0.38))
+                .padding(.leading, 1)
         }
     }
 
@@ -272,16 +347,13 @@ struct LiveDriveHUDView: View {
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(foreground)
                 .frame(maxWidth: .infinity)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 12)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 7)
                 .background(
-                    background,
-                    in: RoundedRectangle(cornerRadius: 14, style: .continuous)
-                )
-                .overlay {
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(border, lineWidth: 1)
-                }
+                        .fill(background)
+                )
+                .overlay(hudCardBorder(cornerRadius: 14, color: border, lineWidth: 1))
         }
         .buttonStyle(.plain)
     }
@@ -290,46 +362,84 @@ struct LiveDriveHUDView: View {
         title: String,
         detail: String? = nil,
         value: String,
-        tint: Color = Color.white
+        tint: Color = Color.white,
+        minHeight: CGFloat = 64,
+        valueSize: CGFloat = 20,
+        verticalPadding: CGFloat = 7,
+        expandToFill: Bool = false,
+        contentSpacing: CGFloat = 2,
+        detailSize: CGFloat = 11,
+        fixedHeight: CGFloat? = nil
     ) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: contentSpacing) {
             Text(title)
                 .font(.system(size: 11, weight: .semibold, design: .rounded))
                 .foregroundStyle(Color.white.opacity(0.72))
+                .lineLimit(1)
                 .fixedSize(horizontal: false, vertical: true)
 
             Text(value)
-                .font(.system(size: 21, weight: .bold, design: .rounded))
+                .font(.system(size: valueSize, weight: .bold, design: .rounded))
                 .foregroundStyle(tint)
                 .lineLimit(1)
                 .minimumScaleFactor(0.72)
 
             if let detail, !detail.isEmpty {
                 Text(detail)
-                    .font(.caption2.weight(.medium))
+                    .font(.system(size: detailSize, weight: .medium, design: .rounded))
                     .foregroundStyle(Color.white.opacity(0.42))
                     .fixedSize(horizontal: false, vertical: true)
-                    .lineLimit(2)
+                    .lineLimit(1)
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 82, alignment: .leading)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(panelBackground)
-        .overlay {
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(Color.white.opacity(0.06), lineWidth: 1)
-        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 10)
+        .padding(.vertical, verticalPadding)
+        .frame(
+            maxWidth: .infinity,
+            minHeight: minHeight,
+            maxHeight: fixedHeight ?? (expandToFill ? .infinity : nil),
+            alignment: .leading
+        )
+        .frame(height: fixedHeight)
+        .background(hudCardFill(cornerRadius: 18))
+        .overlay(hudCardBorder(cornerRadius: 18, opacity: 0.06))
     }
 
-    private var panelBackground: some ShapeStyle {
-        LinearGradient(
-            colors: [
-                Color.white.opacity(0.11),
-                Color.white.opacity(0.06)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
+    private var topSectionHeight: CGFloat {
+        136
+    }
+
+    private func hudCardFill(cornerRadius: CGFloat) -> some View {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            .fill(
+                LinearGradient(
+                    colors: [
+                        Color.white.opacity(0.11),
+                        Color.white.opacity(0.06)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+    }
+
+    private func hudCardBorder(
+        cornerRadius: CGFloat,
+        color: Color = Color.white,
+        opacity: Double,
+        lineWidth: CGFloat = 1
+    ) -> some View {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            .stroke(color.opacity(opacity), lineWidth: lineWidth)
+    }
+
+    private func hudCardBorder(
+        cornerRadius: CGFloat,
+        color: Color,
+        lineWidth: CGFloat = 1
+    ) -> some View {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            .stroke(color, lineWidth: lineWidth)
     }
 }

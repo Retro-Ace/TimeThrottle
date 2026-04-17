@@ -11,22 +11,22 @@ How much time did speed really buy you?
 **TimeThrottle** is an iPhone Live Drive pace-analysis app.
 
 Apple Maps provides route lookup, autocomplete, route options, and the ETA baseline. TimeThrottle then tracks your real drive and shows:
-- pace gain
-- pace loss
-- overall result versus Apple ETA
+- Time Saved
+- Time Lost
+- projected arrival versus Apple ETA baseline
 
 TimeThrottle does **not** provide built-in turn-by-turn navigation. During Live Drive it can hand off navigation to Apple Maps, Google Maps, or Waze while TimeThrottle continues tracking the trip.
 
-## What's New in v1.4
+## What's New in v1.4.2
 
 Use this block for GitHub releases, TestFlight notes, and App Store Connect:
 
-> **TimeThrottle 1.4**
+> **TimeThrottle 1.4.2**
 >
-> - Simplified the app to focus on Live Drive
-> - Removed extra planning inputs and old tradeoff assumptions
-> - Improved Live Drive HUD with real-time map tracking and recenter behavior
-> - Cleaner trip results focused on pace versus Apple ETA
+> - Simplified the app around Live Drive
+> - Updated the HUD to focus on Current Speed, ETA, Arrive, Time Saved, and Time Lost
+> - Improved the live map with user follow and recenter behavior
+> - Removed legacy planning concepts from the product story
 
 ## Core Product
 
@@ -51,24 +51,24 @@ It supports:
 The Live Drive HUD is a full-screen in-app driving view built from real TimeThrottle trip state.
 
 It shows:
-- current speed
-- trip status and elapsed time
-- Apple ETA baseline
-- projected arrival
-- time above target speed
-- time below target speed
+- Current Speed as the hero metric
+- ETA as the Apple Maps baseline
+- Arrive as projected arrival
+- Time Saved
+- Time Lost
 - distance driven
 - route/map context
 - Pause / Resume and End Trip controls
+- a full-width live map with recenter control
 
 The HUD map follows the user during a drive, stops following if the user pans away, and provides a clear recenter control.
 
 ## Trip Results
 
 Finished trips focus on the pace story:
-- **Above-target gain** = time gained while driving above your target pace
-- **Below-target loss** = time lost while driving below your target pace
-- **Overall vs Apple ETA** = the finished trip result against the Apple Maps ETA baseline
+- **Time Saved** = time saved against the Apple Maps ETA baseline
+- **Time Lost** = time lost against the Apple Maps ETA baseline
+- **Overall vs Apple ETA baseline** = the finished trip result against the Apple Maps ETA baseline
 
 ## Navigation Handoff
 
@@ -98,7 +98,7 @@ For the full policy, see [privacy-policy.md](/Users/anthonylarosa/SPEED%20APP/pr
 - **Platform:** iPhone / iOS only
 - **Deployment target:** iOS 17+
 - **Bundle ID:** `com.timethrottle.app`
-- **Current release:** v1.4
+- **Current release:** v1.4.2
 - **Current build:** 6
 - **Primary app target:** `TimeThrottle.xcodeproj`
 - **Primary shared UI:** `Sources/SharedUI/RouteComparisonView.swift`
