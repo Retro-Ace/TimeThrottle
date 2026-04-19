@@ -437,6 +437,7 @@ public struct RouteEstimate: Identifiable, Sendable {
     public var destinationQuery: String
     public var sourceName: String
     public var destinationName: String
+    public var destinationTimeZoneIdentifier: String?
     public var sourceCoordinate: RouteCoordinate
     public var destinationCoordinate: RouteCoordinate
     public var distanceMiles: Double
@@ -451,6 +452,7 @@ public struct RouteEstimate: Identifiable, Sendable {
         destinationQuery: String,
         sourceName: String,
         destinationName: String,
+        destinationTimeZoneIdentifier: String? = nil,
         sourceCoordinate: RouteCoordinate,
         destinationCoordinate: RouteCoordinate,
         distanceMiles: Double,
@@ -464,6 +466,7 @@ public struct RouteEstimate: Identifiable, Sendable {
         self.destinationQuery = destinationQuery
         self.sourceName = sourceName
         self.destinationName = destinationName
+        self.destinationTimeZoneIdentifier = destinationTimeZoneIdentifier
         self.sourceCoordinate = sourceCoordinate
         self.destinationCoordinate = destinationCoordinate
         self.distanceMiles = distanceMiles
@@ -471,6 +474,11 @@ public struct RouteEstimate: Identifiable, Sendable {
         self.routeName = routeName
         self.routeCoordinates = routeCoordinates
         self.advisories = advisories
+    }
+
+    public var destinationTimeZone: TimeZone? {
+        guard let destinationTimeZoneIdentifier else { return nil }
+        return TimeZone(identifier: destinationTimeZoneIdentifier)
     }
 }
 
@@ -550,6 +558,7 @@ enum RouteLookupService {
                     destinationQuery: destination.signature,
                     sourceName: resolvedDisplayName(for: source, item: sourceItem),
                     destinationName: resolvedDisplayName(for: destination, item: destinationItem),
+                    destinationTimeZoneIdentifier: destinationItem.placemark.timeZone?.identifier,
                     sourceCoordinate: RouteCoordinate(
                         latitude: sourceItem.placemark.coordinate.latitude,
                         longitude: sourceItem.placemark.coordinate.longitude

@@ -38,8 +38,8 @@ This information is used to plan the route, display route options, and establish
 
 ### 3. Trip Inputs
 
-TimeThrottle uses pace inputs you enter during Live Drive setup, such as:
-- target speed
+TimeThrottle uses speed inputs you enter during Live Drive setup, such as:
+- desired speed
 
 These values are used only to perform the pace-analysis calculations shown in the app.
 
@@ -59,7 +59,7 @@ TimeThrottle uses the information above only to:
 - look up routes and baseline ETAs with Apple Maps
 - show autocomplete suggestions for route entry
 - track a live drive when the user enables location access
-- calculate Time Saved, Time Lost, and projected arrival versus the Apple ETA baseline
+- calculate Time Above Set Speed, Time Below Set Speed, and projected arrival versus the Apple Maps ETA baseline
 - save completed Live Drive trips on-device for later review
 - hand off navigation to Apple Maps, Google Maps, or Waze when the user chooses that option
 

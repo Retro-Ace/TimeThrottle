@@ -52,7 +52,7 @@ public struct RouteComparisonView: View {
     @State private var shareSheetItems: [Any] = []
     @State private var isShareSheetPresented = false
     @AppStorage("timethrottle.preferredNavigationProvider") private var navigationProviderPreferenceRawValue = NavigationProvider.askEveryTime.rawValue
-    @State private var liveDriveTargetSpeedText = "78"
+    @State private var liveDriveTargetSpeedText = ""
     @State private var liveDriveRouteContext: LiveDriveRouteContext?
     @State private var liveDriveFinishedTrip: CompletedTripRecord?
     @State private var liveDriveNavigationProviderPending: NavigationProvider?
@@ -473,10 +473,6 @@ public struct RouteComparisonView: View {
             : "TimeThrottle tracks the trip. Your map app handles navigation."
     }
 
-    private var liveDriveBelowTargetMetricTitle: String {
-        "Time Lost"
-    }
-
     private var liveDriveOverallResultTitle: String {
         "Overall vs Apple ETA"
     }
@@ -567,7 +563,7 @@ public struct RouteComparisonView: View {
     private var liveDriveControlsSubtitle: String {
         switch liveDriveScreenState {
         case .setup:
-            return "Capture the route, choose your pace, and start a trip."
+            return "Capture the route, choose your desired speed, and start a trip."
         case .driving:
             return tracker.isPaused
                 ? "Resume the same trip or end it without losing the finished result."
@@ -929,8 +925,6 @@ public struct RouteComparisonView: View {
                 liveDriveFinishedResultSection
                     .transition(.opacity)
                 liveDriveRouteContextSection
-                    .transition(.opacity)
-                liveDriveCompletionSection
                     .transition(.opacity)
                 liveDriveSafetySection
                     .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -1451,7 +1445,7 @@ public struct RouteComparisonView: View {
                 HStack(alignment: .top, spacing: 12) {
                     mobileSectionHeader(
                         title: "Live drive setup",
-                        subtitle: "Capture the route baseline, choose your pace, and start tracking."
+                        subtitle: "Capture the route baseline, choose your desired speed, and start tracking."
                     )
 
                     Spacer(minLength: 12)
@@ -1544,7 +1538,6 @@ public struct RouteComparisonView: View {
                 liveDriveComparisonSection
                 liveDriveRouteContextSection
                 liveDriveTripSummarySection
-                liveDriveCompletionSection
                 liveDriveSafetySection
             }
         }
@@ -1649,6 +1642,10 @@ public struct RouteComparisonView: View {
                                     Text(completedTrip.routeLabel)
                                         .font(panelDescriptionFont)
                                         .foregroundStyle(Palette.cocoa)
+
+                                    Text(completedTrip.completedAt.formatted(date: .abbreviated, time: .shortened))
+                                        .font(.footnote.weight(.medium))
+                                        .foregroundStyle(Palette.cocoa)
                                 }
                             }
 
@@ -1673,9 +1670,12 @@ public struct RouteComparisonView: View {
                                 ],
                                 spacing: 12
                             ) {
-                                SummaryCard(title: "Time Saved", value: Self.durationString(completedTrip.timeSavedBySpeeding), tint: Palette.success, compact: true)
-                                SummaryCard(title: "Time Lost", value: Self.durationString(completedTrip.timeLostBelowTargetPace), tint: Palette.danger, compact: true)
-                                SummaryCard(title: liveDriveOverallResultTitle, value: Self.netString(completedTrip.netTimeGain), tint: completedTrip.netTimeGain >= 0 ? Palette.success : Palette.danger, isProminent: true, compact: true)
+                                SummaryCard(title: "Time Above Set Speed", value: Self.durationString(completedTrip.timeSavedBySpeeding), tint: Palette.success, compact: true)
+                                SummaryCard(title: "Time Below Set Speed", value: Self.durationString(completedTrip.timeLostBelowTargetPace), tint: Palette.danger, compact: true)
+                                SummaryCard(title: "Distance driven", value: "\(Self.milesString(completedTrip.distanceDrivenMiles)) mi", tint: Palette.ink, compact: true)
+                                SummaryCard(title: "Elapsed drive time", value: Self.durationString(completedTrip.elapsedDriveMinutes), tint: Palette.ink, compact: true)
+                                SummaryCard(title: "Average trip speed", value: "\(Self.speedString(completedTrip.averageTripSpeed)) mph", tint: Palette.ink, compact: true)
+                                SummaryCard(title: "Target speed", value: "\(Self.speedString(completedTrip.targetSpeed)) mph", tint: Palette.ink, compact: true)
                             }
 
                             Text(finishedTripMetricExplanation(for: completedTrip))
@@ -1696,57 +1696,6 @@ public struct RouteComparisonView: View {
                             .buttonStyle(.plain)
                         }
                     }
-                }
-            }
-        }
-    }
-
-    private var liveDriveCompletionSection: some View {
-        SectionCard {
-            VStack(alignment: .leading, spacing: Layout.innerSpacing) {
-                mobileSectionHeader(
-                    title: "Drive details",
-                    subtitle: "Keep the finished summary, elapsed time, and distance available until you start a new trip."
-                )
-
-                LazyVGrid(
-                    columns: [
-                        GridItem(.flexible(), spacing: 12),
-                        GridItem(.flexible(), spacing: 12)
-                    ],
-                    spacing: 12
-                ) {
-                    liveDriveMetricCard(
-                        title: "Distance driven",
-                        value: "\(Self.milesString(liveDriveFinishedTrip?.distanceDrivenMiles ?? tracker.distanceTraveled)) mi",
-                        tint: Palette.ink
-                    )
-
-                    liveDriveMetricCard(
-                        title: "Elapsed drive time",
-                        value: Self.durationString(liveDriveFinishedTrip?.elapsedDriveMinutes ?? tracker.tripDuration),
-                        tint: Palette.ink
-                    )
-
-                    liveDriveMetricCard(
-                        title: "Time Saved",
-                        value: Self.durationString(tracker.timeAboveTargetSpeed),
-                        tint: Palette.ferrariRed
-                    )
-
-                    liveDriveMetricCard(
-                        title: liveDriveBelowTargetMetricTitle,
-                        value: Self.durationString(liveDriveDisplayedTimeLost),
-                        tint: Palette.danger
-                    )
-
-                    liveDriveMetricCard(
-                        title: liveDriveOverallResultTitle,
-                        value: Self.netString(liveDriveDisplayedNetTimeGain),
-                        tint: liveDriveDisplayedNetTimeGain >= 0 ? Palette.success : Palette.danger,
-                        emphasis: .strong
-                    )
-                    .gridCellColumns(2)
                 }
             }
         }
@@ -1996,11 +1945,7 @@ public struct RouteComparisonView: View {
 
     private var liveDriveAssumptionsSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Target pace")
-                .font(inputLabelFont)
-                .foregroundStyle(Palette.cocoa)
-
-            compactMetricField(title: "Target speed", text: $liveDriveTargetSpeedText, placeholder: "78", unit: "mph")
+            compactMetricField(title: "Desired Speed", text: $liveDriveTargetSpeedText, placeholder: "Enter desired speed...", unit: "mph")
         }
     }
 
@@ -2231,16 +2176,21 @@ public struct RouteComparisonView: View {
         """
         TimeThrottle trip result
         \(completedTrip.displayRouteTitle)
+        Completed: \(completedTrip.completedAt.formatted(date: .abbreviated, time: .shortened))
         Apple ETA baseline: \(Self.durationString(completedTrip.baselineRouteETAMinutes))
         Overall vs Apple ETA: \(Self.netString(completedTrip.netTimeGain))
-        Above-target gain: \(Self.durationString(completedTrip.timeSavedBySpeeding))
-        Below-target loss: \(Self.durationString(completedTrip.timeLostBelowTargetPace))
+        Time Above Set Speed: \(Self.durationString(completedTrip.timeSavedBySpeeding))
+        Time Below Set Speed: \(Self.durationString(completedTrip.timeLostBelowTargetPace))
+        Distance driven: \(Self.milesString(completedTrip.distanceDrivenMiles)) mi
+        Elapsed drive time: \(Self.durationString(completedTrip.elapsedDriveMinutes))
+        Average trip speed: \(Self.speedString(completedTrip.averageTripSpeed)) mph
+        Target speed: \(Self.speedString(completedTrip.targetSpeed)) mph
         """
     }
 
     private func finishedTripMetricExplanation(for completedTrip: CompletedTripRecord) -> String {
         let baselineETA = Self.durationString(completedTrip.baselineRouteETAMinutes)
-        return "Overall vs Apple ETA compares the whole trip to Apple Maps' baseline ETA of \(baselineETA). Time Saved and Time Lost are measured against your chosen target pace."
+        return "Overall vs Apple ETA compares the whole trip to Apple Maps' baseline ETA of \(baselineETA). Time Above Set Speed and Time Below Set Speed are measured against your chosen target speed."
     }
 
     private func liveDriveMetricCard(
@@ -2307,7 +2257,17 @@ public struct RouteComparisonView: View {
             return "Waiting for enough route progress"
         }
 
-        return arrival.formatted(date: .omitted, time: .shortened)
+        let formatter = DateFormatter()
+        formatter.locale = .autoupdatingCurrent
+        formatter.dateStyle = .none
+        formatter.timeStyle = .short
+        formatter.timeZone = liveDriveArrivalDisplayTimeZone ?? .autoupdatingCurrent
+        return formatter.string(from: arrival)
+    }
+
+    private var liveDriveArrivalDisplayTimeZone: TimeZone? {
+        liveDriveCapturedRoute?.destinationTimeZone
+            ?? liveDriveSetupRoute?.destinationTimeZone
     }
 
     private func liveDriveVerdict(for netTimeGain: Double) -> String {

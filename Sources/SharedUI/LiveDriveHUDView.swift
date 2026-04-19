@@ -151,27 +151,32 @@ struct LiveDriveHUDView: View {
     }
 
     private var heroSpeedCard: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            HStack(spacing: 7) {
-                Text("Current speed")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(Color.white.opacity(0.66))
+        VStack(alignment: .leading, spacing: 0) {
+            Spacer(minLength: 0)
 
-                Spacer(minLength: 6)
+            HStack(spacing: 0) {
+                Spacer(minLength: 26)
 
-                avgSpeedChip
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(currentSpeedValue)
+                        .font(.system(size: 56, weight: .bold, design: .rounded))
+                        .foregroundStyle(Color.white)
+                        .minimumScaleFactor(0.7)
+                        .lineLimit(1)
+
+                    Text("mph")
+                        .font(.title3.weight(.medium))
+                        .foregroundStyle(Color.white.opacity(0.62))
+                }
+
+                Spacer(minLength: 8)
             }
 
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(currentSpeedValue)
-                    .font(.system(size: 56, weight: .bold, design: .rounded))
-                    .foregroundStyle(Color.white)
-                    .minimumScaleFactor(0.7)
-                    .lineLimit(1)
+            Spacer(minLength: 0)
 
-                Text("mph")
-                    .font(.title3.weight(.medium))
-                    .foregroundStyle(Color.white.opacity(0.62))
+            HStack {
+                Spacer(minLength: 0)
+                avgSpeedChip
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -183,18 +188,19 @@ struct LiveDriveHUDView: View {
     }
 
     private var avgSpeedChip: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 5) {
             Image(systemName: "gauge.with.dots.needle.33percent")
-                .font(.caption.weight(.semibold))
+                .font(.system(size: 10.5, weight: .semibold))
 
-            Text("Avg \(averageSpeedValue)")
-                .font(.caption.weight(.semibold))
+            Text("Avg Spd \(averageSpeedValue)")
+                .font(.system(size: 10.5, weight: .semibold, design: .rounded))
                 .lineLimit(1)
-                .minimumScaleFactor(0.8)
+                .minimumScaleFactor(0.74)
         }
         .foregroundStyle(Color.white.opacity(0.68))
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
+        .frame(minWidth: 124, alignment: .leading)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 7)
         .background(Color.white.opacity(0.06), in: Capsule())
     }
 
@@ -210,9 +216,9 @@ struct LiveDriveHUDView: View {
     private var infoStackPanel: some View {
         VStack(spacing: 3) {
             infoStackItem(
-                title: "ETA",
+                title: "Apple Maps ETA",
                 value: appleETAValue,
-                detail: "Apple baseline"
+                detail: nil
             )
 
             Rectangle()
@@ -235,13 +241,14 @@ struct LiveDriveHUDView: View {
     private func infoStackItem(
         title: String,
         value: String,
-        detail: String
+        detail: String?
     ) -> some View {
         VStack(alignment: .leading, spacing: 1) {
             Text(title)
                 .font(.system(size: 11, weight: .semibold, design: .rounded))
                 .foregroundStyle(Color.white.opacity(0.68))
-                .lineLimit(1)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
 
             Text(value)
                 .font(.system(size: 16, weight: .bold, design: .rounded))
@@ -249,11 +256,13 @@ struct LiveDriveHUDView: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.72)
 
-            Text(detail)
-                .font(.system(size: 9.5, weight: .medium, design: .rounded))
-                .foregroundStyle(Color.white.opacity(0.36))
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
+            if let detail, !detail.isEmpty {
+                Text(detail)
+                    .font(.system(size: 9.5, weight: .medium, design: .rounded))
+                    .foregroundStyle(Color.white.opacity(0.36))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
@@ -261,19 +270,23 @@ struct LiveDriveHUDView: View {
     private var middleMetricRow: some View {
         HStack(spacing: 4) {
             compactMetricCard(
-                title: "Time Saved",
+                title: "Time Above Set Speed",
                 value: aboveTargetValue,
                 tint: Palette.success,
                 minHeight: 56,
-                valueSize: 20
+                valueSize: 20,
+                titleSize: 10,
+                titleLineLimit: 2
             )
 
             compactMetricCard(
-                title: "Time Lost",
+                title: "Time Below Set Speed",
                 value: belowTargetValue,
                 tint: Palette.danger,
                 minHeight: 56,
-                valueSize: 20
+                valueSize: 20,
+                titleSize: 10,
+                titleLineLimit: 2
             )
         }
     }
@@ -365,6 +378,8 @@ struct LiveDriveHUDView: View {
         tint: Color = Color.white,
         minHeight: CGFloat = 64,
         valueSize: CGFloat = 20,
+        titleSize: CGFloat = 11,
+        titleLineLimit: Int = 1,
         verticalPadding: CGFloat = 7,
         expandToFill: Bool = false,
         contentSpacing: CGFloat = 2,
@@ -373,9 +388,9 @@ struct LiveDriveHUDView: View {
     ) -> some View {
         VStack(alignment: .leading, spacing: contentSpacing) {
             Text(title)
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .font(.system(size: titleSize, weight: .semibold, design: .rounded))
                 .foregroundStyle(Color.white.opacity(0.72))
-                .lineLimit(1)
+                .lineLimit(titleLineLimit)
                 .fixedSize(horizontal: false, vertical: true)
 
             Text(value)

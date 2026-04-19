@@ -1,4 +1,4 @@
-# TimeThrottle — Developer Handoff (v1.4.2)
+# TimeThrottle — Developer Handoff (v1.4.3)
 
 ## Project Summary
 
@@ -9,9 +9,9 @@ TimeThrottle is an **iPhone Live Drive pace-analysis app** built around one ques
 It is not a built-in turn-by-turn navigation app.
 
 The app uses **Apple Maps** as the route lookup and ETA-baseline layer. During a real drive, it tracks:
-- Time Saved
-- Time Lost
-- projected arrival versus the Apple ETA baseline
+- Time Above Set Speed
+- Time Below Set Speed
+- projected arrival versus the Apple Maps ETA baseline
 
 ## Current Product Direction
 
@@ -31,17 +31,18 @@ Supports:
 - finished-trip sharing
 - optional Apple Maps / Google Maps / Waze handoff
 
-## v1.4.2 State
+## v1.4.3 State
 
 ### Version / build
-- **Version:** 1.4.2
-- **Build:** 6
+- **Version:** 1.4.3
+- **Build:** 7
 
-### v1.4.2 focus
-- simplified the product around Live Drive
-- updated the HUD to center on Current Speed, ETA, Arrive, Time Saved, and Time Lost
-- improved HUD map follow and recenter behavior
-- kept Trip History and external navigation handoff aligned with the Live Drive flow
+### v1.4.3 focus
+- polished the Current Speed HUD card and widened the Avg Spd pill
+- updated wording to Apple Maps ETA, Time Above Set Speed, and Time Below Set Speed
+- clarified Live Drive setup around desired speed
+- consolidated finished-trip and Trip History detail stats
+- kept HUD map follow and recenter behavior intact
 
 ## Important product truth constraints
 
@@ -63,7 +64,7 @@ TimeThrottle can safely show:
 ### Core
 - `Sources/Core/LiveDriveTracker.swift`
 - `Sources/Core/TripAnalysisEngine.swift`
-- `Sources/Core/TimeThrottleCalculator.swift`
+- `Sources/Core/PaceAnalysisMath.swift`
 - `Sources/Core/TripHistoryStore.swift`
 
 ### Shared UI
@@ -86,8 +87,8 @@ TimeThrottle can safely show:
 - current speed as the hero metric
 - compact route/address footprint
 - easier access to Pause / Resume / End Trip
-- Apple ETA and projected arrival context
-- Time Saved and Time Lost
+- Apple Maps ETA and projected arrival context
+- Time Above Set Speed and Time Below Set Speed
 - lower map context without pretending to be full navigation
 
 ### Current HUD map behavior
@@ -121,7 +122,7 @@ SPEED APP
 
 ## Release / Packaging Notes
 
-- current release target: **v1.4.2 / build 6**
+- current release target: **v1.4.3 / build 7**
 - simulator build path: `./dist-ios`
 - current simulator bundle output: `dist/iOSSimulator/TimeThrottle.app`
 
@@ -139,4 +140,4 @@ Protect:
 
 ## Final Plain-English Summary
 
-TimeThrottle is now a Live Drive-only pace-analysis app. It uses Apple Maps for route lookup and ETA baseline planning, tracks real trips, stores Trip History locally, supports optional external navigation handoff, and focuses the product on Time Saved, Time Lost, and projected arrival versus Apple ETA baseline.
+TimeThrottle is now a Live Drive-only pace-analysis app. It uses Apple Maps for route lookup and ETA baseline planning, tracks real trips, stores Trip History locally, supports optional external navigation handoff, and focuses the product on Time Above Set Speed, Time Below Set Speed, and projected arrival versus Apple Maps ETA baseline.

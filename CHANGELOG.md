@@ -2,6 +2,32 @@
 
 All notable release-facing changes to **TimeThrottle** should be documented in this file.
 
+## v1.4.3 - April 19, 2026
+
+### What's New
+
+Use this block for GitHub releases, TestFlight notes, or App Store Connect:
+
+> **TimeThrottle 1.4.3**
+>
+> - Polished the Current Speed HUD card and widened the Avg Spd pill
+> - Renamed HUD and result wording to Apple Maps ETA, Time Above Set Speed, and Time Below Set Speed
+> - Updated Live Drive setup to use desired-speed wording with an empty speed-entry prompt
+> - Consolidated finished-trip and Trip History detail stats into tighter summaries
+> - Displays projected arrival in the destination's local time when that time zone is available
+
+### Release Notes
+
+- Polished the Current Speed HUD card and widened the Avg Spd pill
+- Renamed HUD and result wording to Apple Maps ETA, Time Above Set Speed, and Time Below Set Speed
+- Updated Live Drive setup to use desired-speed wording with an empty speed-entry prompt
+- Consolidated finished-trip and Trip History detail stats into tighter summaries
+- Displays projected arrival in the destination's local time when that time zone is available
+
+### Release Positioning
+
+TimeThrottle 1.4.3 keeps the app focused on Live Drive, Apple Maps ETA comparison, and tighter trip results without changing the app into a navigation product.
+
 ## v1.4.2 - April 16, 2026
 
 ### What's New

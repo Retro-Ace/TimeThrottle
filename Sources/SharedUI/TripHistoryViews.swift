@@ -56,7 +56,7 @@ struct TripHistoryScreen: View {
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(Palette.ink)
 
-                Text("Completed Live Drive trips will appear here with target-pace gain/loss and Apple ETA results.")
+                Text("Completed Live Drive trips will appear here with Time Above / Time Below and Apple ETA results.")
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(Palette.cocoa)
                     .multilineTextAlignment(.center)
@@ -85,8 +85,8 @@ private struct TripHistoryRow: View {
             }
 
             HStack(spacing: 8) {
-                StatPill(title: "Target gain", value: durationString(trip.timeSavedBySpeeding), foreground: Palette.success, background: Palette.successBackground, compact: true)
-                StatPill(title: "Target loss", value: durationString(trip.timeLostBelowTargetPace), foreground: Palette.danger, background: Palette.dangerBackground, compact: true)
+                StatPill(title: "Time Above", value: durationString(trip.timeSavedBySpeeding), foreground: Palette.success, background: Palette.successBackground, compact: true)
+                StatPill(title: "Time Below", value: durationString(trip.timeLostBelowTargetPace), foreground: Palette.danger, background: Palette.dangerBackground, compact: true)
                 StatPill(title: "Vs ETA", value: netString(trip.netTimeGain), foreground: trip.netTimeGain >= 0 ? Palette.success : Palette.danger, background: Palette.pill, compact: true)
             }
         }
@@ -108,13 +108,35 @@ private struct TripHistoryDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Layout.sectionSpacing) {
-                detailHero
-
                 SectionCard {
                     VStack(alignment: .leading, spacing: 14) {
-                        Text("Trip summary")
-                            .font(.headline.weight(.semibold))
-                            .foregroundStyle(Palette.ink)
+                        HStack(alignment: .center, spacing: 14) {
+                            if let brandLogo {
+                                brandLogo
+                                    .resizable()
+                                    .interpolation(.high)
+                                    .scaledToFit()
+                                    .frame(width: 80, height: 52)
+                            } else {
+                                Image(systemName: "gauge.with.needle")
+                                    .font(.system(size: 34, weight: .semibold))
+                                    .foregroundStyle(Palette.success)
+                            }
+
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(trip.displayRouteTitle)
+                                    .font(.title3.weight(.bold))
+                                    .foregroundStyle(Palette.ink)
+
+                                Text(trip.routeLabel)
+                                    .font(.subheadline.weight(.medium))
+                                    .foregroundStyle(Palette.cocoa)
+
+                                Text(trip.completedAt.formatted(date: .abbreviated, time: .shortened))
+                                    .font(.footnote.weight(.medium))
+                                    .foregroundStyle(Palette.cocoa)
+                            }
+                        }
 
                         LazyVGrid(
                             columns: [
@@ -123,27 +145,18 @@ private struct TripHistoryDetailView: View {
                             ],
                             spacing: 12
                         ) {
-                            SummaryCard(title: "Above-target gain", value: durationString(trip.timeSavedBySpeeding), tint: Palette.success, compact: true)
-                            SummaryCard(title: "Below-target loss", value: durationString(trip.timeLostBelowTargetPace), tint: Palette.danger, compact: true)
+                            SummaryCard(title: "Time Above Set Speed", value: durationString(trip.timeSavedBySpeeding), tint: Palette.success, compact: true)
+                            SummaryCard(title: "Time Below Set Speed", value: durationString(trip.timeLostBelowTargetPace), tint: Palette.danger, compact: true)
                             SummaryCard(title: "Overall vs Apple ETA", value: netString(trip.netTimeGain), tint: trip.netTimeGain >= 0 ? Palette.success : Palette.danger, isProminent: true, compact: true)
+                            SummaryCard(title: "Elapsed drive time", value: durationString(trip.elapsedDriveMinutes), tint: Palette.ink, compact: true)
+                            SummaryCard(title: "Distance driven", value: "\(milesString(trip.distanceDrivenMiles)) mi", tint: Palette.ink, compact: true)
+                            SummaryCard(title: "Average trip speed", value: "\(speedString(trip.averageTripSpeed)) mph", tint: Palette.ink, compact: true)
+                            SummaryCard(title: "Target speed", value: "\(speedString(trip.targetSpeed)) mph", tint: Palette.ink, compact: true)
                         }
 
-                        Text("Overall vs Apple ETA compares the whole trip to Apple Maps. Above-target gain and below-target loss are measured against your chosen target pace.")
+                        Text("Overall vs Apple ETA compares the whole trip to Apple Maps. Time Above Set Speed and Time Below Set Speed are measured against your chosen target speed.")
                             .font(.footnote.weight(.medium))
                             .foregroundStyle(Palette.cocoa)
-                    }
-                }
-
-                SectionCard {
-                    VStack(alignment: .leading, spacing: 14) {
-                        Text("Drive details")
-                            .font(.headline.weight(.semibold))
-                            .foregroundStyle(Palette.ink)
-
-                        DetailRow(title: "Elapsed drive time", subtitle: trip.completedAt.formatted(date: .abbreviated, time: .shortened), value: durationString(trip.elapsedDriveMinutes), tint: Palette.ink, compact: true)
-                        DetailRow(title: "Distance driven", subtitle: "Measured during Live Drive", value: "\(milesString(trip.distanceDrivenMiles)) mi", tint: Palette.ink, compact: true)
-                        DetailRow(title: "Average trip speed", subtitle: "Whole-drive pace", value: "\(speedString(trip.averageTripSpeed)) mph", tint: Palette.ink, compact: true)
-                        DetailRow(title: "Target speed", subtitle: "Chosen before the drive started", value: "\(speedString(trip.targetSpeed)) mph", tint: Palette.ink, compact: true)
                     }
                 }
 
@@ -157,36 +170,6 @@ private struct TripHistoryDetailView: View {
         .background(Palette.workspace.ignoresSafeArea())
         .navigationTitle("Trip Detail")
         .navigationBarTitleDisplayMode(.inline)
-    }
-
-    private var detailHero: some View {
-        SectionCard {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack(alignment: .center, spacing: 14) {
-                    if let brandLogo {
-                        brandLogo
-                            .resizable()
-                            .interpolation(.high)
-                            .scaledToFit()
-                            .frame(width: 80, height: 52)
-                    } else {
-                        Image(systemName: "gauge.with.needle")
-                            .font(.system(size: 34, weight: .semibold))
-                            .foregroundStyle(Palette.success)
-                    }
-
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(trip.displayRouteTitle)
-                            .font(.title3.weight(.bold))
-                            .foregroundStyle(Palette.ink)
-
-                        Text(trip.routeLabel)
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(Palette.cocoa)
-                    }
-                }
-            }
-        }
     }
 
 }
