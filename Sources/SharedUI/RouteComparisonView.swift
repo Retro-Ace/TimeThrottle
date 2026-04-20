@@ -33,6 +33,7 @@ private struct LiveDriveRouteContext {
 
 public struct RouteComparisonView: View {
     private let brandLogo: Image?
+    private let resultBrandLogo: Image?
     private let mapPreview: ([RouteEstimate], UUID?) -> AnyView
 
     @Environment(\.scenePhase) private var scenePhase
@@ -69,10 +70,12 @@ public struct RouteComparisonView: View {
     public init<MapPreview: View>(
         configuration: RouteComparisonConfiguration = RouteComparisonConfiguration(),
         brandLogo: Image? = nil,
+        resultBrandLogo: Image? = nil,
         @ViewBuilder mapPreview: @escaping ([RouteEstimate], UUID?) -> MapPreview
     ) {
         _ = configuration
         self.brandLogo = brandLogo
+        self.resultBrandLogo = resultBrandLogo
         self.mapPreview = { routes, selectedRouteID in
             AnyView(mapPreview(routes, selectedRouteID))
         }
@@ -144,6 +147,90 @@ public struct RouteComparisonView: View {
 
     private var isPolishedLiveDriveSetup: Bool {
         isMobileLayout && liveDriveScreenState == .setup
+    }
+
+    private var usesDarkLiveDriveTheme: Bool {
+        isMobileLayout
+    }
+
+    private var setupBackgroundTop: Color {
+        Color(red: 0.05, green: 0.07, blue: 0.11)
+    }
+
+    private var setupBackgroundBottom: Color {
+        Color(red: 0.09, green: 0.12, blue: 0.18)
+    }
+
+    private var setupHeaderTop: Color {
+        Color(red: 0.07, green: 0.09, blue: 0.13)
+    }
+
+    private var setupHeaderBottom: Color {
+        Color(red: 0.12, green: 0.16, blue: 0.21)
+    }
+
+    private var setupSurface: Color {
+        Color(red: 0.11, green: 0.14, blue: 0.18)
+    }
+
+    private var setupSurfaceRaised: Color {
+        Color(red: 0.14, green: 0.17, blue: 0.22)
+    }
+
+    private var setupSurfaceMuted: Color {
+        Color(red: 0.16, green: 0.19, blue: 0.24)
+    }
+
+    private var setupFieldFill: Color {
+        Color(red: 0.17, green: 0.20, blue: 0.25)
+    }
+
+    private var setupPanelBorder: Color {
+        Color.white.opacity(0.08)
+    }
+
+    private var setupFieldBorder: Color {
+        Color.white.opacity(0.10)
+    }
+
+    private var setupPrimaryText: Color {
+        Color.white.opacity(0.94)
+    }
+
+    private var setupSecondaryText: Color {
+        Color(red: 0.68, green: 0.73, blue: 0.79)
+    }
+
+    private var setupTertiaryText: Color {
+        Color.white.opacity(0.58)
+    }
+
+    private var setupSelectionFill: Color {
+        Color(red: 0.17, green: 0.29, blue: 0.23)
+    }
+
+    private var setupSelectionBorder: Color {
+        Palette.success.opacity(0.62)
+    }
+
+    private var setupChipFill: Color {
+        Color(red: 0.13, green: 0.20, blue: 0.17)
+    }
+
+    private var setupChipBorder: Color {
+        Palette.success.opacity(0.34)
+    }
+
+    private var setupErrorFill: Color {
+        Color(red: 0.23, green: 0.15, blue: 0.15)
+    }
+
+    private var setupErrorBorder: Color {
+        Palette.danger.opacity(0.30)
+    }
+
+    private var setupShadowColor: Color {
+        .black.opacity(0.30)
     }
 
     private var routeSourceEndpoint: RouteLookupEndpoint? {
@@ -616,6 +703,26 @@ public struct RouteComparisonView: View {
     }
 
     private var routeStatusForeground: Color {
+        if isPolishedLiveDriveSetup {
+            if isCalculatingRoute {
+                return setupSecondaryText
+            }
+
+            if routeOriginInputMode == .currentLocation, currentLocationResolver.errorMessage != nil {
+                return Color(red: 1.00, green: 0.77, blue: 0.77)
+            }
+
+            if activeRouteEstimate != nil {
+                return setupPrimaryText
+            }
+
+            if routeErrorMessage != nil {
+                return Color(red: 1.00, green: 0.77, blue: 0.77)
+            }
+
+            return setupSecondaryText
+        }
+
         if isCalculatingRoute {
             return Palette.cocoa
         }
@@ -636,6 +743,22 @@ public struct RouteComparisonView: View {
     }
 
     private var routeStatusBackground: Color {
+        if isPolishedLiveDriveSetup {
+            if routeOriginInputMode == .currentLocation, currentLocationResolver.errorMessage != nil {
+                return setupErrorFill
+            }
+
+            if activeRouteEstimate != nil {
+                return setupChipFill
+            }
+
+            if routeErrorMessage != nil {
+                return setupErrorFill
+            }
+
+            return setupSurfaceMuted
+        }
+
         if routeOriginInputMode == .currentLocation, currentLocationResolver.errorMessage != nil {
             return Palette.dangerBackground
         }
@@ -649,6 +772,18 @@ public struct RouteComparisonView: View {
         }
 
         return Palette.panelAlt
+    }
+
+    private var routeStatusBorder: Color {
+        if routeOriginInputMode == .currentLocation, currentLocationResolver.errorMessage != nil || routeErrorMessage != nil {
+            return setupErrorBorder
+        }
+
+        if activeRouteEstimate != nil {
+            return setupChipBorder
+        }
+
+        return setupPanelBorder
     }
 
     private var isCalculateRouteDisabled: Bool {
@@ -748,7 +883,7 @@ public struct RouteComparisonView: View {
             ShareSheet(activityItems: shareSheetItems)
         }
         .sheet(isPresented: $isTripHistoryPresented) {
-            TripHistoryScreen(store: tripHistoryStore, brandLogo: brandLogo)
+            TripHistoryScreen(store: tripHistoryStore, brandLogo: brandLogo, resultBrandLogo: resultBrandLogo)
         }
         .fullScreenCover(isPresented: $isLiveDriveHUDPresented) {
             liveDriveHUDView
@@ -837,13 +972,62 @@ public struct RouteComparisonView: View {
 
     @ViewBuilder
     private var mobileScreenBackground: some View {
-        #if os(iOS)
-        Color(uiColor: .systemBackground)
+        if usesDarkLiveDriveTheme {
+            ZStack {
+                LinearGradient(
+                    colors: [setupBackgroundTop, setupBackgroundBottom, Color(red: 0.08, green: 0.10, blue: 0.15)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+
+                RadialGradient(
+                    colors: [Palette.success.opacity(0.16), .clear],
+                    center: .top,
+                    startRadius: 16,
+                    endRadius: 260
+                )
+                .offset(y: -84)
+            }
             .ignoresSafeArea()
-        #else
-        Palette.workspace
-            .ignoresSafeArea()
-        #endif
+        } else {
+            #if os(iOS)
+            Color(uiColor: .systemBackground)
+                .ignoresSafeArea()
+            #else
+            Palette.workspace
+                .ignoresSafeArea()
+            #endif
+        }
+    }
+
+    @ViewBuilder
+    private var mobileLiveDriveContentBackdrop: some View {
+        if usesDarkLiveDriveTheme {
+            ZStack {
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.08, green: 0.10, blue: 0.15),
+                        Color(red: 0.09, green: 0.12, blue: 0.17),
+                        Color(red: 0.07, green: 0.09, blue: 0.13)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+
+                RadialGradient(
+                    colors: [
+                        Palette.success.opacity(0.08),
+                        .clear
+                    ],
+                    center: .top,
+                    startRadius: 24,
+                    endRadius: 320
+                )
+                .offset(y: -120)
+            }
+        } else {
+            EmptyView()
+        }
     }
 
     private var mobileHeaderBackdrop: some View {
@@ -856,12 +1040,18 @@ public struct RouteComparisonView: View {
 
     private var liveDriveSetupSurfaceBackdrop: some View {
         RoundedRectangle(cornerRadius: 30, style: .continuous)
-            .fill(Color.white.opacity(0.985))
+            .fill(
+                LinearGradient(
+                    colors: [setupSurface.opacity(0.98), setupSurfaceRaised.opacity(0.96)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
             .overlay {
                 RoundedRectangle(cornerRadius: 30, style: .continuous)
-                    .stroke(Color.white.opacity(0.45), lineWidth: 1)
+                    .stroke(setupPanelBorder, lineWidth: 1)
             }
-            .shadow(color: .black.opacity(0.06), radius: 28, y: 14)
+            .shadow(color: setupShadowColor, radius: 32, y: 16)
             .padding(.top, heroHeight + 78)
             .padding(.horizontal, 0)
             .ignoresSafeArea(edges: .bottom)
@@ -900,12 +1090,26 @@ public struct RouteComparisonView: View {
                 .padding(.horizontal, mobileContentHorizontalPadding)
                 .padding(.top, isPolishedLiveDriveSetup ? 8 : Layout.sectionSpacing)
                 .padding(.bottom, Layout.screenPadding)
-                .background(isPolishedLiveDriveSetup ? Color.clear : Palette.workspace)
+                .background {
+                    if usesDarkLiveDriveTheme {
+                        mobileLiveDriveContentBackdrop
+                    } else if isPolishedLiveDriveSetup {
+                        Color.clear
+                    } else {
+                        Palette.workspace
+                    }
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(isPolishedLiveDriveSetup ? Color.white : Palette.workspace)
+        .background {
+            if usesDarkLiveDriveTheme {
+                mobileLiveDriveContentBackdrop
+            } else {
+                Palette.workspace
+            }
+        }
     }
 
     private var mobileLiveDriveFlow: some View {
@@ -935,35 +1139,72 @@ public struct RouteComparisonView: View {
 
     private var headerBackground: some View {
         ZStack {
-            LinearGradient(
-                colors: [
-                    headerGradientStart.opacity(0.98),
-                    headerGradientEnd.opacity(0.94),
-                    Color.white.opacity(0.18)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
+            if usesDarkLiveDriveTheme {
+                Rectangle()
+                    .fill(Color(red: 0.05, green: 0.07, blue: 0.11))
 
-            LinearGradient(
-                colors: [
-                    Color.white.opacity(0.14),
-                    .clear,
-                    Color.white.opacity(0.10)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.09, green: 0.12, blue: 0.18).opacity(0.96),
+                        Color(red: 0.08, green: 0.11, blue: 0.16).opacity(0.92),
+                        Color(red: 0.07, green: 0.10, blue: 0.15).opacity(0.86)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
 
-            RadialGradient(
-                colors: [
-                    Color.white.opacity(0.22),
-                    .clear
-                ],
-                center: .topLeading,
-                startRadius: 8,
-                endRadius: 260
-            )
+                RadialGradient(
+                    colors: [
+                        Color(red: 0.22, green: 0.62, blue: 0.52).opacity(0.19),
+                        Color(red: 0.14, green: 0.30, blue: 0.42).opacity(0.10),
+                        .clear
+                    ],
+                    center: .topLeading,
+                    startRadius: 18,
+                    endRadius: 250
+                )
+                .offset(x: 12, y: -28)
+
+                LinearGradient(
+                    colors: [
+                        Color.white.opacity(0.018),
+                        Color.white.opacity(0.008),
+                        Color.black.opacity(0.10)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            } else {
+                LinearGradient(
+                    colors: [
+                        headerGradientStart.opacity(0.98),
+                        headerGradientEnd.opacity(0.94),
+                        Color.white.opacity(0.18)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+
+                LinearGradient(
+                    colors: [
+                        Color.white.opacity(0.14),
+                        .clear,
+                        Color.white.opacity(0.10)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+
+                RadialGradient(
+                    colors: [
+                        Color.white.opacity(0.22),
+                        .clear
+                    ],
+                    center: .topLeading,
+                    startRadius: 8,
+                    endRadius: 260
+                )
+            }
         }
     }
 
@@ -1004,9 +1245,9 @@ public struct RouteComparisonView: View {
             }
         }
         .padding(.horizontal, Layout.screenPadding)
-        .padding(.top, liveDriveScreenState == .setup ? 18 : 30)
-        .padding(.bottom, liveDriveScreenState == .setup ? 8 : 16)
-        .safeAreaPadding(.top, 26)
+        .padding(.top, liveDriveScreenState == .setup ? 28 : 38)
+        .padding(.bottom, liveDriveScreenState == .setup ? 10 : 18)
+        .safeAreaPadding(.top, 34)
         .frame(maxWidth: .infinity, minHeight: heroHeight, alignment: .bottom)
         .background {
             headerBackground
@@ -1025,7 +1266,13 @@ public struct RouteComparisonView: View {
         .foregroundStyle(Color.white)
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(Color.white.opacity(0.18), in: Capsule())
+        .background(usesDarkLiveDriveTheme ? setupSurfaceMuted : Color.white.opacity(0.18), in: Capsule())
+        .overlay {
+            if usesDarkLiveDriveTheme {
+                Capsule()
+                    .stroke(setupPanelBorder, lineWidth: 1)
+            }
+        }
     }
 
     private var liveDriveHeaderStatusTitle: String {
@@ -1051,20 +1298,18 @@ public struct RouteComparisonView: View {
 
     private var logoLockup: some View {
         Group {
-            if let brandLogo {
-                brandLogo
-                    .resizable()
-                    .interpolation(.high)
-                    .scaledToFit()
-                    .frame(height: heroLogoHeight)
-                    .shadow(color: .black.opacity(0.35), radius: 12, y: 4)
-            } else {
-                Text("How much did speeding really buy you?")
-                    .font(isMobileLayout ? .title2.weight(.bold) : .system(size: 24, weight: .bold, design: .rounded))
-                    .foregroundStyle(Color.white)
+                if let brandLogo {
+                    brandLogo
+                        .resizable()
+                        .interpolation(.high)
+                        .scaledToFit()
+                        .frame(height: heroLogoHeight)
+                        .shadow(color: .black.opacity(0.35), radius: 12, y: 4)
+                } else {
+                    EmptyView()
+                }
             }
         }
-    }
 
     @ViewBuilder
     private var platformBadge: some View {
@@ -1073,7 +1318,7 @@ public struct RouteComparisonView: View {
 
     private var glassDivider: some View {
         Rectangle()
-            .fill(Color.white.opacity(0.34))
+            .fill(usesDarkLiveDriveTheme ? setupPanelBorder.opacity(0.7) : Color.white.opacity(0.34))
             .frame(height: 1)
             .padding(.horizontal, isMobileLayout ? 0 : Layout.screenPadding)
     }
@@ -1087,7 +1332,7 @@ public struct RouteComparisonView: View {
         VStack(alignment: .leading, spacing: isPolishedLiveDriveSetup ? 8 : 12) {
             Text("From")
                 .font(inputLabelFont)
-                .foregroundStyle(Palette.cocoa)
+                .foregroundStyle(isPolishedLiveDriveSetup ? setupSecondaryText : Palette.cocoa)
 
             routeOriginModePicker
 
@@ -1105,7 +1350,7 @@ public struct RouteComparisonView: View {
 
             Text("To")
                 .font(inputLabelFont)
-                .foregroundStyle(Palette.cocoa)
+                .foregroundStyle(isPolishedLiveDriveSetup ? setupSecondaryText : Palette.cocoa)
 
             routeAddressInputField(
                 text: $toAddressText,
@@ -1131,8 +1376,8 @@ public struct RouteComparisonView: View {
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(
                             routeOriginInputMode == mode
-                                ? (isPolishedLiveDriveSetup ? Palette.ink : Color.white)
-                                : Palette.cocoa
+                                ? (isPolishedLiveDriveSetup ? setupPrimaryText : Color.white)
+                                : (isPolishedLiveDriveSetup ? setupSecondaryText : Palette.cocoa)
                         )
                         .padding(.horizontal, 14)
                         .padding(.vertical, isPolishedLiveDriveSetup ? 8 : 10)
@@ -1157,7 +1402,7 @@ public struct RouteComparisonView: View {
     }
 
     private var routeOriginModeContainerBackground: Color {
-        isPolishedLiveDriveSetup ? Color(red: 0.94, green: 0.97, blue: 0.95) : .clear
+        isPolishedLiveDriveSetup ? setupSurfaceMuted : .clear
     }
 
     private func routeOriginModeBackground(for mode: RouteOriginInputMode) -> Color {
@@ -1165,20 +1410,20 @@ public struct RouteComparisonView: View {
             return isPolishedLiveDriveSetup ? Color.clear : Palette.panelAlt
         }
 
-        return isPolishedLiveDriveSetup ? Color.white.opacity(0.95) : Palette.success
+        return isPolishedLiveDriveSetup ? setupSelectionFill : Palette.success
     }
 
     private func routeOriginModeBorder(for mode: RouteOriginInputMode) -> Color {
         if routeOriginInputMode == mode {
-            return isPolishedLiveDriveSetup ? Color.black.opacity(0.05) : Palette.success
+            return isPolishedLiveDriveSetup ? setupSelectionBorder : Palette.success
         }
 
-        return isPolishedLiveDriveSetup ? Color.clear : Palette.surfaceBorder
+        return isPolishedLiveDriveSetup ? setupFieldBorder : Palette.surfaceBorder
     }
 
     private var routeInputBackground: Color {
         if isPolishedLiveDriveSetup {
-            return Color.white.opacity(0.97)
+            return setupFieldFill
         }
 
         return Palette.panelAlt
@@ -1189,7 +1434,7 @@ public struct RouteComparisonView: View {
             return Palette.success.opacity(isPolishedLiveDriveSetup ? 0.35 : 0.45)
         }
 
-        return isPolishedLiveDriveSetup ? Color.black.opacity(0.05) : Palette.surfaceBorder
+        return isPolishedLiveDriveSetup ? setupFieldBorder : Palette.surfaceBorder
     }
 
     private var currentLocationOriginField: some View {
@@ -1198,7 +1443,7 @@ public struct RouteComparisonView: View {
                 HStack(alignment: .center, spacing: 12) {
                     ZStack {
                         Circle()
-                            .fill(Palette.successBackground)
+                            .fill(setupSelectionFill.opacity(0.95))
                             .frame(width: 34, height: 34)
 
                         Image(systemName: "location.fill")
@@ -1209,11 +1454,11 @@ public struct RouteComparisonView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(currentLocationFieldLabel)
                             .font(.headline.weight(.semibold))
-                            .foregroundStyle(Palette.ink)
+                            .foregroundStyle(setupPrimaryText)
 
                         Text(currentLocationDetailText)
                             .font(panelDescriptionFont)
-                            .foregroundStyle(currentLocationResolver.errorMessage == nil ? Palette.cocoa : Palette.danger)
+                            .foregroundStyle(currentLocationResolver.errorMessage == nil ? setupSecondaryText : Palette.danger)
                     }
 
                     Spacer(minLength: 12)
@@ -1239,12 +1484,12 @@ public struct RouteComparisonView: View {
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 10)
-                .background(Color.white.opacity(0.96), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .background(setupFieldFill, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                 .overlay {
                     RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .stroke(Color.black.opacity(0.05), lineWidth: 1)
+                        .stroke(setupFieldBorder, lineWidth: 1)
                 }
-                .shadow(color: .black.opacity(0.04), radius: 16, y: 7)
+                .shadow(color: setupShadowColor.opacity(0.45), radius: 16, y: 7)
             } else {
                 InsetPanel {
                     VStack(alignment: .leading, spacing: 10) {
@@ -1297,7 +1542,7 @@ public struct RouteComparisonView: View {
             if isPolishedLiveDriveSetup {
                 ZStack {
                     Circle()
-                        .fill((field == .from ? Palette.successBackground : Palette.dangerBackground).opacity(0.9))
+                        .fill((field == .from ? setupSelectionFill : setupErrorFill).opacity(0.95))
                         .frame(width: 30, height: 30)
 
                     Image(systemName: field == .from ? "location.fill" : "mappin.and.ellipse")
@@ -1310,11 +1555,16 @@ public struct RouteComparisonView: View {
                     .foregroundStyle(field == .from ? Palette.success : Palette.accentRed)
             }
 
-            TextField(placeholder, text: text)
+            TextField(
+                "",
+                text: text,
+                prompt: Text(placeholder)
+                    .foregroundStyle(isPolishedLiveDriveSetup ? setupTertiaryText : Palette.cocoa.opacity(0.75))
+            )
                 .focused($focusedRouteAddressField, equals: field)
                 .textFieldStyle(.plain)
                 .font(.body.weight(.medium))
-                .foregroundStyle(Palette.ink)
+                .foregroundStyle(isPolishedLiveDriveSetup ? setupPrimaryText : Palette.ink)
                 .textInputAutocapitalization(.words)
                 .autocorrectionDisabled(true)
                 .submitLabel(field == .from ? .next : .search)
@@ -1328,7 +1578,7 @@ public struct RouteComparisonView: View {
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(Palette.cocoa.opacity(0.75))
+                        .foregroundStyle(isPolishedLiveDriveSetup ? setupSecondaryText.opacity(0.85) : Palette.cocoa.opacity(0.75))
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Clear destination")
@@ -1358,13 +1608,13 @@ public struct RouteComparisonView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(suggestion.title)
                                 .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(Palette.ink)
+                                .foregroundStyle(isPolishedLiveDriveSetup ? setupPrimaryText : Palette.ink)
                                 .frame(maxWidth: .infinity, alignment: .leading)
 
                             if !suggestion.subtitle.isEmpty {
                                 Text(suggestion.subtitle)
                                     .font(.footnote.weight(.medium))
-                                    .foregroundStyle(Palette.cocoa)
+                                    .foregroundStyle(isPolishedLiveDriveSetup ? setupSecondaryText : Palette.cocoa)
                                     .frame(maxWidth: .infinity, alignment: .leading)
                             }
                         }
@@ -1375,14 +1625,16 @@ public struct RouteComparisonView: View {
                     .buttonStyle(.plain)
 
                     if index < suggestions.count - 1 {
-                        Divider()
+                        Rectangle()
+                            .fill(isPolishedLiveDriveSetup ? setupPanelBorder : Palette.surfaceBorder.opacity(0.6))
+                            .frame(height: 1)
                     }
                 }
             }
-            .background(Color.white.opacity(isPolishedLiveDriveSetup ? 0.98 : 1), in: RoundedRectangle(cornerRadius: isPolishedLiveDriveSetup ? 18 : 14, style: .continuous))
+            .background((isPolishedLiveDriveSetup ? setupFieldFill : Color.white).opacity(isPolishedLiveDriveSetup ? 0.98 : 1), in: RoundedRectangle(cornerRadius: isPolishedLiveDriveSetup ? 18 : 14, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: isPolishedLiveDriveSetup ? 18 : 14, style: .continuous)
-                    .stroke(Palette.surfaceBorder.opacity(isPolishedLiveDriveSetup ? 0.7 : 1), lineWidth: 1)
+                    .stroke(isPolishedLiveDriveSetup ? setupFieldBorder : Palette.surfaceBorder.opacity(1), lineWidth: 1)
             }
             .shadow(color: .black.opacity(isPolishedLiveDriveSetup ? 0.08 : 0.05), radius: isPolishedLiveDriveSetup ? 20 : 14, y: isPolishedLiveDriveSetup ? 10 : 6)
         }
@@ -1397,7 +1649,7 @@ public struct RouteComparisonView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
                 .font(inputLabelFont)
-                .foregroundStyle(Palette.cocoa)
+                .foregroundStyle(isPolishedLiveDriveSetup ? setupSecondaryText : Palette.cocoa)
 
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 BrandedTextField(
@@ -1405,13 +1657,17 @@ public struct RouteComparisonView: View {
                     placeholder: placeholder,
                     fontSize: 24,
                     fontWeight: .bold,
-                    compact: true
+                    compact: true,
+                    foregroundColor: isPolishedLiveDriveSetup ? setupPrimaryText : Palette.ink,
+                    backgroundColor: isPolishedLiveDriveSetup ? setupFieldFill : Color.white.opacity(0.97),
+                    borderColor: isPolishedLiveDriveSetup ? setupFieldBorder : Palette.surfaceBorder,
+                    placeholderColor: isPolishedLiveDriveSetup ? setupTertiaryText : Palette.cocoa.opacity(0.75)
                 )
                 .frame(maxWidth: .infinity, alignment: .leading)
 
                 Text(unit)
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Palette.cocoa)
+                    .foregroundStyle(isPolishedLiveDriveSetup ? setupSecondaryText : Palette.cocoa)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -1421,7 +1677,7 @@ public struct RouteComparisonView: View {
         HStack(spacing: 12) {
             if isCalculatingRoute {
                 ProgressView()
-                    .tint(Palette.cocoa)
+                    .tint(isPolishedLiveDriveSetup ? setupSecondaryText : Palette.cocoa)
             }
 
             Text(routeStatusText)
@@ -1432,6 +1688,10 @@ public struct RouteComparisonView: View {
         .padding(.horizontal, isMobileLayout ? 12 : 13)
         .padding(.vertical, isMobileLayout ? 7 : 10)
         .background(routeStatusBackground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(isPolishedLiveDriveSetup ? routeStatusBorder : .clear, lineWidth: isPolishedLiveDriveSetup ? 1 : 0)
+        }
     }
 
     @ViewBuilder
@@ -1440,7 +1700,13 @@ public struct RouteComparisonView: View {
     }
 
     private var liveDriveSetupSection: some View {
-        SectionCard {
+        SectionCard(
+            background: isPolishedLiveDriveSetup ? setupSurface : Palette.panel,
+            border: isPolishedLiveDriveSetup ? setupPanelBorder : Palette.surfaceBorder,
+            shadowColor: isPolishedLiveDriveSetup ? setupShadowColor : .black.opacity(0.05),
+            shadowRadius: isPolishedLiveDriveSetup ? 28 : 18,
+            shadowYOffset: isPolishedLiveDriveSetup ? 12 : 8
+        ) {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .top, spacing: 12) {
                     mobileSectionHeader(
@@ -1453,7 +1719,13 @@ public struct RouteComparisonView: View {
                     tripHistoryShortcutButton
                 }
 
-                InsetPanel {
+                InsetPanel(
+                    background: isPolishedLiveDriveSetup ? setupSurfaceRaised : Palette.panel,
+                    border: isPolishedLiveDriveSetup ? setupPanelBorder : Palette.surfaceBorder,
+                    shadowColor: isPolishedLiveDriveSetup ? setupShadowColor.opacity(0.75) : .black.opacity(0.04),
+                    shadowRadius: isPolishedLiveDriveSetup ? 18 : 12,
+                    shadowYOffset: isPolishedLiveDriveSetup ? 8 : 6
+                ) {
                     VStack(alignment: .leading, spacing: 8) {
                         appleMapsRouteInputs
                     }
@@ -1463,7 +1735,13 @@ public struct RouteComparisonView: View {
                     routePreviewSection(routes: liveDriveSetupRouteOptions, selectedRoute: route)
                 }
 
-                InsetPanel {
+                InsetPanel(
+                    background: isPolishedLiveDriveSetup ? setupSurfaceRaised : Palette.panel,
+                    border: isPolishedLiveDriveSetup ? setupPanelBorder : Palette.surfaceBorder,
+                    shadowColor: isPolishedLiveDriveSetup ? setupShadowColor.opacity(0.75) : .black.opacity(0.04),
+                    shadowRadius: isPolishedLiveDriveSetup ? 18 : 12,
+                    shadowYOffset: isPolishedLiveDriveSetup ? 8 : 6
+                ) {
                     VStack(alignment: .leading, spacing: 10) {
                         liveDriveNavigationProviderSection
 
@@ -1488,7 +1766,7 @@ public struct RouteComparisonView: View {
                         }
 
                         Rectangle()
-                            .fill(Color.black.opacity(0.06))
+                            .fill(isPolishedLiveDriveSetup ? Color.white.opacity(0.07) : Color.black.opacity(0.06))
                             .frame(height: 1)
 
                         liveDriveAssumptionsSection
@@ -1503,7 +1781,7 @@ public struct RouteComparisonView: View {
                                 .padding(.horizontal, 18)
                                 .padding(.vertical, 13)
                                 .background(Palette.success, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                                .shadow(color: Palette.success.opacity(0.20), radius: 3, y: 2)
+                                .shadow(color: Palette.success.opacity(isPolishedLiveDriveSetup ? 0.28 : 0.20), radius: 6, y: 3)
                         }
                         .buttonStyle(.plain)
                         .opacity(isStartLiveDriveDisabled ? 0.55 : 1)
@@ -1544,7 +1822,13 @@ public struct RouteComparisonView: View {
     }
 
     private var liveDriveComparisonSection: some View {
-        SectionCard {
+        SectionCard(
+            background: usesDarkLiveDriveTheme ? setupSurface : Palette.panel,
+            border: usesDarkLiveDriveTheme ? setupPanelBorder : Palette.surfaceBorder,
+            shadowColor: usesDarkLiveDriveTheme ? setupShadowColor : .black.opacity(0.05),
+            shadowRadius: usesDarkLiveDriveTheme ? 24 : 18,
+            shadowYOffset: usesDarkLiveDriveTheme ? 10 : 8
+        ) {
             VStack(alignment: .leading, spacing: 10) {
                 timeComparisonRows(
                     baselineTitle: "Apple Maps ETA",
@@ -1568,7 +1852,13 @@ public struct RouteComparisonView: View {
     @ViewBuilder
     private var liveDriveRouteContextSection: some View {
         if let route = liveDriveCapturedRoute {
-            SectionCard {
+            SectionCard(
+                background: usesDarkLiveDriveTheme ? setupSurface : Palette.panel,
+                border: usesDarkLiveDriveTheme ? setupPanelBorder : Palette.surfaceBorder,
+                shadowColor: usesDarkLiveDriveTheme ? setupShadowColor : .black.opacity(0.05),
+                shadowRadius: usesDarkLiveDriveTheme ? 24 : 18,
+                shadowYOffset: usesDarkLiveDriveTheme ? 10 : 8
+            ) {
                 VStack(alignment: .leading, spacing: Layout.innerSpacing) {
                     mobileSectionHeader(
                         title: "Live route",
@@ -1581,7 +1871,13 @@ public struct RouteComparisonView: View {
     }
 
     private var liveDriveTripSummarySection: some View {
-        SectionCard {
+        SectionCard(
+            background: usesDarkLiveDriveTheme ? setupSurface : Palette.panel,
+            border: usesDarkLiveDriveTheme ? setupPanelBorder : Palette.surfaceBorder,
+            shadowColor: usesDarkLiveDriveTheme ? setupShadowColor : .black.opacity(0.05),
+            shadowRadius: usesDarkLiveDriveTheme ? 24 : 18,
+            shadowYOffset: usesDarkLiveDriveTheme ? 10 : 8
+        ) {
             VStack(alignment: .leading, spacing: Layout.innerSpacing) {
                 mobileSectionHeader(
                     title: "Trip Summary So Far",
@@ -1621,14 +1917,26 @@ public struct RouteComparisonView: View {
     @ViewBuilder
     private var liveDriveFinishedResultSection: some View {
         if let completedTrip = liveDriveFinishedTrip {
-            SectionCard {
+            SectionCard(
+                background: usesDarkLiveDriveTheme ? setupSurface : Palette.panel,
+                border: usesDarkLiveDriveTheme ? setupPanelBorder : Palette.surfaceBorder,
+                shadowColor: usesDarkLiveDriveTheme ? setupShadowColor : .black.opacity(0.05),
+                shadowRadius: usesDarkLiveDriveTheme ? 24 : 18,
+                shadowYOffset: usesDarkLiveDriveTheme ? 10 : 8
+            ) {
                 VStack(alignment: .leading, spacing: Layout.innerSpacing) {
                     mobileSectionHeader(
                         title: "Trip result",
                         subtitle: "Review the finished result or share it."
                     )
 
-                    InsetPanel {
+                    InsetPanel(
+                        background: usesDarkLiveDriveTheme ? setupSurfaceRaised : Palette.panel,
+                        border: usesDarkLiveDriveTheme ? setupPanelBorder : Palette.surfaceBorder,
+                        shadowColor: usesDarkLiveDriveTheme ? setupShadowColor.opacity(0.75) : .black.opacity(0.04),
+                        shadowRadius: usesDarkLiveDriveTheme ? 18 : 12,
+                        shadowYOffset: usesDarkLiveDriveTheme ? 8 : 6
+                    ) {
                         VStack(alignment: .leading, spacing: 16) {
                             HStack(alignment: .center, spacing: 14) {
                                 finishedTripBrandLogo
@@ -1637,22 +1945,22 @@ public struct RouteComparisonView: View {
                                 VStack(alignment: .leading, spacing: 5) {
                                     Text(completedTrip.displayRouteTitle)
                                         .font(.headline.weight(.semibold))
-                                        .foregroundStyle(Palette.ink)
+                                        .foregroundStyle(usesDarkLiveDriveTheme ? setupPrimaryText : Palette.ink)
 
                                     Text(completedTrip.routeLabel)
                                         .font(panelDescriptionFont)
-                                        .foregroundStyle(Palette.cocoa)
+                                        .foregroundStyle(usesDarkLiveDriveTheme ? setupSecondaryText : Palette.cocoa)
 
                                     Text(completedTrip.completedAt.formatted(date: .abbreviated, time: .shortened))
                                         .font(.footnote.weight(.medium))
-                                        .foregroundStyle(Palette.cocoa)
+                                        .foregroundStyle(usesDarkLiveDriveTheme ? setupSecondaryText : Palette.cocoa)
                                 }
                             }
 
                             VStack(alignment: .leading, spacing: 6) {
                                 Text(liveDriveOverallResultTitle)
                                     .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(Palette.cocoa)
+                                    .foregroundStyle(usesDarkLiveDriveTheme ? setupSecondaryText : Palette.cocoa)
 
                                 Text(Self.netString(completedTrip.netTimeGain))
                                     .font(.system(size: 34, weight: .bold, design: .rounded))
@@ -1660,7 +1968,7 @@ public struct RouteComparisonView: View {
 
                                 Text(liveDriveVerdict(for: completedTrip.netTimeGain))
                                     .font(panelDescriptionFont)
-                                    .foregroundStyle(Palette.cocoa)
+                                    .foregroundStyle(usesDarkLiveDriveTheme ? setupSecondaryText : Palette.cocoa)
                             }
 
                             LazyVGrid(
@@ -1670,17 +1978,17 @@ public struct RouteComparisonView: View {
                                 ],
                                 spacing: 12
                             ) {
-                                SummaryCard(title: "Time Above Set Speed", value: Self.durationString(completedTrip.timeSavedBySpeeding), tint: Palette.success, compact: true)
-                                SummaryCard(title: "Time Below Set Speed", value: Self.durationString(completedTrip.timeLostBelowTargetPace), tint: Palette.danger, compact: true)
-                                SummaryCard(title: "Distance driven", value: "\(Self.milesString(completedTrip.distanceDrivenMiles)) mi", tint: Palette.ink, compact: true)
-                                SummaryCard(title: "Elapsed drive time", value: Self.durationString(completedTrip.elapsedDriveMinutes), tint: Palette.ink, compact: true)
-                                SummaryCard(title: "Average trip speed", value: "\(Self.speedString(completedTrip.averageTripSpeed)) mph", tint: Palette.ink, compact: true)
-                                SummaryCard(title: "Target speed", value: "\(Self.speedString(completedTrip.targetSpeed)) mph", tint: Palette.ink, compact: true)
+                                SummaryCard(title: "Time Above Set Speed", value: Self.durationString(completedTrip.timeSavedBySpeeding), tint: Palette.success, compact: true, titleColor: usesDarkLiveDriveTheme ? setupSecondaryText : Palette.cocoa, backgroundColor: usesDarkLiveDriveTheme ? setupSurfaceMuted : Palette.panel, borderColor: usesDarkLiveDriveTheme ? setupPanelBorder : nil, shadowColor: usesDarkLiveDriveTheme ? setupShadowColor.opacity(0.65) : .black.opacity(0.05))
+                                SummaryCard(title: "Time Below Set Speed", value: Self.durationString(completedTrip.timeLostBelowTargetPace), tint: Palette.danger, compact: true, titleColor: usesDarkLiveDriveTheme ? setupSecondaryText : Palette.cocoa, backgroundColor: usesDarkLiveDriveTheme ? setupSurfaceMuted : Palette.panel, borderColor: usesDarkLiveDriveTheme ? setupPanelBorder : nil, shadowColor: usesDarkLiveDriveTheme ? setupShadowColor.opacity(0.65) : .black.opacity(0.05))
+                                SummaryCard(title: "Distance driven", value: "\(Self.milesString(completedTrip.distanceDrivenMiles)) mi", tint: usesDarkLiveDriveTheme ? setupPrimaryText : Palette.ink, compact: true, titleColor: usesDarkLiveDriveTheme ? setupSecondaryText : Palette.cocoa, backgroundColor: usesDarkLiveDriveTheme ? setupSurfaceMuted : Palette.panel, borderColor: usesDarkLiveDriveTheme ? setupPanelBorder : nil, shadowColor: usesDarkLiveDriveTheme ? setupShadowColor.opacity(0.65) : .black.opacity(0.05))
+                                SummaryCard(title: "Elapsed drive time", value: Self.durationString(completedTrip.elapsedDriveMinutes), tint: usesDarkLiveDriveTheme ? setupPrimaryText : Palette.ink, compact: true, titleColor: usesDarkLiveDriveTheme ? setupSecondaryText : Palette.cocoa, backgroundColor: usesDarkLiveDriveTheme ? setupSurfaceMuted : Palette.panel, borderColor: usesDarkLiveDriveTheme ? setupPanelBorder : nil, shadowColor: usesDarkLiveDriveTheme ? setupShadowColor.opacity(0.65) : .black.opacity(0.05))
+                                SummaryCard(title: "Average trip speed", value: "\(Self.speedString(completedTrip.averageTripSpeed)) mph", tint: usesDarkLiveDriveTheme ? setupPrimaryText : Palette.ink, compact: true, titleColor: usesDarkLiveDriveTheme ? setupSecondaryText : Palette.cocoa, backgroundColor: usesDarkLiveDriveTheme ? setupSurfaceMuted : Palette.panel, borderColor: usesDarkLiveDriveTheme ? setupPanelBorder : nil, shadowColor: usesDarkLiveDriveTheme ? setupShadowColor.opacity(0.65) : .black.opacity(0.05))
+                                SummaryCard(title: "Target speed", value: "\(Self.speedString(completedTrip.targetSpeed)) mph", tint: usesDarkLiveDriveTheme ? setupPrimaryText : Palette.ink, compact: true, titleColor: usesDarkLiveDriveTheme ? setupSecondaryText : Palette.cocoa, backgroundColor: usesDarkLiveDriveTheme ? setupSurfaceMuted : Palette.panel, borderColor: usesDarkLiveDriveTheme ? setupPanelBorder : nil, shadowColor: usesDarkLiveDriveTheme ? setupShadowColor.opacity(0.65) : .black.opacity(0.05))
                             }
 
                             Text(finishedTripMetricExplanation(for: completedTrip))
                                 .font(.footnote.weight(.medium))
-                                .foregroundStyle(Palette.cocoa)
+                                .foregroundStyle(usesDarkLiveDriveTheme ? setupSecondaryText : Palette.cocoa)
 
                             Button {
                                 shareFinishedTrip()
@@ -1702,7 +2010,13 @@ public struct RouteComparisonView: View {
     }
 
     private var liveDriveSafetySection: some View {
-        SectionCard {
+        SectionCard(
+            background: usesDarkLiveDriveTheme ? setupSurface : Palette.panel,
+            border: usesDarkLiveDriveTheme ? setupPanelBorder : Palette.surfaceBorder,
+            shadowColor: usesDarkLiveDriveTheme ? setupShadowColor : .black.opacity(0.05),
+            shadowRadius: usesDarkLiveDriveTheme ? 24 : 18,
+            shadowYOffset: usesDarkLiveDriveTheme ? 10 : 8
+        ) {
             VStack(alignment: .leading, spacing: Layout.innerSpacing) {
                 mobileSectionHeader(
                     title: liveDriveScreenState == .driving ? "Drive controls" : "Trip controls",
@@ -1747,14 +2061,14 @@ public struct RouteComparisonView: View {
                             } label: {
                                 Label("Open Drive HUD", systemImage: "gauge.with.dots.needle.67percent")
                                     .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(Palette.ink)
+                                    .foregroundStyle(usesDarkLiveDriveTheme ? setupPrimaryText : Palette.ink)
                                     .frame(maxWidth: .infinity)
                                     .padding(.horizontal, 16)
                                     .padding(.vertical, 12)
-                                    .background(Palette.panelAlt, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                    .background((usesDarkLiveDriveTheme ? setupSurfaceMuted : Palette.panelAlt), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                                     .overlay {
                                         RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                            .stroke(Palette.surfaceBorder, lineWidth: 1)
+                                            .stroke(usesDarkLiveDriveTheme ? setupPanelBorder : Palette.surfaceBorder, lineWidth: 1)
                                     }
                             }
                             .buttonStyle(.plain)
@@ -1797,10 +2111,10 @@ public struct RouteComparisonView: View {
                                 .frame(maxWidth: .infinity)
                                 .padding(.horizontal, 18)
                                 .padding(.vertical, 14)
-                                .background(Palette.dangerBackground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                .background((usesDarkLiveDriveTheme ? setupErrorFill : Palette.dangerBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                                 .overlay {
                                     RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                        .stroke(Palette.danger.opacity(0.18), lineWidth: 1)
+                                        .stroke(usesDarkLiveDriveTheme ? setupErrorBorder : Palette.danger.opacity(0.18), lineWidth: 1)
                                 }
                         }
                         .buttonStyle(.plain)
@@ -1834,12 +2148,12 @@ public struct RouteComparisonView: View {
 
     @ViewBuilder
     private var finishedTripBrandLogo: some View {
-        if let brandLogo {
-            brandLogo
+        if let resultBrandLogo {
+            resultBrandLogo
                 .resizable()
                 .interpolation(.high)
                 .scaledToFit()
-                .frame(height: 70)
+                .frame(width: 72, height: 72)
         } else {
             Image(systemName: "gauge.with.needle")
                 .font(.system(size: 56, weight: .semibold))
@@ -1851,10 +2165,10 @@ public struct RouteComparisonView: View {
         VStack(alignment: .leading, spacing: 3) {
             Text(title)
                 .font(panelHeaderFont)
-                .foregroundStyle(Palette.ink)
+                .foregroundStyle(usesDarkLiveDriveTheme ? setupPrimaryText : Palette.ink)
             Text(subtitle)
                 .font(panelDescriptionFont)
-                .foregroundStyle(Palette.cocoa)
+                .foregroundStyle(usesDarkLiveDriveTheme ? setupSecondaryText : Palette.cocoa)
         }
     }
 
@@ -1862,7 +2176,7 @@ public struct RouteComparisonView: View {
         VStack(alignment: .leading, spacing: 8) {
             Label("Navigation App", systemImage: "arrow.triangle.turn.up.right.circle.fill")
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(Palette.ink)
+                .foregroundStyle(isPolishedLiveDriveSetup ? setupPrimaryText : Palette.ink)
 
             VStack(spacing: 6) {
                 ForEach(NavigationProvider.allCases) { provider in
@@ -1874,29 +2188,36 @@ public struct RouteComparisonView: View {
                         HStack(spacing: 12) {
                             Image(systemName: navigationProviderIconName(for: provider))
                                 .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(isSelected ? Palette.success : Palette.cocoa)
+                                .foregroundStyle(isSelected ? Palette.success : (isPolishedLiveDriveSetup ? setupSecondaryText : Palette.cocoa))
                                 .frame(width: 18)
 
                             Text(provider.rawValue)
                                 .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(Palette.ink)
+                                .foregroundStyle(isPolishedLiveDriveSetup ? setupPrimaryText : Palette.ink)
 
                             Spacer(minLength: 12)
 
                             Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                                 .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(isSelected ? Palette.success : Palette.cocoa.opacity(0.5))
+                                .foregroundStyle(isSelected ? Palette.success : (isPolishedLiveDriveSetup ? setupTertiaryText : Palette.cocoa.opacity(0.5)))
                         }
                         .padding(.horizontal, 14)
                         .padding(.vertical, 10)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(
-                            isSelected ? Palette.successBackground : Palette.panel,
+                            isPolishedLiveDriveSetup
+                                ? (isSelected ? setupSelectionFill : setupFieldFill)
+                                : (isSelected ? Palette.successBackground : Palette.panel),
                             in: RoundedRectangle(cornerRadius: 14, style: .continuous)
                         )
                         .overlay {
                             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .stroke(isSelected ? Palette.success.opacity(0.24) : Palette.surfaceBorder, lineWidth: 1)
+                                .stroke(
+                                    isPolishedLiveDriveSetup
+                                        ? (isSelected ? setupSelectionBorder : setupFieldBorder)
+                                        : (isSelected ? Palette.success.opacity(0.24) : Palette.surfaceBorder),
+                                    lineWidth: 1
+                                )
                         }
                     }
                     .buttonStyle(.plain)
@@ -1905,7 +2226,7 @@ public struct RouteComparisonView: View {
 
             Text(liveDriveNavigationProviderHelperText)
                 .font(panelDescriptionFont)
-                .foregroundStyle(Palette.cocoa)
+                .foregroundStyle(isPolishedLiveDriveSetup ? setupSecondaryText : Palette.cocoa)
         }
     }
 
@@ -1928,10 +2249,14 @@ public struct RouteComparisonView: View {
         } label: {
             Label("Trips", systemImage: "clock.arrow.circlepath")
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(Palette.ink)
+                .foregroundStyle(isPolishedLiveDriveSetup ? setupPrimaryText : Palette.ink)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
-                .background(Palette.successBackground, in: Capsule())
+                .background((isPolishedLiveDriveSetup ? setupSurfaceMuted : Palette.successBackground), in: Capsule())
+                .overlay {
+                    Capsule()
+                        .stroke(isPolishedLiveDriveSetup ? setupPanelBorder : .clear, lineWidth: isPolishedLiveDriveSetup ? 1 : 0)
+                }
         }
         .buttonStyle(.plain)
     }
@@ -1939,7 +2264,7 @@ public struct RouteComparisonView: View {
     private var liveDriveLegalityNote: some View {
         Text("Always obey traffic laws and road conditions.")
             .font(.footnote.weight(.medium))
-            .foregroundStyle(Palette.cocoa)
+            .foregroundStyle(usesDarkLiveDriveTheme ? setupSecondaryText : Palette.cocoa)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
@@ -1952,14 +2277,14 @@ public struct RouteComparisonView: View {
     private func mobileHelperCard(_ text: String) -> some View {
         Text(text)
             .font(panelDescriptionFont)
-            .foregroundStyle(Palette.cocoa)
+            .foregroundStyle(usesDarkLiveDriveTheme ? setupSecondaryText : Palette.cocoa)
             .padding(.horizontal, 12)
             .padding(.vertical, 11)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Palette.panelAlt, in: RoundedRectangle(cornerRadius: Layout.innerCorner, style: .continuous))
+            .background((usesDarkLiveDriveTheme ? setupSurfaceMuted : Palette.panelAlt), in: RoundedRectangle(cornerRadius: Layout.innerCorner, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: Layout.innerCorner, style: .continuous)
-                    .stroke(Palette.surfaceBorder.opacity(0.8), lineWidth: 1)
+                    .stroke(usesDarkLiveDriveTheme ? setupPanelBorder : Palette.surfaceBorder.opacity(0.8), lineWidth: 1)
             }
     }
 
@@ -1978,7 +2303,7 @@ public struct RouteComparisonView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text(message)
                     .font(panelDescriptionFont)
-                    .foregroundStyle(Palette.cocoa)
+                    .foregroundStyle(isPolishedLiveDriveSetup ? setupSecondaryText : Palette.cocoa)
 
                 if showsSettingsAction {
                     Button(actionTitle) {
@@ -1993,10 +2318,10 @@ public struct RouteComparisonView: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Palette.panelAlt.opacity(0.72), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .background((isPolishedLiveDriveSetup ? setupSurfaceMuted.opacity(0.92) : Palette.panelAlt.opacity(0.72)), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Color.black.opacity(0.05), lineWidth: 1)
+                .stroke(isPolishedLiveDriveSetup ? setupPanelBorder : Color.black.opacity(0.05), lineWidth: 1)
         }
     }
 
@@ -2009,11 +2334,11 @@ public struct RouteComparisonView: View {
         VStack(alignment: .leading, spacing: 10) {
             Label(title, systemImage: "location.fill")
                 .font(.headline.weight(.semibold))
-                .foregroundStyle(Palette.ink)
+                .foregroundStyle(isPolishedLiveDriveSetup ? setupPrimaryText : Palette.ink)
 
             Text(message)
                 .font(panelDescriptionFont)
-                .foregroundStyle(Palette.cocoa)
+                .foregroundStyle(isPolishedLiveDriveSetup ? setupSecondaryText : Palette.cocoa)
 
             if showsSettingsAction {
                 Button {
@@ -2031,10 +2356,10 @@ public struct RouteComparisonView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
-        .background(Palette.dangerBackground.opacity(0.45), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .background((isPolishedLiveDriveSetup ? setupErrorFill : Palette.dangerBackground.opacity(0.45)), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Palette.danger.opacity(0.18), lineWidth: 1)
+                .stroke(isPolishedLiveDriveSetup ? setupErrorBorder : Palette.danger.opacity(0.18), lineWidth: 1)
         }
     }
 
@@ -2055,12 +2380,12 @@ public struct RouteComparisonView: View {
             }
         }
         .padding(isMobileLayout ? 10 : 14)
-        .background(Palette.panel, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .background((usesDarkLiveDriveTheme ? setupSurfaceRaised : Palette.panel), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(Palette.surfaceBorder, lineWidth: 1)
+                .stroke(usesDarkLiveDriveTheme ? setupPanelBorder : Palette.surfaceBorder, lineWidth: 1)
         }
-        .shadow(color: .black.opacity(0.08), radius: 25, y: 10)
+        .shadow(color: usesDarkLiveDriveTheme ? setupShadowColor : .black.opacity(0.08), radius: 25, y: 10)
     }
 
     private func routeOptionsPanel(routes: [RouteEstimate], selectedRoute: RouteEstimate) -> some View {
@@ -2068,10 +2393,10 @@ public struct RouteComparisonView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Route options")
                     .font(panelHeaderFont)
-                    .foregroundStyle(Palette.ink)
+                    .foregroundStyle(usesDarkLiveDriveTheme ? setupPrimaryText : Palette.ink)
                 Text("Pick the Apple Maps route to use as the baseline.")
                     .font(panelDescriptionFont)
-                    .foregroundStyle(Palette.cocoa)
+                    .foregroundStyle(usesDarkLiveDriveTheme ? setupSecondaryText : Palette.cocoa)
             }
 
             VStack(spacing: isMobileLayout ? 6 : 8) {
@@ -2087,35 +2412,35 @@ public struct RouteComparisonView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Route preview")
                     .font(panelHeaderFont)
-                    .foregroundStyle(Palette.ink)
+                    .foregroundStyle(usesDarkLiveDriveTheme ? setupPrimaryText : Palette.ink)
                 Text(selectedRoute.routeName.isEmpty ? "\(selectedRoute.sourceName) to \(selectedRoute.destinationName)" : selectedRoute.routeName)
                     .font(panelDescriptionFont)
-                    .foregroundStyle(Palette.cocoa)
+                    .foregroundStyle(usesDarkLiveDriveTheme ? setupSecondaryText : Palette.cocoa)
             }
 
             mapPreview(routes, selectedRoute.id)
                 .frame(minHeight: isMobileLayout ? 210 : 280, maxHeight: isMobileLayout ? 232 : 348)
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .background(Palette.panel, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .background((usesDarkLiveDriveTheme ? setupSurfaceMuted : Palette.panel), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                 .overlay {
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(Palette.surfaceBorder, lineWidth: 1)
+                        .stroke(usesDarkLiveDriveTheme ? setupPanelBorder : Palette.surfaceBorder, lineWidth: 1)
                 }
-                .shadow(color: .black.opacity(0.10), radius: 30, y: 12)
+                .shadow(color: usesDarkLiveDriveTheme ? setupShadowColor : .black.opacity(0.10), radius: 30, y: 12)
 
             if isMobileLayout {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 10) {
-                        StatPill(title: "Selected route", value: "\(Self.milesString(selectedRoute.distanceMiles)) mi", compact: true)
-                        StatPill(title: "Apple ETA", value: Self.durationString(selectedRoute.expectedTravelMinutes), compact: true)
-                        StatPill(title: "Options", value: "\(routes.count)", compact: true)
+                        StatPill(title: "Selected route", value: "\(Self.milesString(selectedRoute.distanceMiles)) mi", foreground: usesDarkLiveDriveTheme ? setupPrimaryText : Palette.ink, background: usesDarkLiveDriveTheme ? setupSurfaceMuted : Palette.pill, compact: true, titleColor: usesDarkLiveDriveTheme ? setupSecondaryText : Palette.cocoa, borderColor: usesDarkLiveDriveTheme ? setupPanelBorder : Palette.surfaceBorder.opacity(0.5))
+                        StatPill(title: "Apple ETA", value: Self.durationString(selectedRoute.expectedTravelMinutes), foreground: usesDarkLiveDriveTheme ? setupPrimaryText : Palette.ink, background: usesDarkLiveDriveTheme ? setupSurfaceMuted : Palette.pill, compact: true, titleColor: usesDarkLiveDriveTheme ? setupSecondaryText : Palette.cocoa, borderColor: usesDarkLiveDriveTheme ? setupPanelBorder : Palette.surfaceBorder.opacity(0.5))
+                        StatPill(title: "Options", value: "\(routes.count)", foreground: usesDarkLiveDriveTheme ? setupPrimaryText : Palette.ink, background: usesDarkLiveDriveTheme ? setupSurfaceMuted : Palette.pill, compact: true, titleColor: usesDarkLiveDriveTheme ? setupSecondaryText : Palette.cocoa, borderColor: usesDarkLiveDriveTheme ? setupPanelBorder : Palette.surfaceBorder.opacity(0.5))
                     }
                 }
             } else {
                 HStack(spacing: 10) {
-                    StatPill(title: "Selected route", value: "\(Self.milesString(selectedRoute.distanceMiles)) mi")
-                    StatPill(title: "Apple ETA", value: Self.durationString(selectedRoute.expectedTravelMinutes))
-                    StatPill(title: "Options", value: "\(routes.count)")
+                    StatPill(title: "Selected route", value: "\(Self.milesString(selectedRoute.distanceMiles)) mi", foreground: usesDarkLiveDriveTheme ? setupPrimaryText : Palette.ink, background: usesDarkLiveDriveTheme ? setupSurfaceMuted : Palette.pill, titleColor: usesDarkLiveDriveTheme ? setupSecondaryText : Palette.cocoa, borderColor: usesDarkLiveDriveTheme ? setupPanelBorder : Palette.surfaceBorder.opacity(0.5))
+                    StatPill(title: "Apple ETA", value: Self.durationString(selectedRoute.expectedTravelMinutes), foreground: usesDarkLiveDriveTheme ? setupPrimaryText : Palette.ink, background: usesDarkLiveDriveTheme ? setupSurfaceMuted : Palette.pill, titleColor: usesDarkLiveDriveTheme ? setupSecondaryText : Palette.cocoa, borderColor: usesDarkLiveDriveTheme ? setupPanelBorder : Palette.surfaceBorder.opacity(0.5))
+                    StatPill(title: "Options", value: "\(routes.count)", foreground: usesDarkLiveDriveTheme ? setupPrimaryText : Palette.ink, background: usesDarkLiveDriveTheme ? setupSurfaceMuted : Palette.pill, titleColor: usesDarkLiveDriveTheme ? setupSecondaryText : Palette.cocoa, borderColor: usesDarkLiveDriveTheme ? setupPanelBorder : Palette.surfaceBorder.opacity(0.5))
                 }
             }
         }
@@ -2132,7 +2457,8 @@ public struct RouteComparisonView: View {
                 distance: "\(Self.milesString(route.distanceMiles)) mi",
                 isSelected: isSelected,
                 isHovered: isHovered,
-                compact: isMobileLayout
+                compact: isMobileLayout,
+                usesDarkTheme: usesDarkLiveDriveTheme
             )
         }
         .buttonStyle(.plain)
@@ -2243,7 +2569,7 @@ public struct RouteComparisonView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(Palette.cocoa)
+                .foregroundStyle(usesDarkLiveDriveTheme ? setupSecondaryText : Palette.cocoa)
 
             Text(value)
                 .font(isNarrative ? .title3.weight(.bold) : .system(size: 28, weight: .bold, design: .rounded))
@@ -2475,9 +2801,53 @@ public struct RouteComparisonView: View {
 
     private func shareFinishedTrip() {
         guard let completedTrip = liveDriveFinishedTrip else { return }
-        shareSheetItems = [finishedTripShareText(for: completedTrip)]
+        let shareText = finishedTripShareText(for: completedTrip)
+
+        #if os(iOS)
+        if let shareImage = finishedTripShareImage(for: completedTrip) {
+            shareSheetItems = [shareImage, shareText]
+        } else {
+            shareSheetItems = [shareText]
+        }
+        #else
+        shareSheetItems = [shareText]
+        #endif
+
         isShareSheetPresented = true
     }
+
+    #if os(iOS)
+    @MainActor
+    private func finishedTripShareImage(for completedTrip: CompletedTripRecord) -> UIImage? {
+        let shareCardWidth: CGFloat = 405
+        let shareCardHeight: CGFloat = 720
+
+        let shareCard = FinishedTripShareCardView(
+            brandLogo: brandLogo,
+            routeTitle: completedTrip.displayRouteTitle,
+            routeMeta: completedTrip.routeLabel,
+            completedAtText: completedTrip.completedAt.formatted(date: .abbreviated, time: .shortened),
+            overallResultTitle: liveDriveOverallResultTitle,
+            overallResultValue: Self.netString(completedTrip.netTimeGain),
+            overallResultTint: completedTrip.netTimeGain >= 0 ? Palette.success : Palette.danger,
+            overallResultDetail: liveDriveVerdict(for: completedTrip.netTimeGain),
+            metrics: [
+                ShareCardMetric(title: "Time Above Set Speed", value: Self.durationString(completedTrip.timeSavedBySpeeding), tint: Palette.success),
+                ShareCardMetric(title: "Time Below Set Speed", value: Self.durationString(completedTrip.timeLostBelowTargetPace), tint: Palette.danger),
+                ShareCardMetric(title: "Distance driven", value: "\(Self.milesString(completedTrip.distanceDrivenMiles)) mi", tint: .white),
+                ShareCardMetric(title: "Elapsed drive time", value: Self.durationString(completedTrip.elapsedDriveMinutes), tint: .white),
+                ShareCardMetric(title: "Average trip speed", value: "\(Self.speedString(completedTrip.averageTripSpeed)) mph", tint: .white),
+                ShareCardMetric(title: "Target speed", value: "\(Self.speedString(completedTrip.targetSpeed)) mph", tint: .white)
+            ]
+        )
+        .frame(width: shareCardWidth, height: shareCardHeight)
+
+        let renderer = ImageRenderer(content: shareCard)
+        renderer.scale = 3
+        renderer.proposedSize = ProposedViewSize(width: shareCardWidth, height: shareCardHeight)
+        return renderer.uiImage
+    }
+    #endif
 
     private func openLiveDriveSettings() {
         guard let settingsURL = URL(string: UIApplication.openSettingsURLString),
@@ -2650,15 +3020,18 @@ public struct RouteComparisonView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Time comparison")
                 .font(inputLabelFont)
-                .foregroundStyle(Palette.cocoa)
+                .foregroundStyle(usesDarkLiveDriveTheme ? setupSecondaryText : Palette.cocoa)
 
             ComparisonBarRow(
                 title: baselineTitle,
                 minutes: baselineMinutes,
-                tint: Palette.ink,
+                tint: usesDarkLiveDriveTheme ? Color.white.opacity(0.82) : Palette.ink,
                 scaleMinutes: scaleMinutes,
                 minutesLabel: Self.durationString(baselineMinutes),
-                compact: isMobileLayout
+                compact: isMobileLayout,
+                titleColor: usesDarkLiveDriveTheme ? setupSecondaryText : Palette.cocoa,
+                valueColor: usesDarkLiveDriveTheme ? setupPrimaryText : Palette.ink,
+                trackColor: usesDarkLiveDriveTheme ? setupSurfaceMuted : Palette.pill
             )
             ComparisonBarRow(
                 title: comparisonTitle,
@@ -2666,7 +3039,10 @@ public struct RouteComparisonView: View {
                 tint: comparisonTint,
                 scaleMinutes: scaleMinutes,
                 minutesLabel: comparisonLabel,
-                compact: isMobileLayout
+                compact: isMobileLayout,
+                titleColor: usesDarkLiveDriveTheme ? setupSecondaryText : Palette.cocoa,
+                valueColor: usesDarkLiveDriveTheme ? setupPrimaryText : Palette.ink,
+                trackColor: usesDarkLiveDriveTheme ? setupSurfaceMuted : Palette.pill
             )
         }
     }
@@ -2722,6 +3098,150 @@ public struct RouteComparisonView: View {
 }
 
 #if os(iOS)
+private struct ShareCardMetric: Identifiable {
+    let id = UUID()
+    let title: String
+    let value: String
+    let tint: Color
+}
+
+private struct FinishedTripShareCardView: View {
+    let brandLogo: Image?
+    let routeTitle: String
+    let routeMeta: String
+    let completedAtText: String
+    let overallResultTitle: String
+    let overallResultValue: String
+    let overallResultTint: Color
+    let overallResultDetail: String
+    let metrics: [ShareCardMetric]
+
+    var body: some View {
+        ZStack {
+            LinearGradient(
+                colors: [
+                    Color(red: 0.06, green: 0.08, blue: 0.11),
+                    Color(red: 0.10, green: 0.12, blue: 0.16),
+                    Color(red: 0.07, green: 0.27, blue: 0.17)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(alignment: .center, spacing: 10) {
+                    Group {
+                        if let brandLogo {
+                            brandLogo
+                                .resizable()
+                                .interpolation(.high)
+                                .scaledToFit()
+                        } else {
+                            Image(systemName: "gauge.with.needle")
+                                .font(.system(size: 30, weight: .bold))
+                                .foregroundStyle(Color.white)
+                        }
+                    }
+                    .frame(width: 82, height: 50, alignment: .leading)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("TimeThrottle")
+                            .font(.system(size: 24, weight: .bold, design: .rounded))
+                            .foregroundStyle(Color.white)
+
+                        Text("How much time did speed really buy you?")
+                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .foregroundStyle(Color.white.opacity(0.7))
+                            .lineLimit(2)
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 7) {
+                    Text(routeTitle)
+                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .foregroundStyle(Color.white)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.85)
+
+                    Text(routeMeta)
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Color.white.opacity(0.72))
+                        .lineLimit(2)
+
+                    Text(completedAtText)
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundStyle(Color.white.opacity(0.58))
+                }
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                }
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(overallResultTitle)
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Color.white.opacity(0.72))
+
+                    Text(overallResultValue)
+                        .font(.system(size: 40, weight: .bold, design: .rounded))
+                        .foregroundStyle(overallResultTint)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+
+                    Text(overallResultDetail)
+                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .foregroundStyle(Color.white.opacity(0.76))
+                }
+
+                LazyVGrid(
+                    columns: [
+                        GridItem(.flexible(), spacing: 10),
+                        GridItem(.flexible(), spacing: 10)
+                    ],
+                    spacing: 10
+                ) {
+                    ForEach(metrics) { metric in
+                        VStack(alignment: .leading, spacing: 7) {
+                            Text(metric.title)
+                                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                .foregroundStyle(Color.white.opacity(0.66))
+                                .lineLimit(2)
+                                .fixedSize(horizontal: false, vertical: true)
+
+                            Text(metric.value)
+                                .font(.system(size: 22, weight: .bold, design: .rounded))
+                                .foregroundStyle(metric.tint)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.75)
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 84, alignment: .leading)
+                        .padding(14)
+                        .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                        }
+                    }
+                }
+
+                Spacer(minLength: 0)
+
+                Text("How much time did speed really buy you?")
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundStyle(Color.white.opacity(0.58))
+                    .frame(maxWidth: .infinity, alignment: .center)
+            }
+            .padding(24)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+    }
+}
+
 private struct ShareSheet: UIViewControllerRepresentable {
     let activityItems: [Any]
 

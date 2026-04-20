@@ -17,7 +17,8 @@
 		A10000000000000000000009 /* PlatformLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000B /* PlatformLayout.swift */; };
 		A1000000000000000000000A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000C /* Assets.xcassets */; };
 		A1000000000000000000000B /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000D /* LaunchScreen.storyboard */; };
-		A1000000000000000000000C /* TimeThrottleLogo/TimeThrottle.png in Resources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000E /* TimeThrottleLogo/TimeThrottle.png */; };
+		A1000000000000000000000C /* TimeThrottleLogo/TimeThrottle-Logo.png in Resources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000E /* TimeThrottleLogo/TimeThrottle-Logo.png */; };
+		A10000000000000000000014 /* TimeThrottleLogo/TimeThrottle-Logo-Only.png in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000017 /* TimeThrottleLogo/TimeThrottle-Logo-Only.png */; };
 		A1000000000000000000000D /* TripAnalysisEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000010 /* TripAnalysisEngine.swift */; };
 		A1000000000000000000000E /* LiveDriveTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000011 /* LiveDriveTracker.swift */; };
 		A1000000000000000000000F /* NavigationHandoffService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000012 /* NavigationHandoffService.swift */; };
@@ -39,7 +40,8 @@
 		A2000000000000000000000B /* PlatformLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlatformLayout.swift; sourceTree = "<group>"; };
 		A2000000000000000000000C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = SOURCE_ROOT; };
 		A2000000000000000000000D /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
-		A2000000000000000000000E /* TimeThrottleLogo/TimeThrottle.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = TimeThrottleLogo/TimeThrottle.png; sourceTree = "<group>"; };
+		A2000000000000000000000E /* TimeThrottleLogo/TimeThrottle-Logo.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = TimeThrottleLogo/TimeThrottle-Logo.png; sourceTree = "<group>"; };
+		A20000000000000000000017 /* TimeThrottleLogo/TimeThrottle-Logo-Only.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = TimeThrottleLogo/TimeThrottle-Logo-Only.png; sourceTree = "<group>"; };
 		A2000000000000000000000F /* iOS/Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = iOS/Info.plist; sourceTree = "<group>"; };
 		A20000000000000000000010 /* TripAnalysisEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripAnalysisEngine.swift; sourceTree = "<group>"; };
 		A20000000000000000000011 /* LiveDriveTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveDriveTracker.swift; sourceTree = "<group>"; };
@@ -129,7 +131,8 @@
 			isa = PBXGroup;
 			children = (
 				A2000000000000000000000D /* LaunchScreen.storyboard */,
-				A2000000000000000000000E /* TimeThrottleLogo/TimeThrottle.png */,
+				A2000000000000000000000E /* TimeThrottleLogo/TimeThrottle-Logo.png */,
+				A20000000000000000000017 /* TimeThrottleLogo/TimeThrottle-Logo-Only.png */,
 				A2000000000000000000000F /* iOS/Info.plist */,
 			);
 			path = Resources;
@@ -196,7 +199,8 @@
 			files = (
 				A1000000000000000000000A /* Assets.xcassets in Resources */,
 				A1000000000000000000000B /* LaunchScreen.storyboard in Resources */,
-				A1000000000000000000000C /* TimeThrottleLogo/TimeThrottle.png in Resources */,
+				A1000000000000000000000C /* TimeThrottleLogo/TimeThrottle-Logo.png in Resources */,
+				A10000000000000000000014 /* TimeThrottleLogo/TimeThrottle-Logo-Only.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

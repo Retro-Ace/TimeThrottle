@@ -1,8 +1,20 @@
 import SwiftUI
 
+private let tripHistoryBackgroundTop = Color(red: 0.05, green: 0.07, blue: 0.11)
+private let tripHistoryBackgroundBottom = Color(red: 0.09, green: 0.12, blue: 0.18)
+private let tripHistoryPanel = Color(red: 0.11, green: 0.14, blue: 0.18)
+private let tripHistoryPanelRaised = Color(red: 0.14, green: 0.17, blue: 0.22)
+private let tripHistoryPanelMuted = Color(red: 0.16, green: 0.19, blue: 0.24)
+private let tripHistoryBorder = Color.white.opacity(0.08)
+private let tripHistoryPrimaryText = Color.white.opacity(0.94)
+private let tripHistorySecondaryText = Color(red: 0.68, green: 0.73, blue: 0.79)
+private let tripHistoryTertiaryText = Color.white.opacity(0.58)
+private let tripHistoryShadow = Color.black.opacity(0.28)
+
 struct TripHistoryScreen: View {
     @ObservedObject var store: TripHistoryStore
     let brandLogo: Image?
+    let resultBrandLogo: Image?
 
     @Environment(\.dismiss) private var dismiss
 
@@ -15,7 +27,7 @@ struct TripHistoryScreen: View {
                     List {
                         ForEach(store.trips) { trip in
                             NavigationLink {
-                                TripHistoryDetailView(trip: trip, brandLogo: brandLogo)
+                                TripHistoryDetailView(trip: trip, resultBrandLogo: resultBrandLogo)
                             } label: {
                                 TripHistoryRow(trip: trip)
                                     .padding(.vertical, 4)
@@ -29,7 +41,7 @@ struct TripHistoryScreen: View {
                     }
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)
-                    .background(Palette.workspace)
+                    .background(Color.clear)
                 }
             }
             .navigationTitle("Trips")
@@ -41,7 +53,15 @@ struct TripHistoryScreen: View {
                     }
                 }
             }
-            .background(Palette.workspace)
+            .toolbarBackground(.hidden, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
+            .background(
+                LinearGradient(
+                    colors: [tripHistoryBackgroundTop, tripHistoryBackgroundBottom],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
         }
     }
 
@@ -54,18 +74,24 @@ struct TripHistoryScreen: View {
             VStack(spacing: 6) {
                 Text("No trips saved yet")
                     .font(.title3.weight(.semibold))
-                    .foregroundStyle(Palette.ink)
+                    .foregroundStyle(tripHistoryPrimaryText)
 
                 Text("Completed Live Drive trips will appear here with Time Above / Time Below and Apple ETA results.")
                     .font(.subheadline.weight(.medium))
-                    .foregroundStyle(Palette.cocoa)
+                    .foregroundStyle(tripHistorySecondaryText)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 280)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(24)
-        .background(Palette.workspace)
+        .background(
+            LinearGradient(
+                colors: [tripHistoryBackgroundTop, tripHistoryBackgroundBottom],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
     }
 }
 
@@ -77,46 +103,52 @@ private struct TripHistoryRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(trip.displayRouteTitle)
                     .font(.headline.weight(.semibold))
-                    .foregroundStyle(Palette.ink)
+                    .foregroundStyle(tripHistoryPrimaryText)
 
                 Text(trip.completedAt.formatted(date: .abbreviated, time: .shortened))
                     .font(.footnote.weight(.medium))
-                    .foregroundStyle(Palette.cocoa)
+                    .foregroundStyle(tripHistorySecondaryText)
             }
 
             HStack(spacing: 8) {
-                StatPill(title: "Time Above", value: durationString(trip.timeSavedBySpeeding), foreground: Palette.success, background: Palette.successBackground, compact: true)
-                StatPill(title: "Time Below", value: durationString(trip.timeLostBelowTargetPace), foreground: Palette.danger, background: Palette.dangerBackground, compact: true)
-                StatPill(title: "Vs ETA", value: netString(trip.netTimeGain), foreground: trip.netTimeGain >= 0 ? Palette.success : Palette.danger, background: Palette.pill, compact: true)
+                StatPill(title: "Time Above", value: durationString(trip.timeSavedBySpeeding), foreground: Palette.success, background: tripHistoryPanelMuted, compact: true, titleColor: tripHistorySecondaryText, borderColor: tripHistoryBorder)
+                StatPill(title: "Time Below", value: durationString(trip.timeLostBelowTargetPace), foreground: Palette.danger, background: tripHistoryPanelMuted, compact: true, titleColor: tripHistorySecondaryText, borderColor: tripHistoryBorder)
+                StatPill(title: "Vs ETA", value: netString(trip.netTimeGain), foreground: trip.netTimeGain >= 0 ? Palette.success : Palette.danger, background: tripHistoryPanelMuted, compact: true, titleColor: tripHistorySecondaryText, borderColor: tripHistoryBorder)
             }
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Palette.panel, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .background(tripHistoryPanel, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Palette.surfaceBorder, lineWidth: 1)
+                .stroke(tripHistoryBorder, lineWidth: 1)
         }
-        .shadow(color: .black.opacity(0.05), radius: 14, y: 6)
+        .shadow(color: tripHistoryShadow, radius: 18, y: 8)
     }
 }
 
 private struct TripHistoryDetailView: View {
     let trip: CompletedTripRecord
-    let brandLogo: Image?
+    let resultBrandLogo: Image?
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Layout.sectionSpacing) {
-                SectionCard {
+                SectionCard(
+                    background: tripHistoryPanel,
+                    border: tripHistoryBorder,
+                    shadowColor: tripHistoryShadow,
+                    shadowRadius: 24,
+                    shadowYOffset: 10
+                ) {
                     VStack(alignment: .leading, spacing: 14) {
                         HStack(alignment: .center, spacing: 14) {
-                            if let brandLogo {
-                                brandLogo
+                            if let resultBrandLogo {
+                                resultBrandLogo
                                     .resizable()
                                     .interpolation(.high)
                                     .scaledToFit()
-                                    .frame(width: 80, height: 52)
+                                    .frame(width: 70, height: 70)
                             } else {
                                 Image(systemName: "gauge.with.needle")
                                     .font(.system(size: 34, weight: .semibold))
@@ -126,15 +158,15 @@ private struct TripHistoryDetailView: View {
                             VStack(alignment: .leading, spacing: 6) {
                                 Text(trip.displayRouteTitle)
                                     .font(.title3.weight(.bold))
-                                    .foregroundStyle(Palette.ink)
+                                    .foregroundStyle(tripHistoryPrimaryText)
 
                                 Text(trip.routeLabel)
                                     .font(.subheadline.weight(.medium))
-                                    .foregroundStyle(Palette.cocoa)
+                                    .foregroundStyle(tripHistorySecondaryText)
 
                                 Text(trip.completedAt.formatted(date: .abbreviated, time: .shortened))
                                     .font(.footnote.weight(.medium))
-                                    .foregroundStyle(Palette.cocoa)
+                                    .foregroundStyle(tripHistorySecondaryText)
                             }
                         }
 
@@ -145,31 +177,40 @@ private struct TripHistoryDetailView: View {
                             ],
                             spacing: 12
                         ) {
-                            SummaryCard(title: "Time Above Set Speed", value: durationString(trip.timeSavedBySpeeding), tint: Palette.success, compact: true)
-                            SummaryCard(title: "Time Below Set Speed", value: durationString(trip.timeLostBelowTargetPace), tint: Palette.danger, compact: true)
-                            SummaryCard(title: "Overall vs Apple ETA", value: netString(trip.netTimeGain), tint: trip.netTimeGain >= 0 ? Palette.success : Palette.danger, isProminent: true, compact: true)
-                            SummaryCard(title: "Elapsed drive time", value: durationString(trip.elapsedDriveMinutes), tint: Palette.ink, compact: true)
-                            SummaryCard(title: "Distance driven", value: "\(milesString(trip.distanceDrivenMiles)) mi", tint: Palette.ink, compact: true)
-                            SummaryCard(title: "Average trip speed", value: "\(speedString(trip.averageTripSpeed)) mph", tint: Palette.ink, compact: true)
-                            SummaryCard(title: "Target speed", value: "\(speedString(trip.targetSpeed)) mph", tint: Palette.ink, compact: true)
+                            SummaryCard(title: "Time Above Set Speed", value: durationString(trip.timeSavedBySpeeding), tint: Palette.success, compact: true, titleColor: tripHistorySecondaryText, backgroundColor: tripHistoryPanelMuted, borderColor: tripHistoryBorder, shadowColor: tripHistoryShadow.opacity(0.65))
+                            SummaryCard(title: "Time Below Set Speed", value: durationString(trip.timeLostBelowTargetPace), tint: Palette.danger, compact: true, titleColor: tripHistorySecondaryText, backgroundColor: tripHistoryPanelMuted, borderColor: tripHistoryBorder, shadowColor: tripHistoryShadow.opacity(0.65))
+                            SummaryCard(title: "Overall vs Apple ETA", value: netString(trip.netTimeGain), tint: trip.netTimeGain >= 0 ? Palette.success : Palette.danger, isProminent: true, compact: true, titleColor: tripHistorySecondaryText, backgroundColor: tripHistoryPanelMuted, borderColor: trip.netTimeGain >= 0 ? Palette.success.opacity(0.32) : Palette.danger.opacity(0.28), shadowColor: tripHistoryShadow.opacity(0.65))
+                            SummaryCard(title: "Elapsed drive time", value: durationString(trip.elapsedDriveMinutes), tint: tripHistoryPrimaryText, compact: true, titleColor: tripHistorySecondaryText, backgroundColor: tripHistoryPanelMuted, borderColor: tripHistoryBorder, shadowColor: tripHistoryShadow.opacity(0.65))
+                            SummaryCard(title: "Distance driven", value: "\(milesString(trip.distanceDrivenMiles)) mi", tint: tripHistoryPrimaryText, compact: true, titleColor: tripHistorySecondaryText, backgroundColor: tripHistoryPanelMuted, borderColor: tripHistoryBorder, shadowColor: tripHistoryShadow.opacity(0.65))
+                            SummaryCard(title: "Average trip speed", value: "\(speedString(trip.averageTripSpeed)) mph", tint: tripHistoryPrimaryText, compact: true, titleColor: tripHistorySecondaryText, backgroundColor: tripHistoryPanelMuted, borderColor: tripHistoryBorder, shadowColor: tripHistoryShadow.opacity(0.65))
+                            SummaryCard(title: "Target speed", value: "\(speedString(trip.targetSpeed)) mph", tint: tripHistoryPrimaryText, compact: true, titleColor: tripHistorySecondaryText, backgroundColor: tripHistoryPanelMuted, borderColor: tripHistoryBorder, shadowColor: tripHistoryShadow.opacity(0.65))
                         }
 
                         Text("Overall vs Apple ETA compares the whole trip to Apple Maps. Time Above Set Speed and Time Below Set Speed are measured against your chosen target speed.")
                             .font(.footnote.weight(.medium))
-                            .foregroundStyle(Palette.cocoa)
+                            .foregroundStyle(tripHistorySecondaryText)
                     }
                 }
 
                 Text("Always obey traffic laws and road conditions.")
                     .font(.footnote.weight(.medium))
-                    .foregroundStyle(Palette.cocoa)
+                    .foregroundStyle(tripHistorySecondaryText)
                     .padding(.horizontal, 6)
             }
             .padding(Layout.screenPadding)
         }
-        .background(Palette.workspace.ignoresSafeArea())
+        .background(
+            LinearGradient(
+                colors: [tripHistoryBackgroundTop, tripHistoryBackgroundBottom],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+        )
         .navigationTitle("Trip Detail")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
     }
 
 }

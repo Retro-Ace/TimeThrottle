@@ -9,7 +9,8 @@ struct IOSRouteComparisonScreen: View {
     var body: some View {
         RouteComparisonView(
             configuration: RouteComparisonConfiguration(),
-            brandLogo: brandLogoImage
+            brandLogo: brandLogoImage,
+            resultBrandLogo: resultBrandLogoImage
         ) { routes, selectedRouteID in
             RoutePreviewMapView(routes: routes, selectedRouteID: selectedRouteID)
         }
@@ -17,13 +18,23 @@ struct IOSRouteComparisonScreen: View {
     }
 
     private var brandLogoImage: Image? {
-        if let url = Bundle.main.url(forResource: "TimeThrottle", withExtension: "png"),
+        bundledImage(named: "TimeThrottle-Logo")
+    }
+
+    private var resultBrandLogoImage: Image? {
+        bundledImage(named: "TimeThrottle-Logo-Only")
+    }
+
+    private func bundledImage(named resourceName: String) -> Image? {
+        if let url = Bundle.main.url(forResource: resourceName, withExtension: "png", subdirectory: "TimeThrottleLogo")
+            ?? Bundle.main.url(forResource: resourceName, withExtension: "png"),
            let image = UIImage(contentsOfFile: url.path) {
             return Image(uiImage: image)
         }
 
         #if SWIFT_PACKAGE
-        if let url = Bundle.module.url(forResource: "TimeThrottle", withExtension: "png", subdirectory: "TimeThrottleLogo"),
+        if let url = Bundle.module.url(forResource: resourceName, withExtension: "png", subdirectory: "TimeThrottleLogo")
+            ?? Bundle.module.url(forResource: resourceName, withExtension: "png"),
            let image = UIImage(contentsOfFile: url.path) {
             return Image(uiImage: image)
         }

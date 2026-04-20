@@ -35,28 +35,63 @@ enum Layout {
 struct SectionCard<Content: View>: View {
     let content: Content
     let padding: CGFloat
+    let background: Color
+    let border: Color
+    let shadowColor: Color
+    let shadowRadius: CGFloat
+    let shadowYOffset: CGFloat
 
-    init(padding: CGFloat = Layout.sectionPadding, @ViewBuilder content: () -> Content) {
+    init(
+        padding: CGFloat = Layout.sectionPadding,
+        background: Color = Palette.panel,
+        border: Color = Palette.surfaceBorder,
+        shadowColor: Color = .black.opacity(0.05),
+        shadowRadius: CGFloat = 18,
+        shadowYOffset: CGFloat = 8,
+        @ViewBuilder content: () -> Content
+    ) {
         self.padding = padding
+        self.background = background
+        self.border = border
+        self.shadowColor = shadowColor
+        self.shadowRadius = shadowRadius
+        self.shadowYOffset = shadowYOffset
         self.content = content()
     }
 
     var body: some View {
         content
             .padding(padding)
-            .background(Palette.panel, in: RoundedRectangle(cornerRadius: Layout.cardCorner, style: .continuous))
+            .background(background, in: RoundedRectangle(cornerRadius: Layout.cardCorner, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: Layout.cardCorner, style: .continuous)
-                    .stroke(Palette.surfaceBorder, lineWidth: 1)
+                    .stroke(border, lineWidth: 1)
             }
-            .shadow(color: .black.opacity(0.05), radius: 18, y: 8)
+            .shadow(color: shadowColor, radius: shadowRadius, y: shadowYOffset)
     }
 }
 
 struct InsetPanel<Content: View>: View {
     let content: Content
+    let background: Color
+    let border: Color
+    let shadowColor: Color
+    let shadowRadius: CGFloat
+    let shadowYOffset: CGFloat
 
-    init(@ViewBuilder content: () -> Content) {
+    init(
+        background: Color = Palette.panel,
+        border: Color = Palette.surfaceBorder,
+        shadowColor: Color = .black.opacity(0.04),
+        shadowRadius: CGFloat = 12,
+        shadowYOffset: CGFloat = 6,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.background = background
+        self.border = border
+        self.shadowColor = shadowColor
+        self.shadowRadius = shadowRadius
+        self.shadowYOffset = shadowYOffset
         self.content = content()
     }
 
@@ -66,12 +101,12 @@ struct InsetPanel<Content: View>: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(Layout.insetPadding)
-        .background(Palette.panel, in: RoundedRectangle(cornerRadius: Layout.innerCorner, style: .continuous))
+        .background(background, in: RoundedRectangle(cornerRadius: Layout.innerCorner, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: Layout.innerCorner, style: .continuous)
-                .stroke(Palette.surfaceBorder, lineWidth: 1)
+                .stroke(border, lineWidth: 1)
         }
-        .shadow(color: .black.opacity(0.04), radius: 12, y: 6)
+        .shadow(color: shadowColor, radius: shadowRadius, y: shadowYOffset)
     }
 }
 
@@ -82,6 +117,10 @@ struct BrandedTextField: View {
     let fontSize: CGFloat
     let fontWeight: Font.Weight
     let compact: Bool
+    let foregroundColor: Color
+    let backgroundColor: Color
+    let borderColor: Color
+    let placeholderColor: Color
 
     init(
         text: Binding<String>,
@@ -89,7 +128,11 @@ struct BrandedTextField: View {
         width: CGFloat? = nil,
         fontSize: CGFloat,
         fontWeight: Font.Weight,
-        compact: Bool = false
+        compact: Bool = false,
+        foregroundColor: Color = Palette.ink,
+        backgroundColor: Color = Color.white.opacity(0.97),
+        borderColor: Color = Palette.surfaceBorder,
+        placeholderColor: Color = Palette.cocoa.opacity(0.75)
     ) {
         self._text = text
         self.placeholder = placeholder
@@ -97,21 +140,30 @@ struct BrandedTextField: View {
         self.fontSize = fontSize
         self.fontWeight = fontWeight
         self.compact = compact
+        self.foregroundColor = foregroundColor
+        self.backgroundColor = backgroundColor
+        self.borderColor = borderColor
+        self.placeholderColor = placeholderColor
     }
 
     var body: some View {
         let resolvedFontSize = compact ? max(16, fontSize - 4) : fontSize
 
-        TextField(placeholder, text: $text)
+        TextField(
+            "",
+            text: $text,
+            prompt: Text(placeholder)
+                .foregroundStyle(placeholderColor)
+        )
             .textFieldStyle(.plain)
             .font(.system(size: resolvedFontSize, weight: fontWeight, design: .rounded))
-            .foregroundStyle(Palette.ink)
+            .foregroundStyle(foregroundColor)
             .padding(.horizontal, compact ? 12 : 13)
             .frame(width: width, height: compact ? 42 : 44, alignment: .leading)
-            .background(Color.white.opacity(0.97), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .background(backgroundColor, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(Palette.surfaceBorder, lineWidth: 1)
+                    .stroke(borderColor, lineWidth: 1)
             }
             .shadow(color: .black.opacity(0.03), radius: compact ? 8 : 8, y: compact ? 3 : 3)
     }
@@ -123,13 +175,31 @@ struct SummaryCard: View {
     let tint: Color
     let isProminent: Bool
     let compact: Bool
+    let titleColor: Color
+    let backgroundColor: Color
+    let borderColor: Color?
+    let shadowColor: Color
 
-    init(title: String, value: String, tint: Color, isProminent: Bool = false, compact: Bool = false) {
+    init(
+        title: String,
+        value: String,
+        tint: Color,
+        isProminent: Bool = false,
+        compact: Bool = false,
+        titleColor: Color = Palette.cocoa,
+        backgroundColor: Color = Palette.panel,
+        borderColor: Color? = nil,
+        shadowColor: Color = .black.opacity(0.05)
+    ) {
         self.title = title
         self.value = value
         self.tint = tint
         self.isProminent = isProminent
         self.compact = compact
+        self.titleColor = titleColor
+        self.backgroundColor = backgroundColor
+        self.borderColor = borderColor
+        self.shadowColor = shadowColor
     }
 
     var body: some View {
@@ -140,7 +210,7 @@ struct SummaryCard: View {
         VStack(alignment: .leading, spacing: 7) {
             Text(title)
                 .font(.system(size: titleFontSize, weight: .semibold, design: .rounded))
-                .foregroundStyle(Palette.cocoa)
+                .foregroundStyle(titleColor)
 
             Text(value)
                 .font(.system(size: valueFontSize, weight: .bold, design: .rounded))
@@ -148,12 +218,12 @@ struct SummaryCard: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(paddingValue)
-        .background(Palette.panel, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .background(backgroundColor, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(isProminent ? tint.opacity(0.18) : Palette.surfaceBorder, lineWidth: isProminent ? 1.5 : 1)
+                .stroke(borderColor ?? (isProminent ? tint.opacity(0.18) : Palette.surfaceBorder), lineWidth: isProminent ? 1.5 : 1)
         }
-        .shadow(color: .black.opacity(0.05), radius: isProminent ? 18 : 14, y: isProminent ? 8 : 6)
+        .shadow(color: shadowColor, radius: isProminent ? 18 : 14, y: isProminent ? 8 : 6)
     }
 }
 
@@ -163,19 +233,25 @@ struct StatPill: View {
     let foreground: Color
     let background: Color
     let compact: Bool
+    let titleColor: Color
+    let borderColor: Color
 
     init(
         title: String,
         value: String,
         foreground: Color = Palette.ink,
         background: Color = Palette.pill,
-        compact: Bool = false
+        compact: Bool = false,
+        titleColor: Color = Palette.cocoa,
+        borderColor: Color = Palette.surfaceBorder.opacity(0.5)
     ) {
         self.title = title
         self.value = value
         self.foreground = foreground
         self.background = background
         self.compact = compact
+        self.titleColor = titleColor
+        self.borderColor = borderColor
     }
 
     var body: some View {
@@ -185,7 +261,7 @@ struct StatPill: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
                 .font(.system(size: titleFontSize, weight: .semibold, design: .rounded))
-                .foregroundStyle(Palette.cocoa)
+                .foregroundStyle(titleColor)
             Text(value)
                 .font(.system(size: valueFontSize, weight: .bold, design: .rounded))
                 .foregroundStyle(foreground)
@@ -195,7 +271,7 @@ struct StatPill: View {
         .background(background, in: Capsule())
         .overlay {
             Capsule()
-                .stroke(Palette.surfaceBorder.opacity(0.5), lineWidth: 0.8)
+                .stroke(borderColor, lineWidth: 0.8)
         }
     }
 }
@@ -254,6 +330,9 @@ struct ComparisonBarRow: View {
     let scaleMinutes: Double
     let minutesLabel: String
     let compact: Bool
+    let titleColor: Color
+    let valueColor: Color
+    let trackColor: Color
 
     init(
         title: String,
@@ -261,7 +340,10 @@ struct ComparisonBarRow: View {
         tint: Color,
         scaleMinutes: Double,
         minutesLabel: String,
-        compact: Bool = false
+        compact: Bool = false,
+        titleColor: Color = Palette.cocoa,
+        valueColor: Color = Palette.ink,
+        trackColor: Color = Palette.pill
     ) {
         self.title = title
         self.minutes = minutes
@@ -269,6 +351,9 @@ struct ComparisonBarRow: View {
         self.scaleMinutes = scaleMinutes
         self.minutesLabel = minutesLabel
         self.compact = compact
+        self.titleColor = titleColor
+        self.valueColor = valueColor
+        self.trackColor = trackColor
     }
 
     var body: some View {
@@ -279,13 +364,13 @@ struct ComparisonBarRow: View {
             HStack {
                 Text(title)
                     .font(.system(size: labelFontSize, weight: .semibold, design: .rounded))
-                    .foregroundStyle(Palette.cocoa)
+                    .foregroundStyle(titleColor)
 
                 Spacer()
 
                 Text(minutesLabel)
                     .font(.system(size: labelFontSize, weight: .bold, design: .rounded))
-                    .foregroundStyle(Palette.ink)
+                    .foregroundStyle(valueColor)
             }
 
             GeometryReader { proxy in
@@ -293,7 +378,7 @@ struct ComparisonBarRow: View {
 
                 ZStack(alignment: .leading) {
                     Capsule()
-                        .fill(Palette.pill)
+                        .fill(trackColor)
 
                     Capsule()
                         .fill(tint)
@@ -347,14 +432,24 @@ struct RouteOptionRow: View {
     let isSelected: Bool
     let isHovered: Bool
     let compact: Bool
+    let usesDarkTheme: Bool
 
-    init(title: String, duration: String, distance: String, isSelected: Bool, isHovered: Bool, compact: Bool = false) {
+    init(
+        title: String,
+        duration: String,
+        distance: String,
+        isSelected: Bool,
+        isHovered: Bool,
+        compact: Bool = false,
+        usesDarkTheme: Bool = false
+    ) {
         self.title = title
         self.duration = duration
         self.distance = distance
         self.isSelected = isSelected
         self.isHovered = isHovered
         self.compact = compact
+        self.usesDarkTheme = usesDarkTheme
     }
 
     var body: some View {
@@ -368,17 +463,17 @@ struct RouteOptionRow: View {
         HStack(spacing: 10) {
             Text(title)
                 .font(.system(size: titleFontSize, weight: .bold, design: .rounded))
-                .foregroundStyle(Palette.ink)
+                .foregroundStyle(usesDarkTheme ? Color.white.opacity(0.90) : Palette.ink)
                 .frame(width: titleWidth, alignment: .leading)
 
             Text(duration)
                 .font(.system(size: durationFontSize, weight: .bold, design: .rounded))
-                .foregroundStyle(Palette.ink)
+                .foregroundStyle(usesDarkTheme ? Color.white.opacity(0.95) : Palette.ink)
                 .frame(width: durationWidth, alignment: .leading)
 
             Text(distance)
                 .font(.system(size: distanceFontSize, weight: .semibold, design: .rounded))
-                .foregroundStyle(Palette.cocoa)
+                .foregroundStyle(usesDarkTheme ? Color(red: 0.66, green: 0.71, blue: 0.78) : Palette.cocoa)
                 .frame(maxWidth: .infinity, alignment: .trailing)
 
             if isSelected {
@@ -391,12 +486,38 @@ struct RouteOptionRow: View {
         .frame(height: rowHeight)
         .padding(.horizontal, 12)
         .background(
-            isSelected ? Palette.successBackground : ((isHovered && !isSelected) ? Palette.hoverBackground : Palette.panel),
+            backgroundColor,
             in: RoundedRectangle(cornerRadius: 12, style: .continuous)
         )
         .overlay {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(isSelected ? Palette.success : Palette.surfaceBorder, lineWidth: isSelected ? 1.6 : 1)
+                .stroke(borderColor, lineWidth: isSelected ? 1.6 : 1)
         }
+    }
+
+    private var backgroundColor: Color {
+        if usesDarkTheme {
+            if isSelected {
+                return Color(red: 0.13, green: 0.21, blue: 0.19)
+            }
+
+            if isHovered {
+                return Color(red: 0.19, green: 0.23, blue: 0.28)
+            }
+
+            return Color(red: 0.15, green: 0.18, blue: 0.22)
+        }
+
+        return isSelected ? Palette.successBackground : ((isHovered && !isSelected) ? Palette.hoverBackground : Palette.panel)
+    }
+
+    private var borderColor: Color {
+        if usesDarkTheme {
+            return isSelected
+                ? Palette.success.opacity(0.70)
+                : Color.white.opacity(0.08)
+        }
+
+        return isSelected ? Palette.success : Palette.surfaceBorder
     }
 }
