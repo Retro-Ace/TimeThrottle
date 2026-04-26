@@ -23,7 +23,7 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>TimeThrottle uses your location to track Live Drive progress against the Apple Maps ETA baseline.</string>
+	<string>TimeThrottle uses your location for Live Drive tracking and to find nearby public scanner systems when you use Scanner Nearby.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>TimeThrottle needs background location to keep Live Drive tracking active while Apple Maps, Google Maps, or Waze is open.</string>
 	<key>LSApplicationQueriesSchemes</key>
@@ -34,6 +34,7 @@
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>
+		<string>audio</string>
 	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>

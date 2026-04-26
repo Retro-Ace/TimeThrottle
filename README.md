@@ -26,16 +26,17 @@ Apple Maps provides route lookup, autocomplete, route options, and the ETA basel
 
 TimeThrottle now adds in-app guidance and route intelligence on top of the Apple Maps route data. It is not an Apple Maps replacement: external handoff to Apple Maps, Google Maps, or Waze remains available while TimeThrottle continues tracking the trip.
 
-## What's New in v1.5.9
+## What's New in v2.0
 
 Use this block for GitHub releases, TestFlight notes, and App Store Connect:
 
-> **TimeThrottle 1.5.9**
+> **TimeThrottle 2.0**
 >
-> - Polishes the Map-first driving HUD hierarchy around guidance, controls, recenter, weather, aircraft, and key metrics
-> - Keeps WeatherKit unavailable states inside Map Options instead of the main Map
-> - Makes the nearest-aircraft bar quieter and more informational
-> - Cleans Trips and Trip Detail wording around Apple ETA, speed-limit analysis, distance, average speed, top speed, and speed-limit coverage
+> - Adds a fourth Scanner tab for informational public scanner listening
+> - Adds Nearby and Browse scanner system discovery using an OpenMHz-style public scanner client
+> - Shows latest public scanner calls for a selected system
+> - Adds scanner audio playback with background audio support when the user starts playback
+> - Keeps Scanner independent from Live Drive, route intelligence, and driving calculations
 
 ## Core Product
 
@@ -59,7 +60,21 @@ It supports:
 - Trip History for completed drives
 - shareable finished-trip summaries
 - optional navigation handoff to Apple Maps, Google Maps, or Waze
-- bottom navigation for Drive, Map, and Trips
+- bottom navigation for Drive, Map, Trips, and Scanner
+
+### Scanner
+
+Scanner is separate from Live Drive.
+
+It supports:
+- public scanner listening
+- Nearby scanner systems when location access is available
+- Browse and search by system name, short name, city, county, or state
+- latest public scanner calls for a selected system
+- simple play / pause / next-call playback
+- background audio while scanner playback is active
+
+Scanner uses an OpenMHz-style API client with a configurable base URL. It can point to a hosted OpenMHz endpoint, a self-hosted OpenMHz endpoint, or a compatible backend later. Scanner is listening only: TimeThrottle does not record scanner audio, does not upload scanner feeds, and does not use scanner audio for Live Drive, route warnings, incident prediction, or driving recommendations.
 
 ### Map Tab Driving HUD
 
@@ -126,7 +141,10 @@ TimeThrottle starts tracking first, then opens the selected navigation app if ba
 - WeatherKit may be used for route weather forecasts near sampled route checkpoints
 - OpenStreetMap may be queried and locally cached for speed-limit estimates where available
 - OpenSky ADS-B may be queried on a conservative refresh interval when the optional passive Nearby Low Aircraft layer is enabled; stale or unavailable data is handled quietly and is not a safety system
-- Optional enforcement alerts may use configured provider or open-data lookups where available; coverage varies by region and alerts are not guaranteed or legal/police-detection guidance
+- Optional enforcement alerts may use configured provider or open-data lookups where available; coverage varies by region and alerts are not guaranteed legal or enforcement guidance
+- Scanner may use location to find nearby public scanner systems when Scanner Nearby is used
+- Scanner audio comes from third-party public scanner feed providers; TimeThrottle does not record scanner audio
+- Scanner playback can continue in the background when the user starts scanner audio
 - Live Drive uses iPhone location services when the user enables them
 - Completed Live Drive trips are stored locally on-device
 - The preferred navigation app choice is stored locally on-device
@@ -140,8 +158,8 @@ For the full policy, see [privacy-policy.md](/Users/anthonylarosa/CODEX/TimeThro
 - **Platform:** iPhone / iOS only
 - **Deployment target:** iOS 17+
 - **Bundle ID:** `com.timethrottle.app`
-- **Current release:** v1.5.9
-- **Current build:** 17
+- **Current release:** v2.0
+- **Current build:** 18
 - **Primary app target:** `TimeThrottle.xcodeproj`
 - **Primary shared UI:** `Sources/SharedUI/RouteComparisonView.swift`
 
@@ -154,6 +172,8 @@ For the full policy, see [privacy-policy.md](/Users/anthonylarosa/CODEX/TimeThro
 - `SpeedLimitProvider.swift` / `OSMSpeedLimitService.swift` / `OSMSpeedLimitProvider.swift` — speed-limit estimate protocol, current-road OpenStreetMap lookup, and local cache wrapper
 - `AircraftProvider.swift` / `OpenSkyAircraftProvider.swift` — optional passive Nearby Low Aircraft models and OpenSky implementation
 - `EnforcementAlertProvider.swift` — optional camera and enforcement report model/provider/service foundation
+- `ScannerModels.swift` — public scanner system, call, talkgroup, nearby sorting, and geocode cache models
+- `OpenMHzScannerService.swift` — configurable OpenMHz-style scanner API client for systems, latest calls, and talkgroups
 - `TripHistoryStore.swift` — local persistence for completed Live Drive trips
 - `TripAnalysisEngine.swift` — live pace and trip summary generation
 - `PaceAnalysisMath.swift` — shared speed-limit comparison helper
@@ -161,6 +181,8 @@ For the full policy, see [privacy-policy.md](/Users/anthonylarosa/CODEX/TimeThro
 - `LiveDriveHUDView.swift` — legacy compact driving-view component retained internally while Map is the primary driving HUD
 - `LiveDriveHUDMapView_iOS.swift` — Map follow, route polyline, user location, aircraft markers, enforcement alert markers, and recenter behavior
 - `NavigationHandoffService.swift` — Apple Maps / Google Maps / Waze / Ask Every Time handoff behavior
+- `ScannerViewModel.swift` — Scanner tab systems, Nearby/Browse, selected system, latest calls, and player state
+- `ScannerTabView.swift` — Scanner tab UI, system lists, selected-system detail, latest calls, and player controls
 
 ## Repository Layout
 

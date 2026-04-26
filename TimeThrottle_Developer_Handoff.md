@@ -1,4 +1,4 @@
-# TimeThrottle — Developer Handoff (v1.5.9)
+# TimeThrottle — Developer Handoff (v2.0)
 
 > Start here when you want the shortest practical handoff.
 >
@@ -24,7 +24,7 @@ The app uses **Apple Maps** as the route lookup and ETA-baseline layer. During a
 
 ### Live Drive with route intelligence
 
-The active iPhone product is **Live Drive** with route intelligence layered on top of the Apple Maps route baseline.
+The active iPhone product is **Live Drive** with route intelligence layered on top of the Apple Maps route baseline, plus a separate **Scanner** tab for informational public scanner listening.
 
 Supports:
 - Apple Maps route lookup + ETA baseline
@@ -38,7 +38,10 @@ Supports:
 - compact floating weather chip when route forecast data is available
 - compact nearest-aircraft Map bar when aircraft data exists
 - route-step guidance in the Map tab
-- bottom navigation for Drive, Map, and Trips
+- bottom navigation for Drive, Map, Trips, and Scanner
+- Scanner Nearby / Browse public scanner systems
+- OpenMHz-style scanner systems, latest calls, and talkgroups client
+- scanner playback with background audio while playback is active
 - dedicated map-first active driving view
 - improved local iOS system voice guidance with persisted voice settings
 - Map tab Options panel for weather, aircraft, enforcement alerts, voice, speed-limit, pace, map mode, average speed, and top speed details
@@ -55,16 +58,17 @@ Supports:
 - finished-trip sharing
 - optional Apple Maps / Google Maps / Waze handoff
 
-## v1.5.9 State
+## v2.0 State
 
 ### Version / build
-- **Version:** 1.5.9
-- **Build:** 17
+- **Version:** 2.0
+- **Build:** 18
 
-- polishes the Map-first driving hierarchy around guidance, controls, recenter, weather, aircraft, and key metrics
-- keeps WeatherKit unavailable states inside Map Options instead of the main Map
+- adds the Scanner tab as a separate listening-only feature
+- supports Nearby and Browse scanner systems
+- loads latest public scanner calls for a selected system
+- adds scanner play / pause / next-call playback and background audio support
 - keeps route intelligence details in Map Options
-- cleans Trips wording around Apple ETA, speed-limit analysis, distance, average speed, top speed, and speed-limit coverage
 - keeps Live Drive tracking, Apple Maps ETA baseline, speed-limit analysis, route intelligence, Trip History, and external handoff intact
 
 ## Important product truth constraints
@@ -75,7 +79,9 @@ Do not imply:
 - certified speed-limit accuracy
 - live traffic ownership
 - aviation safety or collision-avoidance alerts
-- guaranteed enforcement or police detection
+- guaranteed enforcement detection
+- scanner audio recording
+- scanner-based route warnings, incident prediction, or driving recommendations
 
 TimeThrottle can safely show:
 - route context
@@ -87,6 +93,8 @@ TimeThrottle can safely show:
 - speed-limit estimates where available
 - optional passive nearby low ADS-B aircraft
 - optional provider-backed camera/enforcement alerts with region-dependent coverage and quiet empty/unavailable states
+- public scanner listening when the user opens Scanner
+- background scanner audio after the user starts playback
 - optional external navigation handoff
 
 ## Most Important Current Files
@@ -105,6 +113,8 @@ TimeThrottle can safely show:
 - `Sources/Core/AircraftProvider.swift`
 - `Sources/Core/OpenSkyAircraftProvider.swift`
 - `Sources/Core/EnforcementAlertProvider.swift`
+- `Sources/Core/ScannerModels.swift`
+- `Sources/Core/OpenMHzScannerService.swift`
 
 ### Shared UI
 - `Sources/SharedUI/RouteComparisonView.swift`
@@ -112,6 +122,8 @@ TimeThrottle can safely show:
 - `Sources/SharedUI/NavigationHandoffService.swift`
 - `Sources/SharedUI/TripHistoryViews.swift`
 - `Sources/SharedUI/LiveDriveHUDView.swift`
+- `Sources/SharedUI/ScannerViewModel.swift`
+- `Sources/SharedUI/ScannerTabView.swift`
 
 ### iOS
 - `Sources/iOS/TimeThrottleApp_iOS.swift`
@@ -139,6 +151,7 @@ TimeThrottle can safely show:
 - **Drive:** Live Drive setup, Current Location start, destination input, route options, compact navigation app choice, and Start Drive.
 - **Map:** primary active driving HUD with route polyline, user location, next maneuver, speed, Speed Limit estimate where available, Apple Maps ETA, projected arrival, route distance, miles driven, Pause / Resume, End Trip, recenter, and Options.
 - **Trips:** Trip History list and details.
+- **Scanner:** Nearby / Browse public scanner systems, selected-system latest calls, and playback.
 
 Switching tabs should not reset active trip state.
 
@@ -173,7 +186,7 @@ TimeThrottle
 
 ## Release / Packaging Notes
 
-- current release target: **v1.5.9 / build 17**
+- current release target: **v2.0 / build 18**
 - simulator build path: `./dist-ios`
 - current simulator bundle output: `dist/iOSSimulator/TimeThrottle.app`
 
@@ -191,5 +204,5 @@ Protect:
 
 ## Final Plain-English Summary
 
-TimeThrottle is now a Live Drive-only pace-analysis app with bottom navigation. It uses Apple Maps for route lookup and ETA baseline planning, tracks real trips, stores Trip History locally, supports optional external navigation handoff, and focuses the product on Time Above Speed Limit, Time Below Speed Limit, and projected arrival versus Apple Maps ETA baseline.
-TimeThrottle 1.5.9 keeps speed-limit analysis tied to available OpenStreetMap estimates, keeps optional provider-backed Enforcement Alerts carefully worded, keeps Standard / Satellite map mode, preserves Drive / Map / Trips, and consolidates Map route-intelligence details into Options without adding unsupported navigation, enforcement, weather, speed-limit, or safety claims.
+TimeThrottle is now a Live Drive-first pace-analysis app with bottom navigation. It uses Apple Maps for route lookup and ETA baseline planning, tracks real trips, stores Trip History locally, supports optional external navigation handoff, and focuses driving results on Time Above Speed Limit, Time Below Speed Limit, and projected arrival versus Apple Maps ETA baseline.
+TimeThrottle 2.0 keeps speed-limit analysis tied to available OpenStreetMap estimates, keeps optional provider-backed Enforcement Alerts carefully worded, keeps Standard / Satellite map mode, uses Drive / Map / Trips / Scanner with Scanner as a separate public listening tab, and keeps Map route-intelligence details in Options without adding unsupported navigation, enforcement, weather, speed-limit, scanner, or safety claims.

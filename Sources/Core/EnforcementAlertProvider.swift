@@ -13,7 +13,7 @@ public enum EnforcementAlertType: String, Codable, CaseIterable, Sendable {
         case .redLightCamera:
             return "Red-Light Camera"
         case .policeReported:
-            return "Police Reported"
+            return "Reported Enforcement"
         case .other:
             return "Enforcement Report"
         }

@@ -8,7 +8,7 @@ Scope: Documentation-only audit of the Git repo at `/Users/anthonylarosa/CODEX/T
 
 - This repo is its own Git repository rooted at `/Users/anthonylarosa/CODEX/TimeThrottle`.
 - `AGENTS.md` says this repo is the iPhone Live Drive app `TimeThrottle`.
-- `README.md` describes TimeThrottle as an iPhone pace-analysis app built around Apple Maps route planning and ETA baseline data plus live trip tracking.
+- `README.md` describes TimeThrottle as an iPhone pace-analysis app built around Apple Maps route planning and ETA baseline data plus live trip tracking, with a separate Scanner tab for informational public scanner listening.
 - The docs consistently describe this repo as an iOS app codebase, not a shared workspace repo and not part of `Super Goode`, `Super Goode App`, or `PhotoCleanupStudio`.
 
 ## Start Here
@@ -28,7 +28,7 @@ Scope: Documentation-only audit of the Git repo at `/Users/anthonylarosa/CODEX/T
   - `Time Below Speed Limit`
   - projected arrival versus the Apple Maps ETA baseline
 - The docs repeatedly state that the app is not built-in turn-by-turn navigation.
-- `Resources/iOS/Info.plist` shows location permissions and background-location usage descriptions that support live drive tracking and external navigation handoff.
+- `Resources/iOS/Info.plist` shows location permissions, background-location usage, and background-audio support for scanner playback after the user starts audio.
 
 ## High-Level Repo Structure
 
@@ -49,9 +49,9 @@ Scope: Documentation-only audit of the Git repo at `/Users/anthonylarosa/CODEX/T
 ### Main source folders
 
 - `Sources/Core`
-  - Core trip tracking, pace math, analysis, and history storage logic.
+  - Core trip tracking, pace math, analysis, history storage logic, scanner models, and OpenMHz-style scanner client.
 - `Sources/SharedUI`
-  - Shared SwiftUI views, models, layout helpers, and navigation handoff support.
+  - Shared SwiftUI views, models, layout helpers, navigation handoff support, and Scanner tab UI/view model.
 - `Sources/iOS`
   - iOS app entry point and iOS-specific map and screen views.
 - `Tests/CoreTests`

@@ -1,4 +1,4 @@
-# TimeThrottle — Master Project Document (v1.5.9)
+# TimeThrottle — Master Project Document (v2.0)
 
 > Start here after `README.md` when you need a fuller product and project reference.
 >
@@ -21,7 +21,7 @@ TimeThrottle is **not** an Apple Maps replacement or Apple-native navigation eng
 
 ## Current Product Structure
 
-As of **v1.5.9**, the active iPhone product is centered on **Live Drive** with the Map tab as the primary driving HUD and route intelligence layered on top of the Apple Maps route baseline.
+As of **v2.0**, the active iPhone product is centered on **Live Drive** with the Map tab as the primary driving HUD, plus a separate Scanner tab for informational public scanner listening.
 
 ### Live Drive
 
@@ -47,7 +47,22 @@ Live Drive supports:
 - Trip History storage
 - shareable finished-trip summaries
 - optional external navigation handoff
-- bottom navigation for Drive, Map, and Trips
+- bottom navigation for Drive, Map, Trips, and Scanner
+
+### Scanner
+
+Scanner is separate from Live Drive and does not feed driving calculations, route intelligence, route warnings, trip results, or navigation handoff.
+
+Scanner supports:
+- public scanner listening
+- Nearby scanner systems when location is available
+- Browse and search by system name, short name, city, county, or state
+- latest public scanner calls for a selected system
+- simple play / pause / next-call playback
+- background audio while scanner playback is active
+- graceful unavailable states when provider data or audio is unavailable
+
+Scanner uses a configurable OpenMHz-style API client for systems, latest calls, and talkgroups. TimeThrottle does not record scanner audio, does not support user-uploaded scanner feeds, and does not claim provider coverage or freshness guarantees.
 
 ## Live Drive Results
 
@@ -85,10 +100,11 @@ The Map tab is the primary active driving surface.
 
 ## App Navigation
 
-v1.5.9 uses a bottom app navigation structure:
+v2.0 uses a bottom app navigation structure:
 - **Drive** = Live Drive setup, Current Location start, destination input, route options, compact navigation app choice, and Start Drive
 - **Map** = primary active driving HUD with route polyline, user location, next maneuver, speed, Speed Limit estimate where available, Apple Maps ETA, projected arrival, route distance, miles driven, Pause / Resume, End Trip, recenter, and an Options panel for route-intelligence details
 - **Trips** = Trip History list and trip detail screens
+- **Scanner** = public scanner listening with Nearby / Browse system discovery, latest calls, and playback
 
 Switching between these tabs preserves the active trip state.
 
@@ -104,6 +120,7 @@ TimeThrottle currently does:
 - speed-limit estimates where OpenStreetMap data is available, with confidence and local cache support
 - optional passive nearby low aircraft from OpenSky ADS-B data, refreshed conservatively and removed when stale
 - optional passive camera/enforcement alerts from configured providers when available; coverage varies by region and alerts are not guaranteed
+- separate public scanner listening with OpenMHz-style systems, latest calls, talkgroups, and playback
 - Standard / Satellite map mode
 - local iOS system voice selection with persisted voice, mute, and speech speed settings
 - trip result review
@@ -116,7 +133,9 @@ TimeThrottle does **not** currently claim:
 - certified road speed-limit accuracy
 - live traffic ownership
 - aviation safety or collision-avoidance alerts
-- guaranteed enforcement or police detection
+- guaranteed enforcement detection
+- scanner audio recording
+- scanner-based route warnings or driving recommendations
 
 ## Development History
 
@@ -137,6 +156,7 @@ TimeThrottle does **not** currently claim:
 - v1.5.7: added a floating Map recenter control and compact floating weather chip for quick-glance route conditions
 - v1.5.8: defaulted aircraft on, made recenter icon-only, fixed weather chip icon rendering, and added a nearest-aircraft Map bar
 - v1.5.9: polished the Map-first driving hierarchy, consolidated route intelligence into Options, and cleaned Trips wording around ETA, speed-limit analysis, top speed, and speed-limit coverage
+- v2.0: added a separate Scanner tab with Nearby / Browse public scanner systems, latest calls, OpenMHz-style service models, playback, background audio, and privacy updates
 
 ## Repo / App Structure
 
@@ -162,9 +182,9 @@ TimeThrottle
 
 ## Current Release State
 
-- **Version:** 1.5.9
-- **Build:** 17
+- **Version:** 2.0
+- **Build:** 18
 
 ## Plain-English Summary
 
-**TimeThrottle is now a Live Drive-first iPhone pace-analysis app with Drive / Map / Trips navigation. Map is the primary driving HUD, while Options holds route intelligence details. It uses Apple Maps as the route and ETA-baseline layer, tracks real trips, adds truthful route-step guidance, persistent local system voice prompts, route weather, cached OpenStreetMap speed-limit estimates, optional passive Nearby Low Aircraft with stale-data handling, optional provider-backed Enforcement Alerts with varied coverage, Standard / Satellite map mode, local Trip History, external navigation handoff, and finished-trip results centered on Time Above Speed Limit, Time Below Speed Limit, Top speed, and Apple Maps ETA baseline.**
+**TimeThrottle is now a Live Drive-first iPhone pace-analysis app with Drive / Map / Trips / Scanner navigation. Map is the primary driving HUD, while Options holds route intelligence details. Scanner is separate and provides informational public scanner listening through Nearby / Browse systems, latest calls, and playback. The app uses Apple Maps as the route and ETA-baseline layer, tracks real trips, adds truthful route-step guidance, persistent local system voice prompts, route weather, cached OpenStreetMap speed-limit estimates, optional passive Nearby Low Aircraft with stale-data handling, optional provider-backed Enforcement Alerts with varied coverage, Standard / Satellite map mode, local Trip History, external navigation handoff, and finished-trip results centered on Time Above Speed Limit, Time Below Speed Limit, Top speed, and Apple Maps ETA baseline.**

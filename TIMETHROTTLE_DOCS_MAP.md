@@ -16,7 +16,7 @@ Scope: Documentation map for meaningful docs currently present in `/Users/anthon
 ## Release And Policy Docs
 
 - `CHANGELOG.md`
-  - Release-facing notes for current versions, especially `v1.4.3` and `v1.4.2`.
+  - Release-facing notes for current versions, including v2.0 Scanner and the v1.5 Map-first releases.
   - Clarity note: clear, focused, and intentionally current-state oriented.
 - `privacy-policy.md`
   - Current privacy, data-use, local-storage, and handoff-service explanation for the app.

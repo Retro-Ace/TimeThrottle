@@ -2,6 +2,34 @@
 
 All notable release-facing changes to **TimeThrottle** should be documented in this file.
 
+## v2.0 - April 26, 2026
+
+### What's New
+
+Use this block for GitHub releases, TestFlight notes, or App Store Connect:
+
+> **TimeThrottle 2.0**
+>
+> - Adds a Scanner tab for informational public scanner listening
+> - Adds Nearby and Browse scanner system discovery
+> - Adds an OpenMHz-style public scanner client for systems, latest calls, and talkgroups
+> - Adds latest-call scanner playback with background audio support
+> - Updates location, privacy, and release docs for Scanner
+> - Keeps Live Drive, Map driving HUD, Drive, Trips, and route intelligence unchanged
+
+### Release Notes
+
+- Bottom navigation is now Drive / Map / Trips / Scanner.
+- Scanner is independent from Live Drive and does not affect driving calculations, route intelligence, or trip results.
+- Scanner supports public scanner systems, latest calls, simple play / pause / next-call controls, and graceful unavailable states.
+- The scanner service uses a configurable OpenMHz-style base URL so provider configuration can change later.
+- TimeThrottle does not record scanner audio or support user-uploaded scanner feeds.
+- Scanner coverage varies by system and provider; no push alerts or incident prediction are included in v2.0.
+
+### Release Positioning
+
+TimeThrottle 2.0 adds public scanner listening as a separate informational tab while preserving the Map-first Live Drive product model. Apple Maps remains the route lookup and ETA-baseline layer, and Scanner remains a listening-only feature outside Live Drive.
+
 ## v1.5.9 - April 26, 2026
 
 ### What's New
@@ -110,7 +138,7 @@ Use this block for GitHub releases, TestFlight notes, or App Store Connect:
 ### Release Notes
 
 - Enforcement Alerts are optional, passive, and provider-backed; if no source is configured, the app shows quiet empty/unavailable states and does not fake live alerts.
-- Alert coverage varies by region and is not a legal guarantee, police-detection system, or real-time safety system.
+- Alert coverage varies by region and is not a legal guarantee, enforcement-detection system, or real-time safety system.
 - Standard remains the default map mode; Satellite changes map imagery only.
 - Top speed ignores invalid/negative GPS speed samples and older trip records show `—` when no top speed was saved.
 

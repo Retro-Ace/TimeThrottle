@@ -61,7 +61,7 @@ Scope: File and folder index for `/Users/anthonylarosa/CODEX/TimeThrottle` only,
   - Contains one native app target named `TimeThrottle`.
   - Pulls source files from `Sources/iOS`, `Sources/Core`, and `Sources/SharedUI`.
   - Uses `Resources/iOS/Info.plist`.
-  - Sets iOS deployment target `17.0`, marketing version `1.4.3`, build `7`, bundle identifier `com.timethrottle.app`, and Swift version `6.0`.
+  - Sets iOS deployment target `17.0`, marketing version `2.0`, build `18`, bundle identifier `com.timethrottle.app`, and Swift version `6.0`.
 
 ## Workspace Wrapper
 
@@ -85,18 +85,22 @@ Scope: File and folder index for `/Users/anthonylarosa/CODEX/TimeThrottle` only,
   - `Sources/Core/PaceAnalysisMath.swift`
   - `Sources/Core/TripAnalysisEngine.swift`
   - `Sources/Core/TripHistoryStore.swift`
+  - `Sources/Core/ScannerModels.swift`
+  - `Sources/Core/OpenMHzScannerService.swift`
   - `Sources/SharedUI/RouteComparisonView.swift`
   - `Sources/SharedUI/RouteModels.swift`
   - `Sources/SharedUI/NavigationHandoffService.swift`
   - `Sources/SharedUI/TripHistoryViews.swift`
   - `Sources/SharedUI/LiveDriveHUDView.swift`
+  - `Sources/SharedUI/ScannerViewModel.swift`
+  - `Sources/SharedUI/ScannerTabView.swift`
   - `Sources/iOS/TimeThrottleApp_iOS.swift`
   - `Sources/iOS/IOSRouteComparisonScreen.swift`
   - `Sources/iOS/RoutePreviewMapView_iOS.swift`
   - `Sources/iOS/LiveDriveHUDMapView_iOS.swift`
 - Current-use notes:
-  - `Core` is the package-backed logic layer.
-  - `SharedUI` groups reusable app-facing UI and shared models/helpers.
+  - `Core` is the package-backed logic layer, including scanner models and the OpenMHz-style scanner client.
+  - `SharedUI` groups reusable app-facing UI, Scanner UI, and shared models/helpers.
   - `iOS` contains the iPhone app entry and iOS-specific map/screen code.
 
 ## Tests
@@ -108,6 +112,7 @@ Scope: File and folder index for `/Users/anthonylarosa/CODEX/TimeThrottle` only,
   - `Tests/CoreTests/TimeThrottleCoreTests.swift`
   - `Tests/CoreTests/TripAnalysisEngineTests.swift`
   - `Tests/CoreTests/TripHistoryStoreTests.swift`
+  - `Tests/CoreTests/ScannerServiceTests.swift`
 - Current-use notes:
   - The package file directly connects these tests to the `TimeThrottleCore` target.
 
@@ -122,7 +127,7 @@ Scope: File and folder index for `/Users/anthonylarosa/CODEX/TimeThrottle` only,
   - `Resources/TimeThrottleLogo/TimeThrottle-Logo.png`
   - `Resources/TimeThrottleLogo/TimeThrottle-Logo-Only.png`
 - Current-use notes:
-  - `Info.plist` contains location permission messaging, background-location mode, and URL scheme queries for Google Maps and Waze.
+  - `Info.plist` contains location permission messaging, background-location mode, background-audio mode, and URL scheme queries for Google Maps and Waze.
 
 ## Asset Catalog
 

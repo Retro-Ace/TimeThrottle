@@ -21,6 +21,7 @@ private enum LiveDriveAppTab: String, CaseIterable, Identifiable {
     case drive
     case map
     case trips
+    case scanner
 
     var id: String { rawValue }
 
@@ -29,6 +30,7 @@ private enum LiveDriveAppTab: String, CaseIterable, Identifiable {
         case .drive: return "Drive"
         case .map: return "Map"
         case .trips: return "Trips"
+        case .scanner: return "Scanner"
         }
     }
 
@@ -37,6 +39,7 @@ private enum LiveDriveAppTab: String, CaseIterable, Identifiable {
         case .drive: return "location.fill"
         case .map: return "map.fill"
         case .trips: return "clock.arrow.circlepath"
+        case .scanner: return "radio.fill"
         }
     }
 }
@@ -144,6 +147,7 @@ public struct RouteComparisonView: View {
     @StateObject private var tracker = LiveDriveTracker()
     @StateObject private var guidanceEngine = TurnByTurnGuidanceEngine()
     @StateObject private var tripHistoryStore = TripHistoryStore()
+    @StateObject private var scannerViewModel = ScannerViewModel()
 
     public init<MapPreview: View>(
         configuration: RouteComparisonConfiguration = RouteComparisonConfiguration(),
@@ -1205,6 +1209,12 @@ public struct RouteComparisonView: View {
                 Label(LiveDriveAppTab.trips.title, systemImage: LiveDriveAppTab.trips.systemImage)
             }
             .tag(LiveDriveAppTab.trips)
+
+            ScannerTabView(viewModel: scannerViewModel)
+                .tabItem {
+                    Label(LiveDriveAppTab.scanner.title, systemImage: LiveDriveAppTab.scanner.systemImage)
+                }
+                .tag(LiveDriveAppTab.scanner)
         }
         .tint(Palette.success)
     }

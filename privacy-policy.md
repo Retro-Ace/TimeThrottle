@@ -2,7 +2,7 @@
 
 **Effective date:** April 26, 2026
 
-TimeThrottle is an iPhone Live Drive pace-analysis app. It uses Apple Maps route planning as the route and ETA baseline layer and, when enabled by the user, iPhone location services for live trip tracking, guidance based on route steps, and route intelligence features.
+TimeThrottle is an iPhone Live Drive pace-analysis app with a separate Scanner tab for informational public scanner listening. It uses Apple Maps route planning as the route and ETA baseline layer and, when enabled by the user, iPhone location services for live trip tracking, guidance based on route steps, route intelligence features, and nearby scanner discovery.
 
 This policy describes what the current app build uses, how that information is used, and what choices users have.
 
@@ -23,10 +23,11 @@ Location is used to:
 - check nearby low aircraft when the optional aircraft layer is enabled
 - check optional camera/enforcement reports near the current location when Enforcement Alerts are enabled and a source is configured
 - keep the Map tab centered on the current drive when follow mode is active
+- find nearby public scanner systems when you use Scanner Nearby
 
 If you choose external navigation handoff during Live Drive, the app may request **Always Location** so tracking can continue while Apple Maps, Google Maps, or Waze is open.
 
-If location access is denied or restricted, Live Drive will not function as intended.
+If location access is denied or restricted, Live Drive will not function as intended and Scanner Nearby falls back to Browse.
 
 ### 2. Route and Search Information
 
@@ -51,7 +52,7 @@ This currently includes:
 - whether optional aircraft and Enforcement Alerts layers are shown
 - completed Live Drive trip history
 
-These local records support handoff selection, local voice guidance preferences, and Trip History review after a Live Drive ends.
+These local records support handoff selection, local voice guidance preferences, scanner system location caching for Nearby, and Trip History review after a Live Drive ends.
 
 ## How TimeThrottle Uses This Information
 
@@ -63,6 +64,8 @@ TimeThrottle uses the information above only to:
 - show route-step guidance, route weather, speed-limit estimates, optional nearby low aircraft, and optional Enforcement Alerts when available
 - save completed Live Drive trips on-device for later review
 - hand off navigation to Apple Maps, Google Maps, or Waze when the user chooses that option
+- find nearby public scanner systems when Scanner Nearby is used
+- play third-party public scanner feed audio when the user starts Scanner playback
 
 ## External Services and Handoff
 
@@ -89,7 +92,13 @@ If you enable the optional Nearby Low Aircraft layer, TimeThrottle may query Ope
 
 ### Enforcement Alerts
 
-If you enable optional Enforcement Alerts, TimeThrottle may use a configured provider or open-data source for speed-camera, red-light-camera, and enforcement-report information near your route or current location. Coverage varies by region and may be unavailable in a given build or area. Alerts are passive and informational only; they are not guaranteed, not legal advice, not real-time police tracking, and not a police-detection system. If no source is configured or data is unavailable, TimeThrottle shows a quiet empty/unavailable state rather than fake live alerts.
+If you enable optional Enforcement Alerts, TimeThrottle may use a configured provider or open-data source for speed-camera, red-light-camera, and enforcement-report information near your route or current location. Coverage varies by region and may be unavailable in a given build or area. Alerts are passive and informational only; they are not guaranteed, not legal advice, and not a law-enforcement tracking or detection system. If no source is configured or data is unavailable, TimeThrottle shows a quiet empty/unavailable state rather than fake live alerts.
+
+### Public Scanner Feed Providers
+
+The Scanner tab may request public scanner system lists, latest call metadata, talkgroup metadata, and scanner audio URLs from a configured OpenMHz-style or compatible public scanner feed provider. Scanner is listening only and independent from Live Drive.
+
+Scanner audio comes from third-party public scanner feed providers. TimeThrottle does not record scanner audio, does not save scanner audio files locally except for normal system playback caching that iOS may perform, and does not support user-uploaded scanner feeds. Coverage, freshness, metadata, and audio availability vary by provider and system. Scanner playback can continue in the background if the user starts audio.
 
 ### Google Maps
 
@@ -117,6 +126,7 @@ Based on the current app repository and build configuration:
 - no third-party analytics SDK is included
 - no crash-reporting SDK is included
 - TimeThrottle does not sell personal information
+- TimeThrottle does not record scanner audio
 
 ## Data Storage
 
@@ -127,6 +137,7 @@ The verified on-device data currently stored by the app includes:
 - local iOS voice guidance preferences
 - selected Standard / Satellite map mode
 - optional aircraft and Enforcement Alerts visibility choices
+- cached approximate scanner system locations used for Scanner Nearby
 - completed Live Drive trip history
 
 Route calculations and Live Drive comparisons are otherwise performed in the app during normal use.
@@ -139,6 +150,8 @@ You can:
 - choose Apple Maps, Google Maps, Waze, or Ask Every Time for Live Drive handoff
 - choose Standard or Satellite map mode
 - turn optional Enforcement Alerts on or off
+- use Scanner Browse without granting location access for Scanner Nearby
+- stop scanner playback at any time
 - pause, resume, or end a Live Drive at any time
 - delete completed trips from Trip History
 
