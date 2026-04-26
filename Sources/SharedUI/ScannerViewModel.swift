@@ -37,10 +37,9 @@ final class ScannerViewModel: ObservableObject {
     private let locationProvider: ScannerLocationProvider
     private let geocodeCache: ScannerGeocodeCache
     private let geocoder = CLGeocoder()
+    private let observerStore = ScannerNotificationObserverStore()
     private var didLoadSystems = false
     private var player: AVPlayer?
-    private var playbackEndObserver: NSObjectProtocol?
-    private var interruptionObserver: NSObjectProtocol?
 
     init(
         service: OpenMHzScannerService = OpenMHzScannerService(),
@@ -50,15 +49,6 @@ final class ScannerViewModel: ObservableObject {
         self.locationProvider = ScannerLocationProvider()
         self.geocodeCache = geocodeCache
         observeAudioInterruptions()
-    }
-
-    deinit {
-        if let playbackEndObserver {
-            NotificationCenter.default.removeObserver(playbackEndObserver)
-        }
-        if let interruptionObserver {
-            NotificationCenter.default.removeObserver(interruptionObserver)
-        }
     }
 
     var activeSystems: [ScannerSystem] {
@@ -183,7 +173,7 @@ final class ScannerViewModel: ObservableObject {
 
         let item = AVPlayerItem(url: url)
         removePlaybackEndObserver()
-        playbackEndObserver = NotificationCenter.default.addObserver(
+        let playbackEndObserver = NotificationCenter.default.addObserver(
             forName: .AVPlayerItemDidPlayToEndTime,
             object: item,
             queue: .main
@@ -192,6 +182,7 @@ final class ScannerViewModel: ObservableObject {
                 self?.playNextCall()
             }
         }
+        observerStore.setPlaybackEndObserver(playbackEndObserver)
 
         let player = AVPlayer(playerItem: item)
         self.player = player
@@ -319,20 +310,22 @@ final class ScannerViewModel: ObservableObject {
     }
 
     private func observeAudioInterruptions() {
-        interruptionObserver = NotificationCenter.default.addObserver(
+        let interruptionObserver = NotificationCenter.default.addObserver(
             forName: AVAudioSession.interruptionNotification,
             object: AVAudioSession.sharedInstance(),
             queue: .main
         ) { [weak self] notification in
+            let typeRawValue = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt
             Task { @MainActor [weak self] in
-                self?.handleAudioInterruption(notification)
+                self?.handleAudioInterruption(typeRawValue: typeRawValue)
             }
         }
+        observerStore.setInterruptionObserver(interruptionObserver)
     }
 
-    private func handleAudioInterruption(_ notification: Notification) {
-        guard let typeValue = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
-              let type = AVAudioSession.InterruptionType(rawValue: typeValue) else {
+    private func handleAudioInterruption(typeRawValue: UInt?) {
+        guard let typeRawValue,
+              let type = AVAudioSession.InterruptionType(rawValue: typeRawValue) else {
             return
         }
 
@@ -347,9 +340,40 @@ final class ScannerViewModel: ObservableObject {
     }
 
     private func removePlaybackEndObserver() {
+        observerStore.removePlaybackEndObserver()
+    }
+}
+
+private final class ScannerNotificationObserverStore {
+    private var playbackEndObserver: NSObjectProtocol?
+    private var interruptionObserver: NSObjectProtocol?
+
+    deinit {
+        removePlaybackEndObserver()
+        removeInterruptionObserver()
+    }
+
+    func setPlaybackEndObserver(_ observer: NSObjectProtocol) {
+        removePlaybackEndObserver()
+        playbackEndObserver = observer
+    }
+
+    func setInterruptionObserver(_ observer: NSObjectProtocol) {
+        removeInterruptionObserver()
+        interruptionObserver = observer
+    }
+
+    func removePlaybackEndObserver() {
         if let playbackEndObserver {
             NotificationCenter.default.removeObserver(playbackEndObserver)
             self.playbackEndObserver = nil
+        }
+    }
+
+    private func removeInterruptionObserver() {
+        if let interruptionObserver {
+            NotificationCenter.default.removeObserver(interruptionObserver)
+            self.interruptionObserver = nil
         }
     }
 }
