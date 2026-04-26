@@ -165,7 +165,18 @@ public struct ScannerCall: Identifiable, Codable, Equatable, Sendable {
         let systemShortName = container.flexibleString(for: "systemShortName", "system", "shortName", "short_name") ?? ""
         let timestamp = container.flexibleDate(for: "timestamp", "time", "date", "createdAt", "startTime")
         let talkgroup = container.flexibleInt(for: "talkgroup", "talkgroupNum", "talkgroupNumber", "tg", "decimal")
-        let audioString = container.flexibleString(for: "audioURL", "audioUrl", "mediaURL", "mediaUrl", "url", "mp3", "callURL")
+        let audioString = container.flexibleString(
+            for: "audioURL",
+            "audioUrl",
+            "mediaURL",
+            "mediaUrl",
+            "streamURL",
+            "streamUrl",
+            "url",
+            "mp3",
+            "callURL",
+            "filename"
+        )
 
         self.init(
             id: container.flexibleString(for: "id", "_id", "uuid", "callId")
@@ -178,8 +189,8 @@ public struct ScannerCall: Identifiable, Codable, Equatable, Sendable {
             talkgroup: talkgroup,
             talkgroupLabel: container.flexibleString(for: "talkgroupLabel", "talkgroup_label", "alphaTag", "alpha_tag", "name", "label"),
             timestamp: timestamp,
-            duration: container.flexibleDouble(for: "duration", "durationSeconds", "length", "seconds"),
-            audioURL: audioString.flatMap(URL.init(string:)),
+            duration: container.flexibleDouble(for: "duration", "durationSeconds", "length", "seconds", "len"),
+            audioURL: Self.makeAudioURL(from: audioString),
             metadataDisplayText: container.flexibleString(for: "metadata", "metadataDisplayText", "display", "text", "description"),
             source: container.flexibleString(for: "source", "provider"),
             frequency: container.flexibleString(for: "frequency", "freq"),
@@ -197,6 +208,21 @@ public struct ScannerCall: Identifiable, Codable, Equatable, Sendable {
         guard let audioURL else { return nil }
         guard audioURL.scheme == nil, let baseURL else { return audioURL.absoluteURL }
         return URL(string: audioURL.relativeString, relativeTo: baseURL)?.absoluteURL
+    }
+
+    private static func makeAudioURL(from string: String?) -> URL? {
+        guard let trimmed = string?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !trimmed.isEmpty else {
+            return nil
+        }
+
+        if let url = URL(string: trimmed) {
+            return url
+        }
+
+        return trimmed
+            .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
+            .flatMap(URL.init(string:))
     }
 }
 

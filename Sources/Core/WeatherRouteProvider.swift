@@ -1,5 +1,8 @@
 import CoreLocation
 import Foundation
+#if canImport(OSLog)
+import OSLog
+#endif
 #if canImport(WeatherKit)
 import WeatherKit
 #endif
@@ -64,9 +67,24 @@ public struct RouteWeatherTimelineEntry: Identifiable, Equatable, Sendable {
     }
 }
 
-public enum WeatherRouteProviderError: Error, Equatable {
+public enum WeatherRouteProviderError: Error, Equatable, LocalizedError, Sendable {
     case insufficientRouteGeometry
+    case weatherKitNotConfigured
     case forecastUnavailable
+    case weatherKitRequestFailed(String)
+
+    public var errorDescription: String? {
+        switch self {
+        case .insufficientRouteGeometry:
+            return "Route geometry did not include enough points for route weather checkpoints."
+        case .weatherKitNotConfigured:
+            return "WeatherKit is not configured for this build."
+        case .forecastUnavailable:
+            return "Weather forecast data is unavailable for this route."
+        case .weatherKitRequestFailed(let reason):
+            return reason
+        }
+    }
 }
 
 public protocol RouteWeatherForecastClient: Sendable {
@@ -77,7 +95,7 @@ public struct UnavailableRouteWeatherForecastClient: RouteWeatherForecastClient 
     public init() {}
 
     public func forecast(for checkpoint: RouteWeatherCheckpoint) async throws -> RouteWeatherForecast {
-        throw WeatherRouteProviderError.forecastUnavailable
+        throw WeatherRouteProviderError.weatherKitNotConfigured
     }
 }
 
@@ -221,13 +239,24 @@ public struct WeatherKitRouteWeatherForecastClient: RouteWeatherForecastClient {
     public init() {}
 
     public func forecast(for checkpoint: RouteWeatherCheckpoint) async throws -> RouteWeatherForecast {
-        let weather = try await WeatherService.shared.weather(for: checkpoint.coordinate.location)
         let arrival = checkpoint.expectedArrivalDate
+        Self.logRequest(checkpoint: checkpoint)
+
+        let weather: Weather
+        do {
+            weather = try await WeatherService.shared.weather(for: checkpoint.coordinate.location)
+        } catch {
+            let reason = Self.requestFailureReason(from: error)
+            Self.logFailure(checkpoint: checkpoint, error: error, reason: reason)
+            throw WeatherRouteProviderError.weatherKitRequestFailed(reason)
+        }
+
         let hourlyForecast = weather.hourlyForecast.forecast.min {
             abs($0.date.timeIntervalSince(arrival)) < abs($1.date.timeIntervalSince(arrival))
         }
 
         if let hourlyForecast {
+            Self.logSuccess(checkpoint: checkpoint, usedHourlyForecast: true)
             return RouteWeatherForecast(
                 summary: "Expected around arrival: \(hourlyForecast.condition.description)",
                 temperatureCelsius: hourlyForecast.temperature.converted(to: .celsius).value,
@@ -238,6 +267,7 @@ public struct WeatherKitRouteWeatherForecastClient: RouteWeatherForecastClient {
             )
         }
 
+        Self.logSuccess(checkpoint: checkpoint, usedHourlyForecast: false)
         return RouteWeatherForecast(
             summary: "Expected around arrival: \(weather.currentWeather.condition.description)",
             temperatureCelsius: weather.currentWeather.temperature.converted(to: .celsius).value,
@@ -247,5 +277,64 @@ public struct WeatherKitRouteWeatherForecastClient: RouteWeatherForecastClient {
             source: "WeatherKit"
         )
     }
+
+    private static func requestFailureReason(from error: Error) -> String {
+        let nsError = error as NSError
+        let description = error.localizedDescription
+        let diagnosticText = "\(nsError.domain) \(nsError.code) \(description)".lowercased()
+
+        if diagnosticText.contains("entitlement") ||
+            diagnosticText.contains("not authorized") ||
+            diagnosticText.contains("authorization") {
+            return "WeatherKit request failed. Confirm the WeatherKit capability is enabled for the app identifier and included in the signed entitlements."
+        }
+
+        if let urlError = error as? URLError {
+            switch urlError.code {
+            case .notConnectedToInternet, .networkConnectionLost, .timedOut, .cannotFindHost, .cannotConnectToHost:
+                return "WeatherKit network request failed. Check the connection and try the route forecast again."
+            default:
+                break
+            }
+        }
+
+        if description.isEmpty {
+            return "WeatherKit request failed for this route checkpoint."
+        }
+
+        if diagnosticText.contains("weatherkit") {
+            return "WeatherKit request failed. Check the signed entitlement, device capability, provider availability, and route checkpoint data."
+        }
+
+        return "WeatherKit request failed: \(description)"
+    }
+
+    private static func logRequest(checkpoint: RouteWeatherCheckpoint) {
+        #if canImport(OSLog)
+        logger.debug(
+            "WeatherKit request checkpoint lat=\(checkpoint.coordinate.latitude, privacy: .private) lon=\(checkpoint.coordinate.longitude, privacy: .private) arrival=\(checkpoint.expectedArrivalDate.timeIntervalSince1970, privacy: .public)"
+        )
+        #endif
+    }
+
+    private static func logSuccess(checkpoint: RouteWeatherCheckpoint, usedHourlyForecast: Bool) {
+        #if canImport(OSLog)
+        logger.debug(
+            "WeatherKit forecast resolved checkpoint=\(checkpoint.id.uuidString, privacy: .public) hourly=\(usedHourlyForecast, privacy: .public)"
+        )
+        #endif
+    }
+
+    private static func logFailure(checkpoint: RouteWeatherCheckpoint, error: Error, reason: String) {
+        #if canImport(OSLog)
+        logger.error(
+            "WeatherKit request failed checkpoint=\(checkpoint.id.uuidString, privacy: .public) error=\(error.localizedDescription, privacy: .public) reason=\(reason, privacy: .public)"
+        )
+        #endif
+    }
+
+    #if canImport(OSLog)
+    private static let logger = Logger(subsystem: "com.timethrottle.app", category: "WeatherKit")
+    #endif
 }
 #endif

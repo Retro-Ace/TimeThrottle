@@ -4,6 +4,16 @@ All notable release-facing changes to **TimeThrottle** should be documented in t
 
 ## v2.0 - April 26, 2026
 
+### Build 19 Real-Device Fix Pass
+
+- Keeps marketing version at 2.0 and bumps the build to 19.
+- Adds the signed WeatherKit entitlement file and clearer WeatherKit request diagnostics for real-device route forecasts.
+- Keeps route forecast unavailable details inside Route Forecast / Map Options and keeps the main Map HUD clean when no weather data is available.
+- Fixes Scanner latest-call loading so recent calls are not cleared just because talkgroup metadata is unavailable.
+- Uses the OpenMHz-style recent calls endpoint for selected systems, improves call decoding for OpenMHz payload fields, and adds clearer scanner provider/decode/audio unavailable states.
+- Defaults passive Enforcement Alerts on for fresh installs while preserving any saved user choice, and renders real configured camera/enforcement markers only when enabled and available.
+- Renders fresh nearby ADS-B aircraft as passive Map plane markers and clears stale aircraft from the marker layer.
+
 ### What's New
 
 Use this block for GitHub releases, TestFlight notes, or App Store Connect:

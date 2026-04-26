@@ -311,17 +311,25 @@ private struct ScannerSystemDetailView: View {
             if viewModel.isLoadingCalls {
                 ScannerLoadingCard(title: "Loading latest calls")
             } else if let message = viewModel.callsErrorMessage {
-                ScannerEmptyState(title: "Latest calls unavailable", message: message, systemImage: "waveform.slash")
+                ScannerEmptyState(
+                    title: viewModel.callsErrorTitle ?? "Latest calls unavailable",
+                    message: message,
+                    systemImage: "waveform.slash"
+                )
             } else if viewModel.latestCalls.isEmpty {
                 ScannerEmptyState(
-                    title: "No latest calls",
-                    message: "This public feed has no recent calls available from the provider.",
+                    title: viewModel.callsEmptyTitle,
+                    message: viewModel.callsEmptyMessage,
                     systemImage: "waveform"
                 )
             } else {
                 VStack(spacing: 10) {
                     ForEach(viewModel.latestCalls) { call in
-                        ScannerCallRow(call: call, isCurrent: viewModel.currentCall?.id == call.id) {
+                        ScannerCallRow(
+                            call: call,
+                            isCurrent: viewModel.currentCall?.id == call.id,
+                            isPlayable: viewModel.canPlay(call)
+                        ) {
                             viewModel.play(call)
                         }
                     }
@@ -360,6 +368,8 @@ private struct ScannerPlayerCard: View {
                         .background(ScannerTheme.accent, in: Circle())
                 }
                 .buttonStyle(.plain)
+                .disabled(!viewModel.canStartPlayback)
+                .opacity(viewModel.canStartPlayback ? 1 : 0.45)
                 .accessibilityLabel(primaryAccessibilityLabel)
 
                 VStack(alignment: .leading, spacing: 3) {
@@ -512,6 +522,7 @@ private struct ScannerSystemRow: View {
 private struct ScannerCallRow: View {
     let call: ScannerCall
     let isCurrent: Bool
+    let isPlayable: Bool
     let playAction: () -> Void
 
     var body: some View {
@@ -524,9 +535,9 @@ private struct ScannerCallRow: View {
                     .background(isCurrent ? ScannerTheme.accent : ScannerTheme.panelRaised, in: Circle())
             }
             .buttonStyle(.plain)
-            .disabled(call.audioURL == nil)
-            .opacity(call.audioURL == nil ? 0.45 : 1)
-            .accessibilityLabel("Play scanner call")
+            .disabled(!isPlayable)
+            .opacity(isPlayable ? 1 : 0.45)
+            .accessibilityLabel(isPlayable ? "Play scanner call" : "Scanner call audio unavailable")
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(call.displayTitle)
@@ -544,6 +555,13 @@ private struct ScannerCallRow: View {
                         .font(.caption2.weight(.medium))
                         .foregroundStyle(ScannerTheme.tertiaryText)
                         .lineLimit(2)
+                }
+
+                if !isPlayable {
+                    Text("Audio URL unavailable")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(ScannerTheme.warning)
+                        .lineLimit(1)
                 }
             }
         }

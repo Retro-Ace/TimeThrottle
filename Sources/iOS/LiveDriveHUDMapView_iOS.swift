@@ -268,9 +268,11 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
             let aircraftAnnotations = mapView.annotations.compactMap { $0 as? AircraftMapAnnotation }
             mapView.removeAnnotations(aircraftAnnotations)
 
-            let annotations = parent.aircraft.map { aircraft in
-                AircraftMapAnnotation(aircraft: aircraft)
-            }
+            let annotations = parent.aircraft
+                .filter { !$0.isStale && Self.isValidCoordinate($0.coordinate) }
+                .map { aircraft in
+                    AircraftMapAnnotation(aircraft: aircraft)
+                }
             mapView.addAnnotations(annotations)
         }
 
@@ -278,10 +280,16 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
             let alertAnnotations = mapView.annotations.compactMap { $0 as? EnforcementAlertMapAnnotation }
             mapView.removeAnnotations(alertAnnotations)
 
-            let annotations = parent.enforcementAlerts.map { alert in
-                EnforcementAlertMapAnnotation(alert: alert)
-            }
+            let annotations = parent.enforcementAlerts
+                .filter { !$0.isStale && Self.isValidCoordinate($0.coordinate) }
+                .map { alert in
+                    EnforcementAlertMapAnnotation(alert: alert)
+                }
             mapView.addAnnotations(annotations)
+        }
+
+        private static func isValidCoordinate(_ coordinate: GuidanceCoordinate) -> Bool {
+            CLLocationCoordinate2DIsValid(coordinate.clLocationCoordinate)
         }
 
         private func syncFollowState(on mapView: MKMapView, forceRecenter: Bool) {
@@ -364,14 +372,13 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
             guard !(annotation is MKUserLocation) else { return nil }
 
             if let aircraftAnnotation = annotation as? AircraftMapAnnotation {
-                let identifier = "HUDAircraftMarker"
-                let view = mapView.dequeueReusableAnnotationView(withIdentifier: identifier) as? MKMarkerAnnotationView
-                    ?? MKMarkerAnnotationView(annotation: annotation, reuseIdentifier: identifier)
+                let view = mapView.dequeueReusableAnnotationView(
+                    withIdentifier: AircraftAnnotationView.reuseIdentifier
+                ) as? AircraftAnnotationView
+                    ?? AircraftAnnotationView(annotation: annotation, reuseIdentifier: AircraftAnnotationView.reuseIdentifier)
 
                 view.annotation = aircraftAnnotation
-                view.canShowCallout = true
-                view.markerTintColor = .systemTeal
-                view.glyphImage = UIImage(systemName: "airplane")
+                view.configure(with: aircraftAnnotation)
                 return view
             }
 
@@ -469,8 +476,10 @@ private final class EnforcementAlertMapAnnotation: NSObject, MKAnnotation {
 
     var glyphName: String {
         switch alert.type {
-        case .speedCamera, .redLightCamera:
-            return "camera.viewfinder"
+        case .speedCamera:
+            return "speedometer"
+        case .redLightCamera:
+            return "trafficlight"
         case .policeReported:
             return "exclamationmark.triangle.fill"
         case .other:
@@ -480,12 +489,58 @@ private final class EnforcementAlertMapAnnotation: NSObject, MKAnnotation {
 
     var markerColor: UIColor {
         switch alert.type {
-        case .speedCamera, .redLightCamera:
+        case .speedCamera:
             return .systemOrange
+        case .redLightCamera:
+            return .systemRed
         case .policeReported:
             return .systemYellow
         case .other:
             return .systemGray
+        }
+    }
+}
+
+private final class AircraftAnnotationView: MKAnnotationView {
+    static let reuseIdentifier = "HUDAircraftMarker"
+
+    private let backgroundView = UIView(frame: CGRect(x: 0, y: 0, width: 30, height: 30))
+    private let imageView = UIImageView(image: UIImage(systemName: "airplane"))
+
+    override init(annotation: MKAnnotation?, reuseIdentifier: String?) {
+        super.init(annotation: annotation, reuseIdentifier: reuseIdentifier)
+        frame = CGRect(x: 0, y: 0, width: 30, height: 30)
+        centerOffset = CGPoint(x: 0, y: -15)
+        canShowCallout = true
+        displayPriority = .defaultHigh
+
+        backgroundView.backgroundColor = UIColor.systemTeal.withAlphaComponent(0.88)
+        backgroundView.layer.cornerRadius = 15
+        backgroundView.layer.borderColor = UIColor.white.withAlphaComponent(0.75).cgColor
+        backgroundView.layer.borderWidth = 1
+        backgroundView.layer.shadowColor = UIColor.black.cgColor
+        backgroundView.layer.shadowOpacity = 0.22
+        backgroundView.layer.shadowRadius = 6
+        backgroundView.layer.shadowOffset = CGSize(width: 0, height: 3)
+        addSubview(backgroundView)
+
+        imageView.tintColor = .white
+        imageView.contentMode = .scaleAspectFit
+        imageView.frame = CGRect(x: 7, y: 7, width: 16, height: 16)
+        backgroundView.addSubview(imageView)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        return nil
+    }
+
+    func configure(with annotation: AircraftMapAnnotation) {
+        self.annotation = annotation
+        if let heading = annotation.aircraft.headingDegrees {
+            imageView.transform = CGAffineTransform(rotationAngle: heading * .pi / 180)
+        } else {
+            imageView.transform = .identity
         }
     }
 }

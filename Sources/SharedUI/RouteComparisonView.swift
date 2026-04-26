@@ -125,7 +125,7 @@ public struct RouteComparisonView: View {
     @AppStorage("timethrottle.voice.speechRate") private var storedGuidanceSpeechRate = Double(VoiceGuidanceSettings.defaultSpeechRate)
     @AppStorage("timethrottle.voice.isMuted") private var isVoiceGuidanceMuted = false
     @AppStorage("timethrottle.mapMode") private var mapModeRawValue = LiveDriveMapMode.standard.rawValue
-    @AppStorage("timethrottle.enforcementAlertsEnabled") private var areEnforcementAlertsEnabled = false
+    @AppStorage("timethrottle.enforcementAlertsEnabled") private var areEnforcementAlertsEnabled = true
     @State private var isGuidanceRerouting = false
     @State private var guidanceRerouteMessage: String?
     @State private var lastGuidanceRerouteAt: Date?
@@ -134,7 +134,7 @@ public struct RouteComparisonView: View {
     @State private var aircraftStatusText = "Checking"
     @State private var lastAircraftPollAt: Date?
     @State private var enforcementAlerts: [EnforcementAlert] = []
-    @State private var enforcementAlertStatusText = "Off"
+    @State private var enforcementAlertStatusText = "Not updated yet"
     @State private var lastEnforcementAlertLookupAt: Date?
     @State private var enforcementAlertsLastUpdatedAt: Date?
     @State private var isMapOptionsPresented = false
@@ -543,10 +543,12 @@ public struct RouteComparisonView: View {
     }
 
     private var routeWeatherHUDText: String? {
-        guard isRouteWeatherVisible else { return "Hidden" }
-        if isRouteWeatherLoading { return "Loading route forecast..." }
+        guard isRouteWeatherVisible else { return nil }
+        if isRouteWeatherLoading { return nil }
         if let alert = routeWeatherEntries.compactMap(\.alertText).first { return alert }
-        return routeWeatherEntries.isEmpty ? "Forecast unavailable" : "\(routeWeatherEntries.count) planned checkpoints"
+        return routeWeatherEntries.contains(where: { $0.temperatureText?.isEmpty == false })
+            ? "\(routeWeatherEntries.count) planned checkpoints"
+            : nil
     }
 
     private var enforcementHUDText: String? {
@@ -580,8 +582,8 @@ public struct RouteComparisonView: View {
             LiveDriveHUDMapView(
                 routes: routes,
                 selectedRouteID: selectedRoute.id,
-                aircraft: showsAircraftLayer ? aircraftLayer.aircraft : [],
-                enforcementAlerts: areEnforcementAlertsEnabled ? enforcementAlerts : [],
+                aircraft: mapAircraftMarkers,
+                enforcementAlerts: mapEnforcementAlertMarkers,
                 mapMode: selectedMapMode
             )
         )
@@ -600,6 +602,16 @@ public struct RouteComparisonView: View {
         }
 
         return liveDriveSetupRouteOptions
+    }
+
+    private var mapAircraftMarkers: [Aircraft] {
+        guard showsAircraftLayer, !aircraftLayer.isStale else { return [] }
+        return aircraftLayer.aircraft.filter { !$0.isStale }
+    }
+
+    private var mapEnforcementAlertMarkers: [EnforcementAlert] {
+        guard areEnforcementAlertsEnabled else { return [] }
+        return enforcementAlerts.filter { !$0.isStale }
     }
 
     private var preferredNavigationProvider: NavigationProvider {
@@ -1093,6 +1105,8 @@ public struct RouteComparisonView: View {
         .onChange(of: areEnforcementAlertsEnabled) { _, isEnabled in
             if isEnabled, let coordinate = tracker.currentCoordinate {
                 refreshEnforcementAlerts(near: coordinate, force: true)
+            } else if isEnabled {
+                enforcementAlertStatusText = "Waiting for location"
             } else if !isEnabled {
                 enforcementAlerts = []
                 enforcementAlertStatusText = "Off"
@@ -1281,8 +1295,8 @@ public struct RouteComparisonView: View {
         LiveDriveHUDMapView(
             routes: fullRouteMapRoutes,
             selectedRouteID: route.id,
-            aircraft: showsAircraftLayer ? aircraftLayer.aircraft : [],
-            enforcementAlerts: areEnforcementAlertsEnabled ? enforcementAlerts : [],
+            aircraft: mapAircraftMarkers,
+            enforcementAlerts: mapEnforcementAlertMarkers,
             mapMode: selectedMapMode
         )
         #else
@@ -3794,6 +3808,10 @@ public struct RouteComparisonView: View {
             isGuidanceRerouting = false
             aircraftLayer = AircraftLayerState(isVisible: showsAircraftLayer)
             aircraftStatusText = showsAircraftLayer ? "Checking" : "Off"
+            enforcementAlerts = []
+            enforcementAlertsLastUpdatedAt = nil
+            lastEnforcementAlertLookupAt = nil
+            enforcementAlertStatusText = areEnforcementAlertsEnabled ? "Checking" : "Off"
             selectedAppTab = .drive
         }
     }
@@ -4157,9 +4175,14 @@ public struct RouteComparisonView: View {
                         isRouteWeatherLoading = false
                     }
                 } catch {
+                    let unavailableDetail = Self.routeWeatherUnavailableDetail(from: error)
                     let displayEntries = Self.labeledWeatherEntries(
                         checkpoints.map { checkpoint in
-                            Self.routeWeatherUnavailableEntry(from: checkpoint, timeZone: timeZone)
+                            Self.routeWeatherUnavailableEntry(
+                                from: checkpoint,
+                                timeZone: timeZone,
+                                detailText: unavailableDetail
+                            )
                         },
                         sourceName: route.sourceName,
                         destinationName: route.destinationName
@@ -4168,15 +4191,16 @@ public struct RouteComparisonView: View {
                     await MainActor.run {
                         guard routeWeatherRouteID == routeID else { return }
                         routeWeatherEntries = displayEntries
-                        routeWeatherMessage = "Forecast unavailable"
+                        routeWeatherMessage = unavailableDetail
                         isRouteWeatherLoading = false
                     }
                 }
             } catch {
+                let unavailableDetail = Self.routeWeatherUnavailableDetail(from: error)
                 await MainActor.run {
                     guard routeWeatherRouteID == routeID else { return }
                     routeWeatherEntries = []
-                    routeWeatherMessage = "Forecast unavailable"
+                    routeWeatherMessage = unavailableDetail
                     isRouteWeatherLoading = false
                 }
             }
@@ -4610,17 +4634,40 @@ public struct RouteComparisonView: View {
 
     private static func routeWeatherUnavailableEntry(
         from checkpoint: RouteWeatherCheckpoint,
-        timeZone: TimeZone
+        timeZone: TimeZone,
+        detailText: String
     ) -> RouteWeatherDisplayEntry {
         RouteWeatherDisplayEntry(
             title: Self.checkpointTitle(for: checkpoint),
             arrivalText: Self.timeString(checkpoint.expectedArrivalDate, timeZone: timeZone),
             forecastText: "Forecast unavailable",
-            detailText: "WeatherKit data not available for this build or route.",
+            detailText: detailText,
             temperatureText: nil,
             aqiText: nil,
             alertText: nil
         )
+    }
+
+    private static func routeWeatherUnavailableDetail(from error: Error) -> String {
+        if let weatherError = error as? WeatherRouteProviderError {
+            switch weatherError {
+            case .insufficientRouteGeometry:
+                return "Route weather needs a route with enough geometry to sample checkpoints."
+            case .weatherKitNotConfigured:
+                return "WeatherKit is not configured for this build. Confirm the WeatherKit capability and signed entitlement before installing on a real device."
+            case .forecastUnavailable:
+                return "WeatherKit did not return forecast data for this route."
+            case .weatherKitRequestFailed(let reason):
+                return reason
+            }
+        }
+
+        let description = error.localizedDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !description.isEmpty else {
+            return "WeatherKit did not return forecast data for this route."
+        }
+
+        return "WeatherKit request failed: \(description)"
     }
 
     private static func labeledWeatherEntries(

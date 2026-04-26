@@ -157,6 +157,7 @@ TimeThrottle does **not** currently claim:
 - v1.5.8: defaulted aircraft on, made recenter icon-only, fixed weather chip icon rendering, and added a nearest-aircraft Map bar
 - v1.5.9: polished the Map-first driving hierarchy, consolidated route intelligence into Options, and cleaned Trips wording around ETA, speed-limit analysis, top speed, and speed-limit coverage
 - v2.0: added a separate Scanner tab with Nearby / Browse public scanner systems, latest calls, OpenMHz-style service models, playback, background audio, and privacy updates
+- v2.0 build 19: added real-device WeatherKit entitlement wiring and diagnostics, fixed Scanner latest-call/playback loading states, defaulted passive Enforcement Alerts on for fresh installs, and added fresh ADS-B aircraft map markers
 
 ## Repo / App Structure
 
@@ -183,7 +184,7 @@ TimeThrottle
 ## Current Release State
 
 - **Version:** 2.0
-- **Build:** 18
+- **Build:** 19
 
 ## Plain-English Summary
 

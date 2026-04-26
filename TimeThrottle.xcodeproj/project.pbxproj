@@ -76,6 +76,7 @@
 		A20000000000000000000022 /* OpenMHzScannerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenMHzScannerService.swift; sourceTree = "<group>"; };
 		A20000000000000000000023 /* ScannerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScannerViewModel.swift; sourceTree = "<group>"; };
 		A20000000000000000000024 /* ScannerTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScannerTabView.swift; sourceTree = "<group>"; };
+		A20000000000000000000025 /* TimeThrottle.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TimeThrottle.entitlements; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -92,6 +93,7 @@
 		A30000000000000000000001 = {
 			isa = PBXGroup;
 			children = (
+				A20000000000000000000025 /* TimeThrottle.entitlements */,
 				A30000000000000000000003 /* Sources */,
 				A30000000000000000000007 /* Resources */,
 				A2000000000000000000000C /* Assets.xcassets */,
@@ -380,8 +382,9 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_OBJC_WEAK = YES;
+				CODE_SIGN_ENTITLEMENTS = TimeThrottle.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 18;
+				CURRENT_PROJECT_VERSION = 19;
 				DEVELOPMENT_TEAM = GRYEGJ3MAY;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Resources/iOS/Info.plist;
@@ -407,8 +410,9 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_OBJC_WEAK = YES;
+				CODE_SIGN_ENTITLEMENTS = TimeThrottle.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 18;
+				CURRENT_PROJECT_VERSION = 19;
 				DEVELOPMENT_TEAM = GRYEGJ3MAY;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Resources/iOS/Info.plist;

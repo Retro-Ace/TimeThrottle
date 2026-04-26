@@ -62,12 +62,13 @@ Supports:
 
 ### Version / build
 - **Version:** 2.0
-- **Build:** 18
+- **Build:** 19
 
 - adds the Scanner tab as a separate listening-only feature
 - supports Nearby and Browse scanner systems
 - loads latest public scanner calls for a selected system
 - adds scanner play / pause / next-call playback and background audio support
+- adds build 19 real-device fixes for WeatherKit entitlement diagnostics, Scanner latest calls/playback states, Enforcement Alerts default-on behavior, and passive aircraft map markers
 - keeps route intelligence details in Map Options
 - keeps Live Drive tracking, Apple Maps ETA baseline, speed-limit analysis, route intelligence, Trip History, and external handoff intact
 
@@ -186,7 +187,7 @@ TimeThrottle
 
 ## Release / Packaging Notes
 
-- current release target: **v2.0 / build 18**
+- current release target: **v2.0 / build 19**
 - simulator build path: `./dist-ios`
 - current simulator bundle output: `dist/iOSSimulator/TimeThrottle.app`
 

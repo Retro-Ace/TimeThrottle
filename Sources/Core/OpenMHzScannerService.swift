@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(OSLog)
+import OSLog
+#endif
 
 public struct ScannerSystemSnapshot: Equatable, Sendable {
     public var systemShortName: String
@@ -23,6 +26,7 @@ public enum ScannerServiceError: Error, Equatable, LocalizedError {
     case invalidEndpoint
     case invalidResponse
     case httpStatus(Int)
+    case decodeFailure(String)
 
     public var errorDescription: String? {
         switch self {
@@ -32,6 +36,8 @@ public enum ScannerServiceError: Error, Equatable, LocalizedError {
             return "Scanner provider returned an unreadable response."
         case .httpStatus(let statusCode):
             return "Scanner provider returned HTTP \(statusCode)."
+        case .decodeFailure(let message):
+            return message
         }
     }
 }
@@ -77,11 +83,11 @@ public final class OpenMHzScannerService: @unchecked Sendable {
     }
 
     public func fetchLatestCalls(for systemShortName: String) async throws -> [ScannerCall] {
-        try await fetchArray(endpoint: [systemShortName, "calls", "latest"])
+        try await fetchArray(endpoint: [Self.endpointSystemIdentifier(systemShortName), "calls"])
     }
 
     public func fetchTalkgroups(for systemShortName: String) async throws -> [ScannerTalkgroup] {
-        try await fetchArray(endpoint: [systemShortName, "talkgroups"])
+        try await fetchArray(endpoint: [Self.endpointSystemIdentifier(systemShortName), "talkgroups"])
     }
 
     public func refreshSelectedSystem(shortName: String) async throws -> ScannerSystemSnapshot {
@@ -96,7 +102,14 @@ public final class OpenMHzScannerService: @unchecked Sendable {
 
     private func fetchArray<Element: Decodable>(endpoint pathComponents: [String]) async throws -> [Element] {
         let data = try await fetchData(endpoint: pathComponents)
-        return try Self.decodeArray(Element.self, from: data, decoder: decoder)
+        do {
+            let decoded = try Self.decodeArray(Element.self, from: data, decoder: decoder)
+            Self.logDecodeSuccess(endpoint: pathComponents, count: decoded.count)
+            return decoded
+        } catch {
+            Self.logDecodeFailure(endpoint: pathComponents, error: error, data: data)
+            throw ScannerServiceError.decodeFailure("Scanner provider response could not be decoded for \(pathComponents.joined(separator: "/")).")
+        }
     }
 
     private func fetchData(endpoint pathComponents: [String]) async throws -> Data {
@@ -106,10 +119,15 @@ public final class OpenMHzScannerService: @unchecked Sendable {
         request.cachePolicy = .reloadIgnoringLocalCacheData
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
+        Self.logRequest(url: url)
         let (data, response) = try await dataLoader(request)
         if let httpResponse = response as? HTTPURLResponse,
            !(200..<300).contains(httpResponse.statusCode) {
+            Self.logHTTPFailure(url: url, statusCode: httpResponse.statusCode)
             throw ScannerServiceError.httpStatus(httpResponse.statusCode)
+        }
+        if let httpResponse = response as? HTTPURLResponse {
+            Self.logHTTPSuccess(url: url, statusCode: httpResponse.statusCode, byteCount: data.count)
         }
         return data
     }
@@ -123,6 +141,55 @@ public final class OpenMHzScannerService: @unchecked Sendable {
         }
         return url
     }
+
+    private static func endpointSystemIdentifier(_ systemShortName: String) -> String {
+        systemShortName
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+    }
+
+    private static func logRequest(url: URL) {
+        #if canImport(OSLog)
+        logger.debug("Scanner request endpoint=\(url.absoluteString, privacy: .public)")
+        #endif
+    }
+
+    private static func logHTTPSuccess(url: URL, statusCode: Int, byteCount: Int) {
+        #if canImport(OSLog)
+        logger.debug(
+            "Scanner response endpoint=\(url.absoluteString, privacy: .public) status=\(statusCode, privacy: .public) bytes=\(byteCount, privacy: .public)"
+        )
+        #endif
+    }
+
+    private static func logHTTPFailure(url: URL, statusCode: Int) {
+        #if canImport(OSLog)
+        logger.error(
+            "Scanner HTTP failure endpoint=\(url.absoluteString, privacy: .public) status=\(statusCode, privacy: .public)"
+        )
+        #endif
+    }
+
+    private static func logDecodeSuccess(endpoint: [String], count: Int) {
+        #if canImport(OSLog)
+        logger.debug(
+            "Scanner decoded endpoint=\(endpoint.joined(separator: "/"), privacy: .public) count=\(count, privacy: .public)"
+        )
+        #endif
+    }
+
+    private static func logDecodeFailure(endpoint: [String], error: Error, data: Data) {
+        #if canImport(OSLog)
+        let preview = String(data: data.prefix(240), encoding: .utf8) ?? "<binary>"
+        logger.error(
+            "Scanner decode failure endpoint=\(endpoint.joined(separator: "/"), privacy: .public) error=\(error.localizedDescription, privacy: .public) preview=\(preview, privacy: .private)"
+        )
+        #endif
+    }
+
+    #if canImport(OSLog)
+    private static let logger = Logger(subsystem: "com.timethrottle.app", category: "Scanner")
+    #endif
 
     public static func decodeArray<Element: Decodable>(
         _ type: Element.Type,

@@ -102,7 +102,7 @@ final class ScannerServiceTests: XCTestCase {
         let data = """
         {
           "calls": [
-            { "id": "one", "system": "chi", "talkgroup": 100, "audioURL": "https://example.com/one.mp3" }
+            { "_id": "one", "system": "chi", "talkgroupNum": 100, "url": "https://example.com/one.mp3", "len": 7 }
           ]
         }
         """.data(using: .utf8)!
@@ -111,6 +111,8 @@ final class ScannerServiceTests: XCTestCase {
 
         XCTAssertEqual(calls.count, 1)
         XCTAssertEqual(calls.first?.id, "one")
+        XCTAssertEqual(calls.first?.talkgroup, 100)
+        XCTAssertEqual(calls.first?.duration, 7)
         XCTAssertEqual(calls.first?.resolvedAudioURL(relativeTo: nil)?.absoluteString, "https://example.com/one.mp3")
     }
 
@@ -228,5 +230,27 @@ final class ScannerServiceTests: XCTestCase {
 
         XCTAssertEqual(requestedURL?.absoluteString, "https://scanner.example.test/base/systems")
         XCTAssertEqual(systems.first?.shortName, "chi")
+    }
+
+    func testOpenMHzServiceBuildsRecentCallsEndpointWithSystemShortName() async throws {
+        let callsData = """
+        { "calls": [{ "_id": "one", "system": "chi", "talkgroupNum": 100, "url": "https://example.com/one.mp3" }] }
+        """.data(using: .utf8)!
+        let requestedURLStore = RequestedURLStore()
+        let service = OpenMHzScannerService(baseURL: URL(string: "https://scanner.example.test/base")!) { request in
+            await requestedURLStore.set(request.url)
+            return (callsData, HTTPURLResponse(
+                url: request.url!,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: nil
+            )!)
+        }
+
+        let calls = try await service.fetchLatestCalls(for: " CHI ")
+        let requestedURL = await requestedURLStore.url
+
+        XCTAssertEqual(requestedURL?.absoluteString, "https://scanner.example.test/base/chi/calls")
+        XCTAssertEqual(calls.first?.id, "one")
     }
 }

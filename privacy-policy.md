@@ -21,7 +21,7 @@ Location is used to:
 - show guidance based on Apple Maps route steps
 - check OpenStreetMap speed-limit estimates near the current road
 - check nearby low aircraft when the optional aircraft layer is enabled
-- check optional camera/enforcement reports near the current location when Enforcement Alerts are enabled and a source is configured
+- check optional camera/enforcement reports near the current location when Enforcement Alerts are enabled and a source is configured; fresh installs enable this passive layer by default, and you can turn it off
 - keep the Map tab centered on the current drive when follow mode is active
 - find nearby public scanner systems when you use Scanner Nearby
 
@@ -92,7 +92,7 @@ If you enable the optional Nearby Low Aircraft layer, TimeThrottle may query Ope
 
 ### Enforcement Alerts
 
-If you enable optional Enforcement Alerts, TimeThrottle may use a configured provider or open-data source for speed-camera, red-light-camera, and enforcement-report information near your route or current location. Coverage varies by region and may be unavailable in a given build or area. Alerts are passive and informational only; they are not guaranteed, not legal advice, and not a law-enforcement tracking or detection system. If no source is configured or data is unavailable, TimeThrottle shows a quiet empty/unavailable state rather than fake live alerts.
+Enforcement Alerts are enabled by default on fresh installs and can be turned off. When enabled, TimeThrottle may use a configured provider or open-data source for speed-camera, red-light-camera, and enforcement-report information near your route or current location. Coverage varies by region and may be unavailable in a given build or area. Alerts are passive and informational only; they are not guaranteed, not legal advice, and not a law-enforcement tracking or detection system. If no source is configured or data is unavailable, TimeThrottle shows a quiet empty/unavailable state rather than fake live alerts.
 
 ### Public Scanner Feed Providers
 
@@ -149,7 +149,7 @@ You can:
 - change location access later in iPhone Settings
 - choose Apple Maps, Google Maps, Waze, or Ask Every Time for Live Drive handoff
 - choose Standard or Satellite map mode
-- turn optional Enforcement Alerts on or off
+- turn optional Enforcement Alerts off or back on
 - use Scanner Browse without granting location access for Scanner Nearby
 - stop scanner playback at any time
 - pause, resume, or end a Live Drive at any time

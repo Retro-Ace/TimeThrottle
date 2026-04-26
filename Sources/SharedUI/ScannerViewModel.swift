@@ -2,6 +2,9 @@ import AVFoundation
 import Combine
 import CoreLocation
 import Foundation
+#if canImport(OSLog)
+import OSLog
+#endif
 #if canImport(TimeThrottleCore)
 import TimeThrottleCore
 #endif
@@ -28,7 +31,10 @@ final class ScannerViewModel: ObservableObject {
     @Published private(set) var isLoadingCalls = false
     @Published private(set) var systemsErrorMessage: String?
     @Published private(set) var nearbyMessage: String?
+    @Published private(set) var callsErrorTitle: String?
     @Published private(set) var callsErrorMessage: String?
+    @Published private(set) var callsEmptyTitle = "No latest calls"
+    @Published private(set) var callsEmptyMessage = "This public feed has no recent calls available from the provider."
     @Published var searchText = ""
     @Published private(set) var currentCall: ScannerCall?
     @Published private(set) var playbackState: PlaybackState = .stopped
@@ -70,6 +76,19 @@ final class ScannerViewModel: ObservableObject {
         playbackState == .playing
     }
 
+    var canStartPlayback: Bool {
+        switch playbackState {
+        case .playing, .loading, .paused:
+            return true
+        case .stopped, .failed:
+            return latestCalls.contains { canPlay($0) }
+        }
+    }
+
+    func canPlay(_ call: ScannerCall) -> Bool {
+        call.resolvedAudioURL(relativeTo: service.baseURL) != nil
+    }
+
     func loadSystemsIfNeeded() async {
         guard !didLoadSystems else {
             if mode == .nearby, nearbySystems.isEmpty {
@@ -94,6 +113,7 @@ final class ScannerViewModel: ObservableObject {
             }
         } catch {
             isLoadingSystems = false
+            Self.logScannerFailure("systems", error: error)
             systemsErrorMessage = "Scanner systems are unavailable right now. Browse will update when the provider responds."
         }
     }
@@ -135,23 +155,52 @@ final class ScannerViewModel: ObservableObject {
     }
 
     func selectSystem(_ system: ScannerSystem) async {
+        if selectedSystem?.id != system.id {
+            stop()
+        }
+
         selectedSystem = system
+        latestCalls = []
+        talkgroups = []
+        callsErrorTitle = nil
         callsErrorMessage = nil
+        callsEmptyTitle = "No latest calls"
+        callsEmptyMessage = "This public feed has no recent calls available from the provider."
         isLoadingCalls = true
 
+        let systemShortName = system.shortName.trimmingCharacters(in: .whitespacesAndNewlines)
+
         do {
-            async let calls = service.fetchLatestCalls(for: system.shortName)
-            async let groups = service.fetchTalkgroups(for: system.shortName)
-            latestCalls = try await calls.sorted { lhs, rhs in
+            let calls = try await service.fetchLatestCalls(for: systemShortName)
+            guard selectedSystem?.id == system.id else { return }
+            latestCalls = calls.sorted { lhs, rhs in
                 (lhs.timestamp ?? .distantPast) > (rhs.timestamp ?? .distantPast)
             }
-            talkgroups = try await groups
-            isLoadingCalls = false
+
+            if latestCalls.isEmpty {
+                callsEmptyTitle = "No recent calls"
+                callsEmptyMessage = "The provider returned an empty calls list for this system."
+            } else if !latestCalls.contains(where: { canPlay($0) }) {
+                callsEmptyTitle = "No playable recent calls"
+                callsEmptyMessage = "The provider returned recent call metadata, but none included a playable audio URL."
+            }
         } catch {
+            guard selectedSystem?.id == system.id else { return }
+            Self.logScannerFailure("calls for \(systemShortName)", error: error)
             latestCalls = []
+            callsErrorTitle = Self.callsErrorTitle(for: error)
+            callsErrorMessage = Self.callsErrorMessage(for: error)
+        }
+        isLoadingCalls = false
+
+        do {
+            let groups = try await service.fetchTalkgroups(for: systemShortName)
+            guard selectedSystem?.id == system.id else { return }
+            talkgroups = groups
+        } catch {
+            guard selectedSystem?.id == system.id else { return }
+            Self.logScannerFailure("talkgroups for \(systemShortName)", error: error)
             talkgroups = []
-            isLoadingCalls = false
-            callsErrorMessage = "Latest scanner calls are unavailable for this system right now."
         }
     }
 
@@ -162,6 +211,7 @@ final class ScannerViewModel: ObservableObject {
 
     func play(_ call: ScannerCall) {
         guard let url = call.resolvedAudioURL(relativeTo: service.baseURL) else {
+            Self.logScannerMessage("Scanner call missing playable audio URL id=\(call.id)")
             playbackState = .failed("No playable audio URL is available for this call.")
             currentCall = call
             return
@@ -188,6 +238,7 @@ final class ScannerViewModel: ObservableObject {
         self.player = player
         player.play()
         playbackState = .playing
+        Self.logScannerMessage("Scanner playback started call=\(call.id)")
     }
 
     func togglePlayback() {
@@ -199,6 +250,10 @@ final class ScannerViewModel: ObservableObject {
         case .stopped, .failed:
             if let firstPlayable = latestCalls.first(where: { $0.resolvedAudioURL(relativeTo: service.baseURL) != nil }) {
                 play(firstPlayable)
+            } else if latestCalls.isEmpty {
+                playbackState = .failed("No recent scanner calls are loaded for playback.")
+            } else {
+                playbackState = .failed("Recent scanner calls loaded, but none include a playable audio URL.")
             }
         case .loading:
             pause()
@@ -342,6 +397,65 @@ final class ScannerViewModel: ObservableObject {
     private func removePlaybackEndObserver() {
         observerStore.removePlaybackEndObserver()
     }
+
+    private static func callsErrorTitle(for error: Error) -> String {
+        if let scannerError = error as? ScannerServiceError {
+            switch scannerError {
+            case .httpStatus:
+                return "Provider unavailable"
+            case .decodeFailure, .invalidResponse:
+                return "Network or decode failure"
+            case .invalidEndpoint:
+                return "Scanner endpoint unavailable"
+            }
+        }
+
+        if error is DecodingError {
+            return "Network or decode failure"
+        }
+
+        return "Latest calls unavailable"
+    }
+
+    private static func callsErrorMessage(for error: Error) -> String {
+        if let scannerError = error as? ScannerServiceError {
+            switch scannerError {
+            case .invalidEndpoint:
+                return "The selected scanner system does not have a usable provider identifier."
+            case .invalidResponse:
+                return "The scanner provider returned a response TimeThrottle could not read."
+            case .httpStatus(let statusCode):
+                return "The scanner provider returned HTTP \(statusCode) for latest calls."
+            case .decodeFailure(let message):
+                return message
+            }
+        }
+
+        if error is DecodingError {
+            return "The scanner provider returned call data in an unexpected format."
+        }
+
+        let description = error.localizedDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+        return description.isEmpty
+            ? "Latest scanner calls are unavailable for this system right now."
+            : description
+    }
+
+    private static func logScannerFailure(_ context: String, error: Error) {
+        #if canImport(OSLog)
+        logger.error("Scanner \(context, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
+        #endif
+    }
+
+    private static func logScannerMessage(_ message: String) {
+        #if canImport(OSLog)
+        logger.debug("\(message, privacy: .public)")
+        #endif
+    }
+
+    #if canImport(OSLog)
+    private static let logger = Logger(subsystem: "com.timethrottle.app", category: "ScannerUI")
+    #endif
 }
 
 private final class ScannerNotificationObserverStore {

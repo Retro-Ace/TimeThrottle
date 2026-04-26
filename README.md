@@ -28,6 +28,12 @@ TimeThrottle now adds in-app guidance and route intelligence on top of the Apple
 
 ## What's New in v2.0
 
+Build 19 is a real-device fix pass for route intelligence and Scanner:
+- WeatherKit is now wired through the app entitlement file, with clearer request diagnostics and truthful unavailable wording when the provider or entitlement is not available
+- Scanner latest calls are loaded independently from talkgroup metadata, with clearer no-calls, provider, decode, and audio-URL unavailable states
+- Enforcement Alerts default on for fresh installs, preserve saved user choice, and show map markers only from configured real provider data
+- Nearby ADS-B aircraft show as passive map plane markers when fresh coordinate data is available
+
 Use this block for GitHub releases, TestFlight notes, and App Store Connect:
 
 > **TimeThrottle 2.0**
@@ -141,7 +147,7 @@ TimeThrottle starts tracking first, then opens the selected navigation app if ba
 - WeatherKit may be used for route weather forecasts near sampled route checkpoints
 - OpenStreetMap may be queried and locally cached for speed-limit estimates where available
 - OpenSky ADS-B may be queried on a conservative refresh interval when the optional passive Nearby Low Aircraft layer is enabled; stale or unavailable data is handled quietly and is not a safety system
-- Optional enforcement alerts may use configured provider or open-data lookups where available; coverage varies by region and alerts are not guaranteed legal or enforcement guidance
+- Passive Enforcement Alerts default on for fresh installs and may use configured provider or open-data lookups where available; coverage varies by region, users can turn the layer off, and alerts are not guaranteed legal or enforcement guidance
 - Scanner may use location to find nearby public scanner systems when Scanner Nearby is used
 - Scanner audio comes from third-party public scanner feed providers; TimeThrottle does not record scanner audio
 - Scanner playback can continue in the background when the user starts scanner audio
@@ -159,7 +165,7 @@ For the full policy, see [privacy-policy.md](/Users/anthonylarosa/CODEX/TimeThro
 - **Deployment target:** iOS 17+
 - **Bundle ID:** `com.timethrottle.app`
 - **Current release:** v2.0
-- **Current build:** 18
+- **Current build:** 19
 - **Primary app target:** `TimeThrottle.xcodeproj`
 - **Primary shared UI:** `Sources/SharedUI/RouteComparisonView.swift`
 
