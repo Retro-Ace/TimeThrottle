@@ -28,33 +28,33 @@ struct LiveDriveHUDMapView: View {
                 recenterToken: recenterToken
             )
 
-            if !isFollowingUser {
-                Button {
-                    recenterToken = UUID()
-                    isFollowingUser = true
-                } label: {
-                    Label("Recenter", systemImage: "location.fill")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(Color.white)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(Palette.ink.opacity(0.86), in: Capsule())
-                        .overlay {
-                            Capsule()
-                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                        }
-                }
-                .buttonStyle(.plain)
-                .padding(.trailing, recenterHorizontalPadding)
-                .padding(.bottom, recenterBottomPadding)
-                .zIndex(1)
+            Button {
+                recenterToken = UUID()
+                isFollowingUser = true
+            } label: {
+                Image(systemName: "location.north.fill")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(Color.white)
+                    .frame(width: 42, height: 42)
+                    .background(.ultraThinMaterial, in: Circle())
+                    .background(Palette.ink.opacity(0.74), in: Circle())
+                    .overlay {
+                        Circle()
+                            .stroke(Color.white.opacity(isFollowingUser ? 0.14 : 0.24), lineWidth: 1)
+                    }
+                    .shadow(color: Color.black.opacity(0.28), radius: 12, y: 6)
             }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Recenter map")
+            .padding(.trailing, recenterHorizontalPadding)
+            .padding(.bottom, recenterBottomPadding)
+            .zIndex(1)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var recenterBottomPadding: CGFloat {
-        max(activeWindowSafeAreaInsets.bottom, 16) + 32
+        max(activeWindowSafeAreaInsets.bottom, 16) + 218
     }
 
     private var recenterHorizontalPadding: CGFloat {

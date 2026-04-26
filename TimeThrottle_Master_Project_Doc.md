@@ -1,4 +1,4 @@
-# TimeThrottle — Master Project Document (v1.5.5)
+# TimeThrottle — Master Project Document (v1.5.9)
 
 > Start here after `README.md` when you need a fuller product and project reference.
 >
@@ -21,7 +21,7 @@ TimeThrottle is **not** an Apple Maps replacement or Apple-native navigation eng
 
 ## Current Product Structure
 
-As of **v1.5.5**, the active iPhone product is centered on **Live Drive** with route intelligence layered on top of the Apple Maps route baseline.
+As of **v1.5.9**, the active iPhone product is centered on **Live Drive** with the Map tab as the primary driving HUD and route intelligence layered on top of the Apple Maps route baseline.
 
 ### Live Drive
 
@@ -32,18 +32,22 @@ Live Drive supports:
 - route selection and preview
 - live GPS tracking
 - pause / resume / end trip
-- compact in-app Live Drive HUD
+- Map tab active driving HUD
 - in-app guidance based on Apple Maps route steps
 - route weather checkpoints shown as forecasts near the route and expected around arrival time
 - OpenStreetMap speed-limit estimates where available, with local caching to avoid repeated segment lookups
 - optional passive Nearby Low Aircraft display using OpenSky ADS-B data
 - optional passive Enforcement Alerts when a configured camera/enforcement source is available
 - Standard / Satellite map mode with local persistence
-- a Map tab Options panel for weather, aircraft, voice, speed-limit, pace, Enforcement Alerts, and Map Mode details
+- direct Map tab Pause / Resume and End Trip controls
+- always-visible floating Map recenter control
+- compact floating weather chip when route forecast data is available
+- compact nearest-aircraft Map bar when the aircraft layer is enabled and data exists
+- a Map tab Options panel for weather, aircraft, voice, speed-limit, pace, Enforcement Alerts, Map Mode, average speed, and top speed details
 - Trip History storage
 - shareable finished-trip summaries
 - optional external navigation handoff
-- bottom navigation for Drive, HUD, Map, and Trips
+- bottom navigation for Drive, Map, and Trips
 
 ## Live Drive Results
 
@@ -57,41 +61,38 @@ Result language:
 
 Speed-limit analysis only includes route segments where an OpenStreetMap speed-limit estimate was available.
 
-## Live Drive HUD
+## Map Tab Driving HUD
 
-The compact Live Drive HUD is one of the most important current product features.
+The Map tab is the primary active driving surface.
 
-### HUD goals
-- more glanceable than the regular active Live Drive screen
-- current speed as the hero metric
-- compact route/header footprint
-- faster access to Pause / Resume and End Trip
+### Map goals
+- map-first driving context
+- direct access to Pause / Resume and End Trip
 - supportive map context without pretending to be full navigation
 - route-step guidance, mute control, off-route status, and reroute status
 - Speed Limit estimate / Unavailable state
-- route weather and optional Nearby Low Aircraft status
+- Apple Maps ETA, projected arrival, route distance, and miles driven
 - clear Apple Maps ETA / Arrive / Time Above Speed Limit / Time Below Speed Limit hierarchy
-- lightweight local system voice controls for mute, voice choice, test prompt, and speech speed
+- Options sheet access for route forecast, aircraft, enforcement alerts, voice, speed-limit details, pace, map mode, average speed, and top speed
 
-### HUD map behavior
+### Map behavior
 - follows the user by default
 - stops following if the user pans away
 - shows a clear recenter control
 - resumes follow mode on recenter
 - uses a stable driving-oriented zoom instead of constantly re-fitting the route
-- fills the available lower HUD and Map tab space more cleanly above the bottom tab bar
+- keeps the route polyline, current location, aircraft markers, and enforcement alert markers visible when data is available
 
 ## App Navigation
 
-v1.5.5 uses a bottom app navigation structure:
+v1.5.9 uses a bottom app navigation structure:
 - **Drive** = Live Drive setup, Current Location start, destination input, route options, compact navigation app choice, and Start Drive
-- **HUD** = focused active driving dashboard, or an empty state when no trip is active
-- **Map** = map-first route view with route polyline, user location, next maneuver, speed, Speed Limit estimate where available, recenter support, and an Options panel for route-intelligence details
+- **Map** = primary active driving HUD with route polyline, user location, next maneuver, speed, Speed Limit estimate where available, Apple Maps ETA, projected arrival, route distance, miles driven, Pause / Resume, End Trip, recenter, and an Options panel for route-intelligence details
 - **Trips** = Trip History list and trip detail screens
 
 Switching between these tabs preserves the active trip state.
 
-The Map Options panel keeps weather checkpoints, Nearby Low Aircraft status/toggle, optional Enforcement Alerts, Standard / Satellite map mode, local voice guidance controls, speed-limit source details, and pace details out of the always-visible map view.
+The Map Options panel keeps weather checkpoints, Nearby Low Aircraft status/toggle, optional Enforcement Alerts, Standard / Satellite map mode, local voice guidance controls, speed-limit source details, and pace details out of the always-visible map view. Aircraft, enforcement, weather, and speed-limit data are informational and coverage varies by source, region, route, and app configuration.
 
 ## Core Product Truth
 
@@ -123,15 +124,19 @@ TimeThrottle does **not** currently claim:
 - Apple Maps stage: route lookup, route options, route preview, ETA baseline
 - Live Drive expansion: GPS tracking, route context preservation, finished-trip persistence
 - handoff stage: Apple Maps / Google Maps / Waze external navigation handoff
-- HUD stage: compact in-app Live Drive HUD
-- v1.4.2: Live Drive-only simplification, removed old non-Live features, improved HUD map follow behavior
-- v1.4.3: desired-speed wording cleanup, consolidated trip summaries, HUD polish, and destination-time-zone arrival formatting
+- compact driving-view stage: focused in-app Live Drive view
+- v1.4.2: Live Drive-only simplification, removed old non-Live features, and improved map follow behavior
+- v1.4.3: speed-entry wording cleanup, consolidated trip summaries, compact driving-view polish, and destination-time-zone arrival formatting
 - v1.5.0: user-facing route-step guidance, route weather checkpoints, speed-limit estimate display, optional nearby aircraft layer, and route-intelligence privacy/docs updates
 - v1.5.1: refined aircraft into passive Nearby Low Aircraft, added distance/altitude/staleness filtering, strengthened OpenStreetMap current-road speed-limit lookup, and added local speed-limit cache support
-- v1.5.2: removed user-entered Desired Speed, moved pace analysis to available OpenStreetMap speed-limit estimates, and clarified route forecast unavailable/loading wording
+- v1.5.2: removed user-entered speed input, moved pace analysis to available OpenStreetMap speed-limit estimates, and clarified route forecast unavailable/loading wording
 - v1.5.3: added bottom navigation, a dedicated map-first route view, and improved local iOS system voice guidance
-- v1.5.4: polished HUD/Map bottom-fill behavior, added the Map Options panel, refreshed Nearby Low Aircraft data on a live interval with stale cleanup, and persisted selected local iOS voice settings
+- v1.5.4: polished map-fill behavior, added the Map Options panel, refreshed Nearby Low Aircraft data on a live interval with stale cleanup, and persisted selected local iOS voice settings
 - v1.5.5: added optional Enforcement Alerts foundation, Standard / Satellite map mode, Top speed tracking, simplified Drive setup, and compact navigation app selection
+- v1.5.6: simplified navigation to Drive / Map / Trips, made Map the primary driving HUD with direct Pause / Resume and End Trip, and cleaned Trips around speed-limit-based results, distance, average speed, and top speed
+- v1.5.7: added a floating Map recenter control and compact floating weather chip for quick-glance route conditions
+- v1.5.8: defaulted aircraft on, made recenter icon-only, fixed weather chip icon rendering, and added a nearest-aircraft Map bar
+- v1.5.9: polished the Map-first driving hierarchy, consolidated route intelligence into Options, and cleaned Trips wording around ETA, speed-limit analysis, top speed, and speed-limit coverage
 
 ## Repo / App Structure
 
@@ -157,9 +162,9 @@ TimeThrottle
 
 ## Current Release State
 
-- **Version:** 1.5.5
-- **Build:** 13
+- **Version:** 1.5.9
+- **Build:** 17
 
 ## Plain-English Summary
 
-**TimeThrottle is now a Live Drive-first iPhone pace-analysis app with route intelligence and clear bottom navigation. It uses Apple Maps as the route and ETA-baseline layer, tracks real trips, adds truthful route-step guidance, persistent local system voice prompts, route weather, cached OpenStreetMap speed-limit estimates, optional passive Nearby Low Aircraft with stale-data handling, optional provider-backed Enforcement Alerts with varied coverage, Standard / Satellite map mode, local Trip History, external navigation handoff, and finished-trip results centered on Time Above Speed Limit, Time Below Speed Limit, Top speed, and Apple Maps ETA baseline.**
+**TimeThrottle is now a Live Drive-first iPhone pace-analysis app with Drive / Map / Trips navigation. Map is the primary driving HUD, while Options holds route intelligence details. It uses Apple Maps as the route and ETA-baseline layer, tracks real trips, adds truthful route-step guidance, persistent local system voice prompts, route weather, cached OpenStreetMap speed-limit estimates, optional passive Nearby Low Aircraft with stale-data handling, optional provider-backed Enforcement Alerts with varied coverage, Standard / Satellite map mode, local Trip History, external navigation handoff, and finished-trip results centered on Time Above Speed Limit, Time Below Speed Limit, Top speed, and Apple Maps ETA baseline.**

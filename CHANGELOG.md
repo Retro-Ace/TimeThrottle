@@ -2,6 +2,98 @@
 
 All notable release-facing changes to **TimeThrottle** should be documented in this file.
 
+## v1.5.9 - April 26, 2026
+
+### What's New
+
+Use this block for GitHub releases, TestFlight notes, or App Store Connect:
+
+> **TimeThrottle 1.5.9**
+>
+> - Polishes the Map-first driving HUD hierarchy around guidance, controls, recenter, weather, aircraft, and key metrics
+> - Keeps WeatherKit unavailable states inside Map Options instead of the main Map
+> - Makes the nearest-aircraft bar quieter and more informational
+> - Cleans Trips and Trip Detail wording around Apple ETA, speed-limit analysis, distance, average speed, top speed, and speed-limit coverage
+
+### Release Notes
+
+- Map remains the active driving screen for Drive / Map / Trips.
+- The bottom Map control card keeps Pause / Resume, End Trip, key metrics, and Options compact and reachable.
+- Map Options remains the detail surface for Weather, Aircraft, Enforcement Alerts, Voice Guidance, Speed Limit, Map Mode, and Pace.
+- Trips stores completed results with top speed and speed-limit coverage when available.
+
+### Release Positioning
+
+TimeThrottle 1.5.9 is a final map-first driving polish and route-intelligence consolidation release. It keeps Apple Maps as the ETA-baseline layer and treats aircraft, weather, speed-limit, and enforcement data as informational with variable coverage.
+
+## v1.5.8 - April 26, 2026
+
+### What's New
+
+Use this block for GitHub releases, TestFlight notes, or App Store Connect:
+
+> **TimeThrottle 1.5.8**
+>
+> - Turns Nearby Low Aircraft on by default while keeping the Map Options toggle
+> - Fixes the Map weather chip so its weather icon renders visibly
+> - Simplifies the floating Recenter control to an icon-only button
+> - Adds a compact nearest-aircraft bar on Map when nearby aircraft data is available
+
+### Release Notes
+
+- Aircraft remains user-toggleable from Map Options; stored user preference is respected, and fresh installs default to on.
+- The weather chip still uses existing route forecast data and hides when weather is unavailable.
+- The nearest-aircraft bar shows one closest relevant aircraft with callsign, distance, altitude, and heading when available.
+
+### Release Positioning
+
+TimeThrottle 1.5.8 is a focused Map refinement release. It keeps Drive / Map / Trips and the active Map driving HUD intact while making aircraft and weather glance surfaces clearer.
+
+## v1.5.7 - April 26, 2026
+
+### What's New
+
+Use this block for GitHub releases, TestFlight notes, or App Store Connect:
+
+> **TimeThrottle 1.5.7**
+>
+> - Adds an always-visible floating Recenter control on the Map tab
+> - Adds a compact floating weather chip below the route guidance card for quick-glance route conditions
+
+### Release Notes
+
+- The Recenter control uses the existing Map follow/recenter behavior and stays accessible in Standard and Satellite map modes without living inside the bottom control card.
+- The weather chip uses existing route forecast data when available, shows a compact icon and temperature, and stays out of the way when forecast data is unavailable.
+- Full route forecast details remain in Map Options.
+
+### Release Positioning
+
+TimeThrottle 1.5.7 is a focused Map polish release. It keeps Drive / Map / Trips intact while making the active Map driving HUD easier to recenter and quicker to scan for weather.
+
+## v1.5.6 - April 26, 2026
+
+### What's New
+
+Use this block for GitHub releases, TestFlight notes, or App Store Connect:
+
+> **TimeThrottle 1.5.6**
+>
+> - Simplifies bottom navigation to Drive / Map / Trips
+> - Makes the Map tab the primary active driving HUD with direct Pause / Resume and End Trip controls
+> - Keeps route intelligence details in Map Options for weather, aircraft, enforcement alerts, voice, speed limit, pace, map mode, average speed, and top speed
+> - Cleans up Trips rows and Trip Detail around speed-limit-based results, distance, average speed, and top speed
+
+### Release Notes
+
+- Map now carries the active-drive essentials: route polyline, current location, next maneuver, distance to next maneuver, voice mute, speed, speed-limit estimate, Apple Maps ETA, projected arrival, route distance, miles driven, recenter, Options, Pause / Resume, and End Trip.
+- Map Options remains the detail surface for route forecast, Nearby Low Aircraft, Enforcement Alerts, voice guidance, Speed Limit details, pace details, Map Mode, average speed, and top speed.
+- Drive remains setup-focused with Current Location start, destination, route selection, route preview, compact navigation app selection, and Start Drive.
+- Trips keeps speed-limit-based Above Limit / Below Limit / Vs ETA results visible and adds clean top-speed and distance context when available.
+
+### Release Positioning
+
+TimeThrottle 1.5.6 simplifies the app structure around Drive / Map / Trips. Map is now the primary driving HUD while preserving Apple Maps as the ETA-baseline layer, live tracking, route intelligence, Trip History, and careful safety/enforcement wording.
+
 ## v1.5.5 - April 26, 2026
 
 ### What's New
@@ -34,7 +126,7 @@ Use this block for GitHub releases, TestFlight notes, or App Store Connect:
 
 > **TimeThrottle 1.5.4**
 >
-> - Polishes HUD and Map tab map layout so the map fills the available lower screen area more cleanly
+> - Polishes Map tab layout so the map fills the available lower screen area more cleanly
 > - Adds a Map tab Options panel for route forecast, Nearby Low Aircraft, voice guidance, speed-limit, and pace details
 > - Refreshes optional OpenSky Nearby Low Aircraft data on a conservative interval and removes stale markers
 > - Fixes voice picker scrolling by moving selection into a dedicated sheet
@@ -42,7 +134,7 @@ Use this block for GitHub releases, TestFlight notes, or App Store Connect:
 
 ### Release Notes
 
-- HUD and Map tab maps keep route polyline, user location, aircraft markers, recenter, and follow behavior intact while reducing unnecessary bottom gaps.
+- Map views keep route polyline, user location, aircraft markers, recenter, and follow behavior intact while reducing unnecessary bottom gaps.
 - Map Options keeps route-intelligence details out of the always-visible map view.
 - Nearby Low Aircraft remains optional, passive, informational only, and dependent on OpenSky availability; it is not an aviation safety or collision-avoidance system.
 - Voice guidance remains local/system-based through AVSpeechSynthesizer and does not use external AI voice services.
@@ -59,15 +151,15 @@ Use this block for GitHub releases, TestFlight notes, or App Store Connect:
 
 > **TimeThrottle 1.5.3**
 >
-> - Adds bottom navigation for Drive, HUD, Map, and Trips
+> - Adds bottom navigation for Drive, Map, and Trips-era route views
 > - Adds a dedicated map-first route view with guidance, speed, speed-limit estimate, and recenter support
 > - Improves local iOS system voice guidance with best-available English voice selection and clearer speech pacing
-> - Adds lightweight HUD voice controls for mute, voice choice, test prompt, and speech speed
+> - Adds lightweight local voice controls for mute, voice choice, test prompt, and speech speed
 
 ### Release Notes
 
 - Drive remains the setup and route-selection entry point.
-- HUD remains the focused quick-glance driving dashboard.
+- The focused driving view remains quick-glance.
 - Map is now the larger map-first Live Drive view using Apple Maps route data, speed-limit estimates where available, and the same route/map state.
 - Trips is now a first-class bottom-tab entry point for Trip History and trip details.
 - Voice guidance remains local/system-based through AVSpeechSynthesizer and does not use external AI voice services.
@@ -84,7 +176,7 @@ Use this block for GitHub releases, TestFlight notes, or App Store Connect:
 
 > **TimeThrottle 1.5.2**
 >
-> - Removes the user-entered Desired Speed field from Live Drive setup
+> - Removes the user-entered speed field from Live Drive setup
 > - Measures Time Above Speed Limit and Time Below Speed Limit against available OpenStreetMap speed-limit estimates
 > - Pauses speed-limit pace accumulation when no estimate is available
 > - Clarifies route forecast loading and unavailable wording for WeatherKit-dependent data
@@ -110,7 +202,7 @@ Use this block for GitHub releases, TestFlight notes, or App Store Connect:
 > - Refines aircraft into passive Nearby Low Aircraft mode
 > - Filters OpenSky ADS-B aircraft by distance, recent position, and low-altitude threshold before showing markers
 > - Adds structured OpenStreetMap current-road speed-limit estimates with confidence, road name, way ID, and local caching
-> - Keeps HUD speed-limit wording careful with Speed Limit / Unavailable states
+> - Keeps speed-limit wording careful with Speed Limit / Unavailable states
 
 ### Release Notes
 
@@ -131,7 +223,7 @@ Use this block for GitHub releases, TestFlight notes, or App Store Connect:
 > **TimeThrottle 1.5.0**
 >
 > - Adds in-app guidance based on Apple Maps route steps
-> - Shows next maneuver, distance, mute, off-route, and reroute status in the HUD
+> - Shows next maneuver, distance, mute, off-route, and reroute status in the driving view
 > - Adds route weather checkpoints with graceful unavailable handling
 > - Adds OpenStreetMap speed-limit estimates where available
 > - Adds optional nearby aircraft display using OpenSky ADS-B data
@@ -156,16 +248,16 @@ Use this block for GitHub releases, TestFlight notes, or App Store Connect:
 
 > **TimeThrottle 1.4.3**
 >
-> - Polished the Current Speed HUD card and widened the Avg Spd pill
-> - Renamed HUD and result wording around Apple Maps ETA and pace-result metrics
+> - Polished the Current Speed driving card and widened the Avg Spd pill
+> - Renamed result wording around Apple Maps ETA and pace-result metrics
 > - Updated Live Drive setup speed-entry wording at that release
 > - Consolidated finished-trip and Trip History detail stats into tighter summaries
 > - Displays projected arrival in the destination's local time when that time zone is available
 
 ### Release Notes
 
-- Polished the Current Speed HUD card and widened the Avg Spd pill
-- Renamed HUD and result wording around Apple Maps ETA and pace-result metrics
+- Polished the Current Speed driving card and widened the Avg Spd pill
+- Renamed result wording around Apple Maps ETA and pace-result metrics
 - Updated Live Drive setup speed-entry wording at that release
 - Consolidated finished-trip and Trip History detail stats into tighter summaries
 - Displays projected arrival in the destination's local time when that time zone is available
@@ -183,14 +275,14 @@ Use this block for GitHub releases, TestFlight notes, or App Store Connect:
 > **TimeThrottle 1.4.2**
 >
 > - Simplified the app around Live Drive
-> - Updated the HUD to focus on Current Speed, ETA, Arrive, Time Saved, and Time Lost
+> - Updated the driving view to focus on Current Speed, ETA, Arrive, and pace results
 > - Improved the live map with user follow and recenter behavior
 > - Removed legacy planning concepts from the product story
 
 ### Release Notes
 
 - Simplified the app around Live Drive
-- Updated the HUD to focus on Current Speed, ETA, Arrive, Time Saved, and Time Lost
+- Updated the driving view to focus on Current Speed, ETA, Arrive, and pace results
 - Improved the live map with user follow and recenter behavior
 - Removed legacy planning concepts from the product story
 - Kept Trip History and finished-trip results centered on the Apple Maps ETA baseline

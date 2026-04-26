@@ -118,6 +118,11 @@ private struct TripHistoryRow: View {
                 StatPill(title: "Below Limit", value: speedLimitMetricString(trip.timeLostBelowTargetPace, measuredMinutes: trip.speedLimitMeasuredMinutes), foreground: Palette.danger, background: tripHistoryPanelMuted, compact: true, titleColor: tripHistorySecondaryText, borderColor: tripHistoryBorder)
                 StatPill(title: "Vs ETA", value: netString(trip.netTimeGain), foreground: trip.netTimeGain >= 0 ? Palette.success : Palette.danger, background: tripHistoryPanelMuted, compact: true, titleColor: tripHistorySecondaryText, borderColor: tripHistoryBorder)
             }
+
+            HStack(spacing: 8) {
+                StatPill(title: "Top", value: topSpeedString(trip.topSpeedMPH), foreground: tripHistoryPrimaryText, background: tripHistoryPanelMuted, compact: true, titleColor: tripHistorySecondaryText, borderColor: tripHistoryBorder)
+                StatPill(title: "Distance", value: "\(milesString(trip.distanceDrivenMiles)) mi", foreground: tripHistoryPrimaryText, background: tripHistoryPanelMuted, compact: true, titleColor: tripHistorySecondaryText, borderColor: tripHistoryBorder)
+            }
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -241,7 +246,7 @@ private func netString(_ minutes: Double) -> String {
         return "Even"
     }
 
-    return minutes > 0 ? "\(durationString(minutes)) saved" : "\(durationString(abs(minutes))) lost"
+    return minutes > 0 ? "\(durationString(minutes)) ahead" : "\(durationString(abs(minutes))) behind"
 }
 
 private func speedLimitMetricString(_ minutes: Double, measuredMinutes: Double) -> String {

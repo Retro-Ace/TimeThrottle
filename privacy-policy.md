@@ -22,7 +22,7 @@ Location is used to:
 - check OpenStreetMap speed-limit estimates near the current road
 - check nearby low aircraft when the optional aircraft layer is enabled
 - check optional camera/enforcement reports near the current location when Enforcement Alerts are enabled and a source is configured
-- keep the HUD map centered on the current drive when follow mode is active
+- keep the Map tab centered on the current drive when follow mode is active
 
 If you choose external navigation handoff during Live Drive, the app may request **Always Location** so tracking can continue while Apple Maps, Google Maps, or Waze is open.
 

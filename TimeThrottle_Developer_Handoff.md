@@ -1,4 +1,4 @@
-# TimeThrottle — Developer Handoff (v1.5.5)
+# TimeThrottle — Developer Handoff (v1.5.9)
 
 > Start here when you want the shortest practical handoff.
 >
@@ -33,12 +33,15 @@ Supports:
 - route selection and preview
 - live GPS tracking
 - pause / resume / end trip
-- compact in-app HUD
-- route-step guidance in the HUD
-- bottom navigation for Drive, HUD, Map, and Trips
-- dedicated map-first route view
+- Map tab active driving HUD
+- floating Map recenter control
+- compact floating weather chip when route forecast data is available
+- compact nearest-aircraft Map bar when aircraft data exists
+- route-step guidance in the Map tab
+- bottom navigation for Drive, Map, and Trips
+- dedicated map-first active driving view
 - improved local iOS system voice guidance with persisted voice settings
-- Map tab Options panel for weather, aircraft, voice, speed-limit, and pace details
+- Map tab Options panel for weather, aircraft, enforcement alerts, voice, speed-limit, pace, map mode, average speed, and top speed details
 - optional Enforcement Alerts foundation with provider-backed/empty-state behavior
 - Standard / Satellite map mode with local persistence
 - Top speed tracking for completed trips
@@ -52,17 +55,16 @@ Supports:
 - finished-trip sharing
 - optional Apple Maps / Google Maps / Waze handoff
 
-## v1.5.5 State
+## v1.5.9 State
 
 ### Version / build
-- **Version:** 1.5.5
-- **Build:** 13
+- **Version:** 1.5.9
+- **Build:** 17
 
-### v1.5.5 focus
-- adds optional, passive Enforcement Alerts for configured speed-camera, red-light-camera, and enforcement-report providers
-- adds Standard / Satellite map mode selection with local persistence
-- tracks Top speed from valid GPS speed samples and persists it on new completed trips
-- simplifies Drive setup to Current Location start plus destination and replaces the large navigation-app list with a compact selector
+- polishes the Map-first driving hierarchy around guidance, controls, recenter, weather, aircraft, and key metrics
+- keeps WeatherKit unavailable states inside Map Options instead of the main Map
+- keeps route intelligence details in Map Options
+- cleans Trips wording around Apple ETA, speed-limit analysis, distance, average speed, top speed, and speed-limit coverage
 - keeps Live Drive tracking, Apple Maps ETA baseline, speed-limit analysis, route intelligence, Trip History, and external handoff intact
 
 ## Important product truth constraints
@@ -117,17 +119,15 @@ TimeThrottle can safely show:
 - `Sources/iOS/RoutePreviewMapView_iOS.swift`
 - `Sources/iOS/LiveDriveHUDMapView_iOS.swift`
 
-## Current HUD Notes
+## Current Map HUD Notes
 
-### Current HUD intent
-- more glanceable than the normal active Live Drive screen
-- current speed as the hero metric
-- compact route/address footprint
-- easier access to Pause / Resume / End Trip
+### Current Map intent
+- map-first active driving context
+- direct access to Pause / Resume / End Trip
 - Apple Maps ETA and projected arrival context
 - Time Above Speed Limit and Time Below Speed Limit
 - Top speed where valid GPS speed data exists
-- lower map context without pretending to be full navigation
+- route polyline and current location without pretending to be full navigation
 - guidance based on Apple Maps route steps
 - local system voice guidance controls
 - Speed Limit estimate / Unavailable state
@@ -137,13 +137,12 @@ TimeThrottle can safely show:
 ## Current App Navigation
 
 - **Drive:** Live Drive setup, Current Location start, destination input, route options, compact navigation app choice, and Start Drive.
-- **HUD:** focused active driving dashboard, or an empty state when no trip is active.
-- **Map:** larger map-first route view with route polyline, user location, next maneuver, speed, Speed Limit estimate where available, recenter support, and an Options panel for details.
+- **Map:** primary active driving HUD with route polyline, user location, next maneuver, speed, Speed Limit estimate where available, Apple Maps ETA, projected arrival, route distance, miles driven, Pause / Resume, End Trip, recenter, and Options.
 - **Trips:** Trip History list and details.
 
 Switching tabs should not reset active trip state.
 
-### Current HUD map behavior
+### Current Map behavior
 - follows the user by default
 - stops following on manual pan
 - exposes a recenter control
@@ -174,7 +173,7 @@ TimeThrottle
 
 ## Release / Packaging Notes
 
-- current release target: **v1.5.5 / build 13**
+- current release target: **v1.5.9 / build 17**
 - simulator build path: `./dist-ios`
 - current simulator bundle output: `dist/iOSSimulator/TimeThrottle.app`
 
@@ -187,10 +186,10 @@ Protect:
 - finished-trip flow
 - Trip History
 - truthful navigation positioning
-- HUD tab / close / reopen behavior
+- Map tab active-drive controls and Options behavior
 - pause / resume / end trip behavior
 
 ## Final Plain-English Summary
 
 TimeThrottle is now a Live Drive-only pace-analysis app with bottom navigation. It uses Apple Maps for route lookup and ETA baseline planning, tracks real trips, stores Trip History locally, supports optional external navigation handoff, and focuses the product on Time Above Speed Limit, Time Below Speed Limit, and projected arrival versus Apple Maps ETA baseline.
-TimeThrottle 1.5.5 keeps speed-limit analysis tied to available OpenStreetMap estimates, adds optional provider-backed Enforcement Alerts with careful wording, adds Standard / Satellite map mode, persists Top speed on new trip records, simplifies Drive setup, and keeps route intelligence organized without adding unsupported navigation, enforcement, or safety claims.
+TimeThrottle 1.5.9 keeps speed-limit analysis tied to available OpenStreetMap estimates, keeps optional provider-backed Enforcement Alerts carefully worded, keeps Standard / Satellite map mode, preserves Drive / Map / Trips, and consolidates Map route-intelligence details into Options without adding unsupported navigation, enforcement, weather, speed-limit, or safety claims.

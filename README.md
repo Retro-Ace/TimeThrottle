@@ -26,16 +26,16 @@ Apple Maps provides route lookup, autocomplete, route options, and the ETA basel
 
 TimeThrottle now adds in-app guidance and route intelligence on top of the Apple Maps route data. It is not an Apple Maps replacement: external handoff to Apple Maps, Google Maps, or Waze remains available while TimeThrottle continues tracking the trip.
 
-## What's New in v1.5.5
+## What's New in v1.5.9
 
 Use this block for GitHub releases, TestFlight notes, and App Store Connect:
 
-> **TimeThrottle 1.5.5**
+> **TimeThrottle 1.5.9**
 >
-> - Adds optional Enforcement Alerts for configured camera and enforcement report providers, with quiet unavailable states when no source is configured
-> - Adds Standard / Satellite map mode selection with local persistence
-> - Tracks Top speed during Live Drive and saves it to finished trips when valid GPS speed data is available
-> - Simplifies Drive setup by keeping Current Location as the start and replacing the large navigation-app list with a compact selector
+> - Polishes the Map-first driving HUD hierarchy around guidance, controls, recenter, weather, aircraft, and key metrics
+> - Keeps WeatherKit unavailable states inside Map Options instead of the main Map
+> - Makes the nearest-aircraft bar quieter and more informational
+> - Cleans Trips and Trip Detail wording around Apple ETA, speed-limit analysis, distance, average speed, top speed, and speed-limit coverage
 
 ## Core Product
 
@@ -50,7 +50,7 @@ It supports:
 - route options and route preview
 - live GPS tracking
 - pause, resume, and end trip controls
-- a compact in-app Live Drive HUD
+- a map-first active driving HUD in the Map tab
 - in-app guidance based on Apple Maps route steps
 - route weather checkpoints expected around arrival time
 - OpenStreetMap speed limit estimates where available
@@ -59,35 +59,42 @@ It supports:
 - Trip History for completed drives
 - shareable finished-trip summaries
 - optional navigation handoff to Apple Maps, Google Maps, or Waze
-- bottom navigation for Drive, HUD, Map, and Trips
+- bottom navigation for Drive, Map, and Trips
 
-### Live Drive HUD
+### Map Tab Driving HUD
 
-The Live Drive HUD is a full-screen in-app driving view built from real TimeThrottle trip state.
+The Map tab is the primary active driving view built from real TimeThrottle trip state.
 
 It shows:
-- Current Speed as the hero metric
+- a full-width live map with route polyline, current location, aircraft markers, enforcement alert markers when available, and recenter control
+- next maneuver and distance based on Apple Maps route steps
+- a compact floating weather chip when route forecast data is available
+- a compact nearest-aircraft bar when the aircraft layer is enabled and data exists
+- voice guidance mute / unmute control
+- Current Speed
+- Speed Limit estimate or Unavailable state
 - Apple Maps ETA as the Apple Maps baseline
 - Arrive as projected arrival in the destination's local time when available
+- remaining route distance
+- distance driven
+- Pause / Resume and End Trip controls without opening Options
+- Options for route intelligence details
+
+The Map Options sheet holds:
+- route weather status and forecast checkpoints
+- optional Nearby Low Aircraft status and details
+- optional passive Enforcement Alerts when configured
+- local voice guidance settings
+- speed-limit source and confidence details
 - Time Above Speed Limit
 - Time Below Speed Limit
-- next maneuver and distance based on Apple Maps route steps
-- voice guidance mute / unmute control
-- off-route and reroute status
-- Speed Limit estimate or Unavailable state
-- route weather status
-- optional Nearby Low Aircraft status and markers
-- distance driven
-- route/map context
-- Pause / Resume and End Trip controls
-- a full-width live map with recenter control
-- lightweight local system voice controls in Route Info
+- average speed
+- top speed
+- Standard / Satellite map mode
 
-The HUD map follows the user during a drive, stops following if the user pans away, and provides a clear recenter control.
+Aircraft, enforcement, weather, and speed-limit data are informational and coverage varies by source, region, route, and app configuration.
 
-### Map Tab
-
-The Map tab is the larger map-first entry point. It shows the selected or active route, user-follow map, next maneuver, speed, Speed Limit estimate where available, route distance, and recenter support. Its Options panel contains route forecast checkpoints, passive Nearby Low Aircraft controls/status, optional Enforcement Alerts, Standard / Satellite map mode, local voice guidance controls, speed-limit details, and pace details so the main map stays uncluttered. Route guidance is based on Apple Maps route data; it is not Apple-native navigation or lane guidance.
+The Map follows the user during a drive, stops following if the user pans away, and provides a clear recenter control. Route guidance is based on Apple Maps route data; it is not Apple-native navigation or lane guidance.
 
 ## Trip Results
 
@@ -133,8 +140,8 @@ For the full policy, see [privacy-policy.md](/Users/anthonylarosa/CODEX/TimeThro
 - **Platform:** iPhone / iOS only
 - **Deployment target:** iOS 17+
 - **Bundle ID:** `com.timethrottle.app`
-- **Current release:** v1.5.5
-- **Current build:** 13
+- **Current release:** v1.5.9
+- **Current build:** 17
 - **Primary app target:** `TimeThrottle.xcodeproj`
 - **Primary shared UI:** `Sources/SharedUI/RouteComparisonView.swift`
 
@@ -151,8 +158,8 @@ For the full policy, see [privacy-policy.md](/Users/anthonylarosa/CODEX/TimeThro
 - `TripAnalysisEngine.swift` — live pace and trip summary generation
 - `PaceAnalysisMath.swift` — shared speed-limit comparison helper
 - `RouteModels.swift` — shared route, lookup, autocomplete, and navigation-provider models
-- `LiveDriveHUDView.swift` — compact in-app Live Drive HUD
-- `LiveDriveHUDMapView_iOS.swift` — HUD map follow and recenter behavior
+- `LiveDriveHUDView.swift` — legacy compact driving-view component retained internally while Map is the primary driving HUD
+- `LiveDriveHUDMapView_iOS.swift` — Map follow, route polyline, user location, aircraft markers, enforcement alert markers, and recenter behavior
 - `NavigationHandoffService.swift` — Apple Maps / Google Maps / Waze / Ask Every Time handoff behavior
 
 ## Repository Layout
