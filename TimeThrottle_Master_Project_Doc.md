@@ -159,6 +159,7 @@ TimeThrottle does **not** currently claim:
 - v2.0: added a separate Scanner tab with Nearby / Browse public scanner systems, latest calls, OpenMHz-style service models, playback, background audio, and privacy updates
 - v2.0 build 19: added real-device WeatherKit entitlement wiring and diagnostics, fixed Scanner latest-call/playback loading states, defaulted passive Enforcement Alerts on for fresh installs, and added fresh ADS-B aircraft map markers
 - v2.0 build 20: fixed real-device Scanner playback startup, cleaned WeatherKit signed-build unavailable UI, defaulted fresh installs to Daniel when available, added the OpenStreetMap Overpass Enforcement Alerts source path, and raised passive aircraft/enforcement marker visibility priority
+- v2.0 build 21: added Scanner audio-session fallback diagnostics, raised aircraft/enforcement map annotation reliability, and broadened conservative OpenStreetMap traffic-camera tag coverage
 
 ## Repo / App Structure
 
@@ -185,7 +186,7 @@ TimeThrottle
 ## Current Release State
 
 - **Version:** 2.0
-- **Build:** 19
+- **Build:** 21
 
 ## Plain-English Summary
 

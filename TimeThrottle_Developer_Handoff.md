@@ -62,13 +62,13 @@ Supports:
 
 ### Version / build
 - **Version:** 2.0
-- **Build:** 20
+- **Build:** 21
 
 - adds the Scanner tab as a separate listening-only feature
 - supports Nearby and Browse scanner systems
 - loads latest public scanner calls for a selected system
 - adds scanner selected/latest-call play / pause / next-call playback and background audio support
-- adds build 20 real-device fixes for Scanner playback startup, clean WeatherKit signed-build unavailable UI, Daniel fresh-install voice default, OpenStreetMap Overpass-backed Enforcement Alerts, and passive aircraft/enforcement marker visibility
+- adds build 21 real-device fixes for Scanner audio-session fallback diagnostics, aircraft marker visibility, and OpenStreetMap Overpass-backed enforcement/camera source and marker diagnostics
 - keeps route intelligence details in Map Options
 - keeps Live Drive tracking, Apple Maps ETA baseline, speed-limit analysis, route intelligence, Trip History, and external handoff intact
 
@@ -187,7 +187,7 @@ TimeThrottle
 
 ## Release / Packaging Notes
 
-- current release target: **v2.0 / build 20**
+- current release target: **v2.0 / build 21**
 - simulator build path: `./dist-ios`
 - current simulator bundle output: `dist/iOSSimulator/TimeThrottle.app`
 

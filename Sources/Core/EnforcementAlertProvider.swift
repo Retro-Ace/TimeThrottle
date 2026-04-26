@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(OSLog)
+import OSLog
+#endif
 
 public enum EnforcementAlertType: String, Codable, CaseIterable, Sendable {
     case speedCamera
@@ -108,6 +111,10 @@ public actor OSMEnforcementAlertProvider: EnforcementAlertProvider {
     private let endpoint: URL
     private let session: URLSession
 
+    #if canImport(OSLog)
+    private static let logger = Logger(subsystem: "com.timethrottle.app", category: "EnforcementAlerts")
+    #endif
+
     public init(
         endpoint: URL = OSMEnforcementAlertProvider.defaultEndpoint,
         session: URLSession = .shared
@@ -117,6 +124,8 @@ public actor OSMEnforcementAlertProvider: EnforcementAlertProvider {
     }
 
     public func enforcementAlerts(in region: EnforcementAlertSearchRegion) async throws -> [EnforcementAlert] {
+        Self.logRequestStarted(region: region)
+
         var request = URLRequest(url: endpoint)
         request.httpMethod = "POST"
         request.timeoutInterval = 14
@@ -132,11 +141,21 @@ public actor OSMEnforcementAlertProvider: EnforcementAlertProvider {
         let (data, response) = try await session.data(for: request)
         if let httpResponse = response as? HTTPURLResponse,
            !(200...299).contains(httpResponse.statusCode) {
+            Self.logHTTPStatus(httpResponse.statusCode)
             throw EnforcementAlertProviderError.httpStatus(httpResponse.statusCode)
         }
 
-        return Self.parseAlerts(from: data, reference: region.center)
+        let result = Self.parseAlertResult(from: data, reference: region.center)
+        let filteredAlerts = result.alerts
             .filter { ($0.distanceMiles ?? .greatestFiniteMagnitude) <= region.radiusMiles }
+        Self.logResult(
+            region: region,
+            rawCount: result.rawElementCount,
+            validCoordinateCount: result.validCoordinateCount,
+            decodedCount: result.alerts.count,
+            returnedCount: filteredAlerts.count
+        )
+        return filteredAlerts
     }
 
     public static func parseAlerts(
@@ -144,20 +163,42 @@ public actor OSMEnforcementAlertProvider: EnforcementAlertProvider {
         reference: GuidanceCoordinate,
         now: Date = Date()
     ) -> [EnforcementAlert] {
+        parseAlertResult(from: data, reference: reference, now: now).alerts
+    }
+
+    private struct AlertParseResult {
+        var alerts: [EnforcementAlert]
+        var rawElementCount: Int
+        var validCoordinateCount: Int
+    }
+
+    private static func parseAlertResult(
+        from data: Data,
+        reference: GuidanceCoordinate,
+        now: Date = Date()
+    ) -> AlertParseResult {
         guard
             let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
             let elements = object["elements"] as? [[String: Any]]
         else {
-            return []
+            return AlertParseResult(alerts: [], rawElementCount: 0, validCoordinateCount: 0)
         }
 
         var alertsByID: [String: EnforcementAlert] = [:]
+        var validCoordinateCount = 0
 
         for element in elements {
             guard
                 let elementIdentifier = element["id"],
                 let coordinate = coordinate(from: element),
-                isValidCoordinate(coordinate),
+                isValidCoordinate(coordinate)
+            else {
+                continue
+            }
+
+            validCoordinateCount += 1
+
+            guard
                 let tags = element["tags"] as? [String: Any],
                 let alertType = alertType(from: tags)
             else {
@@ -182,9 +223,14 @@ public actor OSMEnforcementAlertProvider: EnforcementAlertProvider {
             alertsByID[id] = alert
         }
 
-        return alertsByID.values.sorted {
+        let alerts = alertsByID.values.sorted {
             ($0.distanceMiles ?? .greatestFiniteMagnitude) < ($1.distanceMiles ?? .greatestFiniteMagnitude)
         }
+        return AlertParseResult(
+            alerts: alerts,
+            rawElementCount: elements.count,
+            validCoordinateCount: validCoordinateCount
+        )
     }
 
     private static func overpassQuery(for region: EnforcementAlertSearchRegion) -> String {
@@ -199,8 +245,18 @@ public actor OSMEnforcementAlertProvider: EnforcementAlertProvider {
           node["enforcement"](around:\(radiusMeters),\(latitude),\(longitude));
           node["red_light_camera"](around:\(radiusMeters),\(latitude),\(longitude));
           node["traffic_signals:camera"](around:\(radiusMeters),\(latitude),\(longitude));
+          node["camera:type"~"speed|red_light|redlight|traffic"](around:\(radiusMeters),\(latitude),\(longitude));
+          node["device"="camera"]["enforcement"](around:\(radiusMeters),\(latitude),\(longitude));
+          node["man_made"="surveillance"]["surveillance"="traffic"](around:\(radiusMeters),\(latitude),\(longitude));
+          node["man_made"="surveillance"]["surveillance:type"~"traffic|transport|road"](around:\(radiusMeters),\(latitude),\(longitude));
+          node["surveillance:type"~"traffic|transport|road"](around:\(radiusMeters),\(latitude),\(longitude));
           way["highway"="speed_camera"](around:\(radiusMeters),\(latitude),\(longitude));
           way["enforcement"](around:\(radiusMeters),\(latitude),\(longitude));
+          way["camera:type"~"speed|red_light|redlight|traffic"](around:\(radiusMeters),\(latitude),\(longitude));
+          way["device"="camera"]["enforcement"](around:\(radiusMeters),\(latitude),\(longitude));
+          way["man_made"="surveillance"]["surveillance"="traffic"](around:\(radiusMeters),\(latitude),\(longitude));
+          way["man_made"="surveillance"]["surveillance:type"~"traffic|transport|road"](around:\(radiusMeters),\(latitude),\(longitude));
+          way["surveillance:type"~"traffic|transport|road"](around:\(radiusMeters),\(latitude),\(longitude));
           relation["type"="enforcement"](around:\(radiusMeters),\(latitude),\(longitude));
           relation["enforcement"](around:\(radiusMeters),\(latitude),\(longitude));
         );
@@ -240,10 +296,12 @@ public actor OSMEnforcementAlertProvider: EnforcementAlertProvider {
         let normalized = normalizedTagText(tags)
         let highway = normalizedTagValue("highway", in: tags)
         let enforcement = normalizedTagValue("enforcement", in: tags)
+        let cameraType = normalizedTagValue("camera:type", in: tags)
 
         if highway == "speed_camera" ||
             enforcement.contains("maxspeed") ||
             enforcement.contains("speed") ||
+            cameraType.contains("speed") ||
             normalized.contains("speed_camera") ||
             normalized.contains("speed camera") {
             return .speedCamera
@@ -254,12 +312,17 @@ public actor OSMEnforcementAlertProvider: EnforcementAlertProvider {
             enforcement.contains("redlight") ||
             enforcement.contains("red_light") ||
             enforcement.contains("traffic_signals") ||
+            cameraType.contains("redlight") ||
+            cameraType.contains("red_light") ||
             normalized.contains("red_light_camera") ||
             normalized.contains("red light camera") {
             return .redLightCamera
         }
 
-        if !enforcement.isEmpty || normalizedTagValue("type", in: tags) == "enforcement" {
+        if !enforcement.isEmpty ||
+            !cameraType.isEmpty ||
+            normalizedTagValue("type", in: tags) == "enforcement" ||
+            isTrafficRelatedCameraOrSurveillance(tags) {
             return .other
         }
 
@@ -296,6 +359,60 @@ public actor OSMEnforcementAlertProvider: EnforcementAlertProvider {
             .map { "\($0.key)=\($0.value)" }
             .joined(separator: " ")
             .lowercased()
+    }
+
+    private static func isTrafficRelatedCameraOrSurveillance(_ tags: [String: Any]) -> Bool {
+        let device = normalizedTagValue("device", in: tags)
+        let surveillance = normalizedTagValue("surveillance", in: tags)
+        let surveillanceType = normalizedTagValue("surveillance:type", in: tags)
+        let manMade = normalizedTagValue("man_made", in: tags)
+
+        if device == "camera", !normalizedTagValue("enforcement", in: tags).isEmpty {
+            return true
+        }
+
+        if manMade == "surveillance",
+           surveillance.contains("traffic") || isTrafficSurveillanceType(surveillanceType) {
+            return true
+        }
+
+        return isTrafficSurveillanceType(surveillanceType)
+    }
+
+    private static func isTrafficSurveillanceType(_ value: String) -> Bool {
+        value.contains("traffic") || value.contains("transport") || value.contains("road")
+    }
+
+    private static func logRequestStarted(region: EnforcementAlertSearchRegion) {
+        #if canImport(OSLog)
+        logger.debug(
+            "Enforcement provider request started center=\(roundedCoordinateText(region.center), privacy: .public) radiusMiles=\(region.radiusMiles, privacy: .public)"
+        )
+        #endif
+    }
+
+    private static func logHTTPStatus(_ statusCode: Int) {
+        #if canImport(OSLog)
+        logger.error("Enforcement provider HTTP status=\(statusCode, privacy: .public)")
+        #endif
+    }
+
+    private static func logResult(
+        region: EnforcementAlertSearchRegion,
+        rawCount: Int,
+        validCoordinateCount: Int,
+        decodedCount: Int,
+        returnedCount: Int
+    ) {
+        #if canImport(OSLog)
+        logger.debug(
+            "Enforcement provider result center=\(roundedCoordinateText(region.center), privacy: .public) radiusMiles=\(region.radiusMiles, privacy: .public) raw=\(rawCount, privacy: .public) validCoordinates=\(validCoordinateCount, privacy: .public) decoded=\(decodedCount, privacy: .public) returned=\(returnedCount, privacy: .public)"
+        )
+        #endif
+    }
+
+    private static func roundedCoordinateText(_ coordinate: GuidanceCoordinate) -> String {
+        "\(String(format: "%.4f", coordinate.latitude)),\(String(format: "%.4f", coordinate.longitude))"
     }
 
     private static func bearingDegrees(

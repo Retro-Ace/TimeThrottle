@@ -373,15 +373,34 @@ final class ScannerViewModel: ObservableObject {
 
     @discardableResult
     private func configureAudioSessionForPlayback() -> Bool {
+        if attemptPlaybackAudioSessionActivation(label: "preferred playback") == nil {
+            return true
+        }
+
+        do {
+            try AVAudioSession.sharedInstance().setActive(false, options: [])
+        } catch {
+            Self.logScannerFailure("audio session fallback reset", error: error)
+        }
+
+        if attemptPlaybackAudioSessionActivation(label: "basic playback fallback") == nil {
+            return true
+        }
+
+        playbackState = .failed("Scanner audio could not start on this device. iOS rejected the playback audio session.")
+        return false
+    }
+
+    private func attemptPlaybackAudioSessionActivation(label: String) -> Error? {
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers, .allowAirPlay])
-            try session.setActive(true)
-            return true
+            try session.setCategory(.playback, mode: .default, options: [])
+            try session.setActive(true, options: [])
+            Self.logScannerMessage("Scanner audio session activated: \(label)")
+            return nil
         } catch {
-            Self.logScannerFailure("audio session setup", error: error)
-            playbackState = .failed("Scanner audio could not start on this device. iOS rejected the playback audio session.")
-            return false
+            Self.logScannerFailure("audio session \(label)", error: error)
+            return error
         }
     }
 
@@ -550,7 +569,7 @@ final class ScannerViewModel: ObservableObject {
 
     private static func logScannerFailure(_ context: String, error: Error) {
         #if canImport(OSLog)
-        logger.error("Scanner \(context, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
+        logger.error("Scanner \(context, privacy: .public) failed: \(diagnosticDescription(for: error), privacy: .public)")
         #endif
     }
 
@@ -563,6 +582,23 @@ final class ScannerViewModel: ObservableObject {
     #if canImport(OSLog)
     private static let logger = Logger(subsystem: "com.timethrottle.app", category: "ScannerUI")
     #endif
+
+    private static func diagnosticDescription(for error: Error) -> String {
+        let nsError = error as NSError
+        var parts = [
+            "description=\(error.localizedDescription)",
+            "domain=\(nsError.domain)",
+            "code=\(nsError.code)"
+        ]
+
+        if let underlyingError = nsError.userInfo[NSUnderlyingErrorKey] as? NSError {
+            parts.append("underlyingDomain=\(underlyingError.domain)")
+            parts.append("underlyingCode=\(underlyingError.code)")
+            parts.append("underlyingDescription=\(underlyingError.localizedDescription)")
+        }
+
+        return parts.joined(separator: " ")
+    }
 }
 
 private final class ScannerNotificationObserverStore {

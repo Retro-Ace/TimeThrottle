@@ -28,12 +28,12 @@ TimeThrottle now adds in-app guidance and route intelligence on top of the Apple
 
 ## What's New in v2.0
 
-Build 20 is a real-device fix pass for Scanner playback, route intelligence, and map markers:
-- Scanner playback uses a safer AVAudioSession setup, the main play button starts the selected or latest playable call, and call rows start their own audio directly
-- WeatherKit signed-build failures are shown with clean unavailable wording instead of raw WeatherDaemon diagnostics
-- Fresh installs prefer Daniel for local voice guidance when available, while saved user voice choices remain unchanged
-- Enforcement Alerts use a real OpenStreetMap Overpass provider path and show camera/enforcement markers only when tagged source data with coordinates is returned
-- Nearby ADS-B aircraft markers keep higher MapKit priority while remaining passive and informational
+Build 21 is a real-device fix pass for Scanner playback and map markers:
+- Scanner playback uses the simplest iOS playback audio session, retries with the same basic setup if activation is rejected, and logs exact NSError details for diagnosis
+- Scanner latest calls, selected-row state, audio-session failures, and provider/player failures remain separate in UI and diagnostics
+- Aircraft and enforcement map markers now log source counts, annotation counts, and visible-in-viewport counts on device
+- Aircraft and enforcement annotations are registered and kept at high MapKit priority for more reliable visibility at normal driving zoom
+- Enforcement Alerts use a broader but conservative OpenStreetMap Overpass traffic-camera tag query and still show markers only when real tagged source data with coordinates is returned
 
 Use this block for GitHub releases, TestFlight notes, and App Store Connect:
 
@@ -166,7 +166,7 @@ For the full policy, see [privacy-policy.md](/Users/anthonylarosa/CODEX/TimeThro
 - **Deployment target:** iOS 17+
 - **Bundle ID:** `com.timethrottle.app`
 - **Current release:** v2.0
-- **Current build:** 20
+- **Current build:** 21
 - **Primary app target:** `TimeThrottle.xcodeproj`
 - **Primary shared UI:** `Sources/SharedUI/RouteComparisonView.swift`
 

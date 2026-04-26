@@ -263,6 +263,35 @@ final class RouteIntelligenceFoundationTests: XCTestCase {
               "lat": 41.0004,
               "lon": -87.0004,
               "tags": {
+                "camera:type": "red_light"
+              }
+            },
+            {
+              "type": "node",
+              "id": 105,
+              "lat": 41.0005,
+              "lon": -87.0005,
+              "tags": {
+                "device": "camera",
+                "enforcement": "maxspeed"
+              }
+            },
+            {
+              "type": "node",
+              "id": 106,
+              "lat": 41.0006,
+              "lon": -87.0006,
+              "tags": {
+                "man_made": "surveillance",
+                "surveillance": "traffic"
+              }
+            },
+            {
+              "type": "node",
+              "id": 107,
+              "lat": 41.0007,
+              "lon": -87.0007,
+              "tags": {
                 "amenity": "cafe"
               }
             }
@@ -275,9 +304,15 @@ final class RouteIntelligenceFoundationTests: XCTestCase {
             reference: GuidanceCoordinate(latitude: 41.0, longitude: -87.0)
         )
 
-        XCTAssertEqual(alerts.map(\.id).sorted(), ["osm-node-101", "osm-node-102", "osm-way-103"])
+        XCTAssertEqual(
+            alerts.map(\.id).sorted(),
+            ["osm-node-101", "osm-node-102", "osm-node-104", "osm-node-105", "osm-node-106", "osm-way-103"]
+        )
         XCTAssertEqual(alerts.first(where: { $0.id == "osm-node-101" })?.type, .speedCamera)
         XCTAssertEqual(alerts.first(where: { $0.id == "osm-node-102" })?.type, .redLightCamera)
+        XCTAssertEqual(alerts.first(where: { $0.id == "osm-node-104" })?.type, .redLightCamera)
+        XCTAssertEqual(alerts.first(where: { $0.id == "osm-node-105" })?.type, .speedCamera)
+        XCTAssertEqual(alerts.first(where: { $0.id == "osm-node-106" })?.type, .other)
         XCTAssertEqual(alerts.first(where: { $0.id == "osm-way-103" })?.type, .other)
         XCTAssertTrue(alerts.allSatisfy { $0.source == "OpenStreetMap Overpass" })
     }

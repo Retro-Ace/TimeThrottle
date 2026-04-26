@@ -2,6 +2,9 @@
 @preconcurrency import MapKit
 import SwiftUI
 import UIKit
+#if canImport(OSLog)
+import OSLog
+#endif
 #if canImport(TimeThrottleSharedUI)
 import TimeThrottleSharedUI
 #endif
@@ -94,6 +97,14 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
         mapView.isRotateEnabled = false
         mapView.isPitchEnabled = false
         mapView.pointOfInterestFilter = .excludingAll
+        mapView.register(
+            AircraftAnnotationView.self,
+            forAnnotationViewWithReuseIdentifier: AircraftAnnotationView.reuseIdentifier
+        )
+        mapView.register(
+            MKMarkerAnnotationView.self,
+            forAnnotationViewWithReuseIdentifier: "HUDEnforcementAlertMarker"
+        )
         mapView.userTrackingMode = .follow
         let followPanRecognizer = UIPanGestureRecognizer(
             target: context.coordinator,
@@ -120,6 +131,10 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
         private var lastRecenterToken: UUID?
         private var hasAppliedInitialFollowRegion = false
         private var userInitiatedMapChange = false
+
+        #if canImport(OSLog)
+        private static let logger = Logger(subsystem: "com.timethrottle.app", category: "HUDMapMarkers")
+        #endif
 
         init(parent: LiveDriveHUDTrackingMap) {
             self.parent = parent
@@ -273,7 +288,14 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
                 .map { aircraft in
                     AircraftMapAnnotation(aircraft: aircraft)
                 }
+            let visibleCount = Self.visibleAnnotationCount(annotations, on: mapView)
             mapView.addAnnotations(annotations)
+            Self.logMarkerCounts(
+                layer: "aircraft",
+                passed: parent.aircraft.count,
+                annotations: annotations.count,
+                visible: visibleCount
+            )
         }
 
         private func syncEnforcementAlerts(on mapView: MKMapView) {
@@ -285,11 +307,40 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
                 .map { alert in
                     EnforcementAlertMapAnnotation(alert: alert)
                 }
+            let visibleCount = Self.visibleAnnotationCount(annotations, on: mapView)
             mapView.addAnnotations(annotations)
+            Self.logMarkerCounts(
+                layer: "enforcement",
+                passed: parent.enforcementAlerts.count,
+                annotations: annotations.count,
+                visible: visibleCount
+            )
         }
 
         private static func isValidCoordinate(_ coordinate: GuidanceCoordinate) -> Bool {
             CLLocationCoordinate2DIsValid(coordinate.clLocationCoordinate)
+        }
+
+        private static func visibleAnnotationCount<Annotation: MKAnnotation>(
+            _ annotations: [Annotation],
+            on mapView: MKMapView
+        ) -> Int {
+            annotations.filter { annotation in
+                mapView.visibleMapRect.contains(MKMapPoint(annotation.coordinate))
+            }.count
+        }
+
+        private static func logMarkerCounts(
+            layer: String,
+            passed: Int,
+            annotations: Int,
+            visible: Int
+        ) {
+            #if canImport(OSLog)
+            logger.debug(
+                "HUD map \(layer, privacy: .public) markers passed=\(passed, privacy: .public) annotations=\(annotations, privacy: .public) visible=\(visible, privacy: .public)"
+            )
+            #endif
         }
 
         private func syncFollowState(on mapView: MKMapView, forceRecenter: Bool) {
@@ -389,10 +440,13 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
 
                 view.annotation = alertAnnotation
                 view.canShowCallout = true
+                view.isHidden = false
+                view.alpha = 1
                 view.displayPriority = .required
                 view.zPriority = .max
                 view.selectedZPriority = .max
                 view.collisionMode = .none
+                view.layer.zPosition = 990
                 view.markerTintColor = alertAnnotation.markerColor
                 view.glyphImage = UIImage(systemName: alertAnnotation.glyphName)
                 return view
@@ -516,11 +570,16 @@ private final class AircraftAnnotationView: MKAnnotationView {
         frame = CGRect(x: 0, y: 0, width: 30, height: 30)
         centerOffset = CGPoint(x: 0, y: -15)
         canShowCallout = true
+        isEnabled = true
+        isHidden = false
+        alpha = 1
         displayPriority = .required
         zPriority = .max
         selectedZPriority = .max
         collisionMode = .none
+        layer.zPosition = 1_000
 
+        backgroundView.isUserInteractionEnabled = false
         backgroundView.backgroundColor = UIColor.systemTeal.withAlphaComponent(0.88)
         backgroundView.layer.cornerRadius = 15
         backgroundView.layer.borderColor = UIColor.white.withAlphaComponent(0.75).cgColor
@@ -531,6 +590,7 @@ private final class AircraftAnnotationView: MKAnnotationView {
         backgroundView.layer.shadowOffset = CGSize(width: 0, height: 3)
         addSubview(backgroundView)
 
+        imageView.isUserInteractionEnabled = false
         imageView.tintColor = .white
         imageView.contentMode = .scaleAspectFit
         imageView.frame = CGRect(x: 7, y: 7, width: 16, height: 16)
@@ -544,6 +604,13 @@ private final class AircraftAnnotationView: MKAnnotationView {
 
     func configure(with annotation: AircraftMapAnnotation) {
         self.annotation = annotation
+        isHidden = false
+        alpha = 1
+        displayPriority = .required
+        zPriority = .max
+        selectedZPriority = .max
+        collisionMode = .none
+        layer.zPosition = 1_000
         if let heading = annotation.aircraft.headingDegrees {
             imageView.transform = CGAffineTransform(rotationAngle: heading * .pi / 180)
         } else {

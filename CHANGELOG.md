@@ -4,6 +4,15 @@ All notable release-facing changes to **TimeThrottle** should be documented in t
 
 ## v2.0 - April 26, 2026
 
+### Build 21 Real-Device Fix Pass
+
+- Keeps marketing version at 2.0 and bumps the build to 21.
+- Uses the simplest iOS playback audio session for Scanner calls, retries with the same basic playback setup if activation is rejected, and logs exact NSError domain/code details for real-device diagnosis.
+- Keeps Scanner latest calls, selected-row playback, and provider/player unavailable states separate from audio-session failures.
+- Adds HUD/map marker diagnostics for aircraft and enforcement layers so source counts, annotation counts, and visible-in-viewport counts can be verified on device.
+- Registers and raises priority for passive aircraft and enforcement map annotations so real source-backed markers are more reliable at normal driving zoom.
+- Broadens the OpenStreetMap Overpass enforcement query to include conservative traffic-camera and traffic-surveillance tags while keeping markers limited to real tagged source data with valid coordinates.
+
 ### Build 20 Real-Device Fix Pass
 
 - Keeps marketing version at 2.0 and bumps the build to 20.

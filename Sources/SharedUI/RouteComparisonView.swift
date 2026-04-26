@@ -10,6 +10,9 @@ import UIKit
 #if canImport(WeatherKit)
 import WeatherKit
 #endif
+#if canImport(OSLog)
+import OSLog
+#endif
 
 private enum LiveDriveScreenState: Equatable {
     case setup
@@ -96,7 +99,11 @@ public struct RouteComparisonView: View {
     private let aircraftRefreshIntervalSeconds: TimeInterval = 25
     private let aircraftStaleTimeoutSeconds: TimeInterval = 90
     private let enforcementAlertRefreshIntervalSeconds: TimeInterval = 60
+    private let enforcementAlertSearchRadiusMiles: Double = 10
     private static let guidanceVoiceIdentifierStorageKey = "timethrottle.voice.selectedVoiceIdentifier"
+    #if canImport(OSLog)
+    private static let routeIntelligenceLogger = Logger(subsystem: "com.timethrottle.app", category: "RouteIntelligence")
+    #endif
 
     @Environment(\.scenePhase) private var scenePhase
     @FocusState private var focusedRouteAddressField: RouteAddressField?
@@ -4398,9 +4405,15 @@ public struct RouteComparisonView: View {
                         lastUpdated: Date(),
                         isStale: false
                     )
+                    let freshCount = aircraft.filter { !$0.isStale }.count
+                    let markerCount = showsAircraftLayer ? freshCount : 0
+                    Self.logRouteIntelligence(
+                        "Aircraft refresh raw=\(aircraft.count) freshHUD=\(freshCount) mapMarkers=\(markerCount)"
+                    )
                     aircraftStatusText = aircraft.isEmpty ? "No fresh nearby aircraft" : "\(aircraft.count) nearby"
                 }
             } catch {
+                Self.logRouteIntelligenceFailure("aircraft refresh", error: error)
                 await MainActor.run {
                     pruneStaleAircraftIfNeeded(now: Date())
                     aircraftStatusText = aircraftLayer.aircraft.isEmpty ? "Aircraft data unavailable" : "Last update unavailable"
@@ -4438,18 +4451,27 @@ public struct RouteComparisonView: View {
         }
         lastEnforcementAlertLookupAt = now
         enforcementAlertStatusText = "Checking"
+        let radiusMiles = enforcementAlertSearchRadiusMiles
+        Self.logRouteIntelligence(
+            "Enforcement refresh started center=\(Self.roundedCoordinateText(coordinate)) radiusMiles=\(radiusMiles)"
+        )
 
         Task {
             do {
-                let alerts = try await enforcementAlertService.alerts(near: coordinate, radiusMiles: 5)
+                let alerts = try await enforcementAlertService.alerts(near: coordinate, radiusMiles: radiusMiles)
                 await MainActor.run {
                     enforcementAlerts = alerts
                     enforcementAlertsLastUpdatedAt = Date()
+                    let markerCount = areEnforcementAlertsEnabled ? alerts.filter { !$0.isStale }.count : 0
+                    Self.logRouteIntelligence(
+                        "Enforcement refresh returned alerts=\(alerts.count) mapMarkers=\(markerCount)"
+                    )
                     enforcementAlertStatusText = alerts.isEmpty
                         ? "No configured camera/enforcement source returned alerts nearby"
                         : "\(alerts.count) alerts nearby"
                 }
             } catch {
+                Self.logRouteIntelligenceFailure("enforcement refresh", error: error)
                 await MainActor.run {
                     enforcementAlerts = []
                     enforcementAlertStatusText = "Camera/enforcement source unavailable"
@@ -4478,6 +4500,42 @@ public struct RouteComparisonView: View {
             lastUpdated: lastUpdated,
             isStale: true
         )
+        Self.logRouteIntelligence("Aircraft markers cleared as stale")
+    }
+
+    private static func logRouteIntelligence(_ message: String) {
+        #if canImport(OSLog)
+        routeIntelligenceLogger.debug("\(message, privacy: .public)")
+        #endif
+    }
+
+    private static func logRouteIntelligenceFailure(_ context: String, error: Error) {
+        #if canImport(OSLog)
+        routeIntelligenceLogger.error(
+            "Route intelligence \(context, privacy: .public) failed: \(diagnosticDescription(for: error), privacy: .public)"
+        )
+        #endif
+    }
+
+    private static func diagnosticDescription(for error: Error) -> String {
+        let nsError = error as NSError
+        var parts = [
+            "description=\(error.localizedDescription)",
+            "domain=\(nsError.domain)",
+            "code=\(nsError.code)"
+        ]
+
+        if let underlyingError = nsError.userInfo[NSUnderlyingErrorKey] as? NSError {
+            parts.append("underlyingDomain=\(underlyingError.domain)")
+            parts.append("underlyingCode=\(underlyingError.code)")
+            parts.append("underlyingDescription=\(underlyingError.localizedDescription)")
+        }
+
+        return parts.joined(separator: " ")
+    }
+
+    private static func roundedCoordinateText(_ coordinate: GuidanceCoordinate) -> String {
+        "\(String(format: "%.4f", coordinate.latitude)),\(String(format: "%.4f", coordinate.longitude))"
     }
 
     private func requestGuidanceRerouteIfNeeded(from coordinate: GuidanceCoordinate) {
