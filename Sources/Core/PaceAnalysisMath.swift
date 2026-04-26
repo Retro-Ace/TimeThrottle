@@ -13,17 +13,18 @@ public struct DriveSegment: Identifiable, Equatable, Sendable {
 }
 
 public enum PaceAnalysisMath {
-    public static func timeDeltaAgainstTargetPace(
-        targetSpeed: Double,
+    public static func timeDeltaAgainstSpeedLimit(
+        speedLimit: Double,
         segment: DriveSegment
     ) -> Double {
-        guard targetSpeed > 0, segment.speed > 0, segment.minutes > 0 else { return 0 }
+        guard speedLimit > 0, segment.speed > 0, segment.minutes > 0 else { return 0 }
 
         let hoursDriven = segment.minutes / 60
         let distanceCovered = segment.speed * hoursDriven
-        let targetPaceHours = distanceCovered / targetSpeed
-        let targetPaceMinutes = targetPaceHours * 60
+        let limitPaceHours = distanceCovered / speedLimit
+        let limitPaceMinutes = limitPaceHours * 60
 
-        return targetPaceMinutes - segment.minutes
+        return limitPaceMinutes - segment.minutes
     }
+
 }

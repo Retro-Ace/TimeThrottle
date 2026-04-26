@@ -8,26 +8,34 @@
 How much time did speed really buy you?
 </p>
 
+> Start here if you are new to this repo.
+>
+> - This repo is the standalone TimeThrottle codebase only.
+> - Read this file first for the product and repo overview.
+> - Read `AGENTS.md` for working rules.
+> - Read `TimeThrottle_Developer_Handoff.md` for the quickest handoff/status summary.
+> - Read `TimeThrottle_Master_Project_Doc.md` for a fuller current-state reference.
+> - Read `TimeThrottle_Full_Project_Breakdown.txt` last if you need the longest plain-text breakdown.
+
 **TimeThrottle** is an iPhone Live Drive pace-analysis app.
 
 Apple Maps provides route lookup, autocomplete, route options, and the ETA baseline. TimeThrottle then tracks your real drive and shows:
-- Time Above Set Speed
-- Time Below Set Speed
+- Time Above Speed Limit
+- Time Below Speed Limit
 - projected arrival versus Apple Maps ETA baseline
 
-TimeThrottle does **not** provide built-in turn-by-turn navigation. During Live Drive it can hand off navigation to Apple Maps, Google Maps, or Waze while TimeThrottle continues tracking the trip.
+TimeThrottle now adds in-app guidance and route intelligence on top of the Apple Maps route data. It is not an Apple Maps replacement: external handoff to Apple Maps, Google Maps, or Waze remains available while TimeThrottle continues tracking the trip.
 
-## What's New in v1.4.3
+## What's New in v1.5.5
 
 Use this block for GitHub releases, TestFlight notes, and App Store Connect:
 
-> **TimeThrottle 1.4.3**
+> **TimeThrottle 1.5.5**
 >
-> - Polished the Current Speed HUD card with a wider Avg Spd pill
-> - Updated HUD wording to Apple Maps ETA, Time Above Set Speed, and Time Below Set Speed
-> - Clarified Live Drive setup with desired-speed wording and an empty speed-entry prompt
-> - Consolidated finished-trip and Trip History detail stats into tighter result summaries
-> - Uses destination local time for projected arrival when that time zone is available
+> - Adds optional Enforcement Alerts for configured camera and enforcement report providers, with quiet unavailable states when no source is configured
+> - Adds Standard / Satellite map mode selection with local persistence
+> - Tracks Top speed during Live Drive and saves it to finished trips when valid GPS speed data is available
+> - Simplifies Drive setup by keeping Current Location as the start and replacing the large navigation-app list with a compact selector
 
 ## Core Product
 
@@ -40,13 +48,18 @@ It supports:
 - Current Location as the default start
 - Apple Maps-style address autocomplete
 - route options and route preview
-- desired-speed entry before the drive starts
 - live GPS tracking
 - pause, resume, and end trip controls
 - a compact in-app Live Drive HUD
+- in-app guidance based on Apple Maps route steps
+- route weather checkpoints expected around arrival time
+- OpenStreetMap speed limit estimates where available
+- optional nearby low aircraft display
+- optional passive enforcement alerts when a configured source is available
 - Trip History for completed drives
 - shareable finished-trip summaries
 - optional navigation handoff to Apple Maps, Google Maps, or Waze
+- bottom navigation for Drive, HUD, Map, and Trips
 
 ### Live Drive HUD
 
@@ -56,25 +69,40 @@ It shows:
 - Current Speed as the hero metric
 - Apple Maps ETA as the Apple Maps baseline
 - Arrive as projected arrival in the destination's local time when available
-- Time Above Set Speed
-- Time Below Set Speed
+- Time Above Speed Limit
+- Time Below Speed Limit
+- next maneuver and distance based on Apple Maps route steps
+- voice guidance mute / unmute control
+- off-route and reroute status
+- Speed Limit estimate or Unavailable state
+- route weather status
+- optional Nearby Low Aircraft status and markers
 - distance driven
 - route/map context
 - Pause / Resume and End Trip controls
 - a full-width live map with recenter control
+- lightweight local system voice controls in Route Info
 
 The HUD map follows the user during a drive, stops following if the user pans away, and provides a clear recenter control.
+
+### Map Tab
+
+The Map tab is the larger map-first entry point. It shows the selected or active route, user-follow map, next maneuver, speed, Speed Limit estimate where available, route distance, and recenter support. Its Options panel contains route forecast checkpoints, passive Nearby Low Aircraft controls/status, optional Enforcement Alerts, Standard / Satellite map mode, local voice guidance controls, speed-limit details, and pace details so the main map stays uncluttered. Route guidance is based on Apple Maps route data; it is not Apple-native navigation or lane guidance.
 
 ## Trip Results
 
 Finished trips focus on the pace story:
-- **Time Above Set Speed** = total time spent above the chosen desired speed
-- **Time Below Set Speed** = total time spent below the chosen desired speed
+- **Time Above Speed Limit** = measured time spent above available OpenStreetMap speed-limit estimates
+- **Time Below Speed Limit** = measured time spent below available OpenStreetMap speed-limit estimates
 - **Overall vs Apple ETA baseline** = the finished trip result against the Apple Maps ETA baseline
+
+Speed-limit analysis only includes route segments where an OpenStreetMap speed-limit estimate was available.
 
 ## Navigation Handoff
 
 TimeThrottle keeps Apple Maps as the route-planning and ETA-baseline layer.
+
+In-app guidance is based on Apple Maps route steps. TimeThrottle does not claim lane guidance, certified speed-limit accuracy, live traffic ownership, aviation safety alerts, or Apple-native navigation behavior.
 
 During Live Drive, users can choose:
 - **Apple Maps**
@@ -88,29 +116,40 @@ TimeThrottle starts tracking first, then opens the selected navigation app if ba
 
 - No user account is required
 - Apple Maps is used for route lookup, autocomplete resolution, route options, and ETA baseline planning
+- WeatherKit may be used for route weather forecasts near sampled route checkpoints
+- OpenStreetMap may be queried and locally cached for speed-limit estimates where available
+- OpenSky ADS-B may be queried on a conservative refresh interval when the optional passive Nearby Low Aircraft layer is enabled; stale or unavailable data is handled quietly and is not a safety system
+- Optional enforcement alerts may use configured provider or open-data lookups where available; coverage varies by region and alerts are not guaranteed or legal/police-detection guidance
 - Live Drive uses iPhone location services when the user enables them
 - Completed Live Drive trips are stored locally on-device
 - The preferred navigation app choice is stored locally on-device
+- The selected local iOS guidance voice, mute state, and speech speed are stored locally on-device
 - Sharing only happens when the user explicitly uses the iOS share sheet
 
-For the full policy, see [privacy-policy.md](/Users/anthonylarosa/SPEED%20APP/privacy-policy.md).
+For the full policy, see [privacy-policy.md](/Users/anthonylarosa/CODEX/TimeThrottle/privacy-policy.md).
 
 ## Tech Overview
 
 - **Platform:** iPhone / iOS only
 - **Deployment target:** iOS 17+
 - **Bundle ID:** `com.timethrottle.app`
-- **Current release:** v1.4.3
-- **Current build:** 7
+- **Current release:** v1.5.5
+- **Current build:** 13
 - **Primary app target:** `TimeThrottle.xcodeproj`
 - **Primary shared UI:** `Sources/SharedUI/RouteComparisonView.swift`
 
 ### Core Components
 
 - `LiveDriveTracker.swift` — Live Drive tracking, permission state, speed, and distance updates
+- `TurnByTurnGuidanceEngine.swift` — Apple Maps route-step guidance, speech prompts, off-route detection, and reroute request foundation
+- `VoiceGuidanceSettings.swift` — local iOS system voice settings and best-available English voice selection
+- `WeatherRouteProvider.swift` — route checkpoint sampling and WeatherKit forecast pipeline
+- `SpeedLimitProvider.swift` / `OSMSpeedLimitService.swift` / `OSMSpeedLimitProvider.swift` — speed-limit estimate protocol, current-road OpenStreetMap lookup, and local cache wrapper
+- `AircraftProvider.swift` / `OpenSkyAircraftProvider.swift` — optional passive Nearby Low Aircraft models and OpenSky implementation
+- `EnforcementAlertProvider.swift` — optional camera and enforcement report model/provider/service foundation
 - `TripHistoryStore.swift` — local persistence for completed Live Drive trips
 - `TripAnalysisEngine.swift` — live pace and trip summary generation
-- `PaceAnalysisMath.swift` — shared target-speed time-delta helper
+- `PaceAnalysisMath.swift` — shared speed-limit comparison helper
 - `RouteModels.swift` — shared route, lookup, autocomplete, and navigation-provider models
 - `LiveDriveHUDView.swift` — compact in-app Live Drive HUD
 - `LiveDriveHUDMapView_iOS.swift` — HUD map follow and recenter behavior

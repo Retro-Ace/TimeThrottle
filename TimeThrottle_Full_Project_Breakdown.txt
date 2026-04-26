@@ -1,4 +1,10 @@
-TimeThrottle — Full Project Breakdown (v1.4.3)
+START HERE NOTE
+Read README.md first if you are new to this repo.
+Read TimeThrottle_Developer_Handoff.md for the shortest current handoff.
+Read TimeThrottle_Master_Project_Doc.md for the cleaner long-form reference.
+Use this file only when you want the longest plain-text breakdown.
+
+TimeThrottle — Full Project Breakdown (v1.5.5)
 
 1. WHAT THE APP IS
 
@@ -6,19 +12,20 @@ TimeThrottle is an iPhone Live Drive pace-analysis app built around one simple q
 
 "How much time did speed really buy you?"
 
-It is not a built-in turn-by-turn navigation app.
+It is not an Apple Maps replacement or Apple-native navigation engine.
 
 It uses Apple Maps as the route lookup and ETA-baseline layer, then tracks a real drive to show:
-- Time Above Set Speed
-- Time Below Set Speed
+- Time Above Speed Limit
+- Time Below Speed Limit
 - projected arrival versus the Apple Maps ETA baseline
+- guidance based on Apple Maps route steps
 
 In Live Drive, the app can optionally hand off visible navigation to Apple Maps, Google Maps, or Waze while TimeThrottle keeps doing the trip tracking and pace analysis.
 
 2. WHAT THE APP DOES NOW
 
-As of v1.4.3, the app is intentionally centered around one main experience:
-1) Live Drive
+As of v1.5.5, the app is centered around one main experience:
+1) Live Drive with route intelligence
 
 A. Live Drive
 This is the real-time driving mode and the app’s full product focus.
@@ -31,11 +38,19 @@ It lets the user:
 - choose a route
 - preview the route before starting
 - start a live tracked trip
-- see Time Above Set Speed / Time Below Set Speed during the drive
+- see Time Above Speed Limit / Time Below Speed Limit during the drive
+- see route-step guidance during the drive
+- review route weather checkpoints
+- see cached OpenStreetMap speed-limit estimates where available
+- optionally show passive Nearby Low Aircraft from ADS-B data with conservative refresh and stale cleanup
+- optionally show passive Enforcement Alerts from configured camera/enforcement providers, with quiet empty states when no source is available
+- switch Standard / Satellite map mode
+- save Top speed from valid GPS speed samples on completed trips
 - pause, resume, and end the trip
 - save the finished trip
 - share a finished-trip summary
 - reopen past trips in Trip History
+- switch between Drive, HUD, Map, and Trips using bottom navigation
 
 Live Drive setup includes:
 - From
@@ -44,20 +59,34 @@ Live Drive setup includes:
 - Selected route
 - Apple ETA
 - Map preview
-- Desired Speed
 - Start Drive
+
+Bottom navigation includes:
+- Drive: setup, Current Location start, destination input, route options, compact navigation app choice, and Start Drive
+- HUD: focused active driving dashboard, or an empty state when no trip is active
+- Map: map-first route view with route polyline, user location, next maneuver, speed, Speed Limit estimate where available, recenter support, and an Options panel for route-intelligence details
+- Trips: Trip History list and trip details
 
 Live Drive while active includes:
 - current speed
 - elapsed trip time / trip status
 - Apple Maps ETA
 - projected arrival / live arrival context
-- Time Above Set Speed
-- Time Below Set Speed
+- Time Above Speed Limit
+- Time Below Speed Limit
 - distance
 - Pause / Resume
 - End Trip
 - optional in-app compact HUD
+- next maneuver and distance
+- voice guidance mute / unmute
+- voice choice, test prompt, and speech-speed controls in the Route Info drawer and Map Options panel
+- off-route and reroute status
+- Speed Limit estimate / Unavailable state
+- route weather status
+- optional Nearby Low Aircraft status and markers
+- optional Enforcement Alerts status and markers when enabled and available
+- Map Options details for weather, aircraft, voice, speed limit, pace, Enforcement Alerts, and Map Mode
 - route/map context
 - optional external navigation handoff
 
@@ -71,6 +100,14 @@ Live Drive finished-trip flow includes:
 3. BIGGEST CURRENT FEATURES
 
 - compact in-app Live Drive HUD
+- in-app guidance based on Apple Maps route steps
+- route weather checkpoints
+- OpenStreetMap speed-limit estimates where available, with current-road matching and local caching
+- optional passive OpenSky ADS-B Nearby Low Aircraft layer with refresh/stale-state handling
+- optional passive Enforcement Alerts foundation for configured speed-camera, red-light-camera, and enforcement-report sources
+- Standard / Satellite map mode selection
+- Top speed tracking and Trip History persistence
+- persisted local iOS voice selection, mute state, and speech speed
 - Apple Maps route lookup / route options / route preview / ETA baseline
 - external navigation handoff to Apple Maps / Google Maps / Waze / Ask Every Time
 - Trip History
@@ -81,16 +118,18 @@ Live Drive finished-trip flow includes:
 The app now uses direct pace-based wording.
 
 Examples:
-- Time Above Set Speed
-- Time Below Set Speed
+- Time Above Speed Limit
+- Time Below Speed Limit
 - Apple Maps ETA
 - projected arrival
 
 The app remains careful not to claim:
-- built-in turn-by-turn navigation
+- Apple-native turn-by-turn navigation
 - lane guidance
-- road speed-limit ownership
+- certified speed-limit accuracy
 - live traffic intelligence it does not truly own
+- aviation safety or collision-avoidance alerts
+- guaranteed police detection, live police tracking, or legal enforcement guarantees
 
 5. DEVELOPMENT HISTORY
 
@@ -101,6 +140,12 @@ The app remains careful not to claim:
 - HUD stage: compact Live Drive HUD
 - v1.4.2: Live Drive-only simplification, removed non-Live product paths, improved HUD map follow behavior
 - v1.4.3: HUD wording polish, desired-speed input cleanup, consolidated trip summaries, and destination-time-zone arrival formatting
+- v1.5.0: route-step guidance, route weather checkpoints, speed-limit estimates, optional nearby aircraft layer, and route-intelligence privacy/docs updates
+- v1.5.1: passive Nearby Low Aircraft filtering, structured OpenStreetMap current-road speed-limit estimates, and local speed-limit caching
+- v1.5.2: removed user-entered Desired Speed, changed pace analysis to available OpenStreetMap speed-limit estimates, and clarified route forecast unavailable/loading wording
+- v1.5.3: added bottom navigation, a dedicated map-first route view, and improved local iOS system voice guidance
+- v1.5.4: polished HUD/Map map-fill behavior, added the Map Options panel, refreshed aircraft data on a conservative interval with stale marker cleanup, and persisted selected local iOS voice settings
+- v1.5.5: added optional Enforcement Alerts, Standard / Satellite map mode, Top speed tracking, Drive setup cleanup, and compact navigation app selection
 
 6. WHAT THE AGENTS DO
 
@@ -137,7 +182,7 @@ Joe — QA / Release Review
 
 7. CURRENT FOLDER STRUCTURE
 
-SPEED APP
+TimeThrottle
 ├── Assets.xcassets
 ├── build
 ├── dist
@@ -157,6 +202,15 @@ SPEED APP
 
 Important current files include:
 - LiveDriveTracker.swift
+- TurnByTurnGuidanceEngine.swift
+- VoiceGuidanceSettings.swift
+- WeatherRouteProvider.swift
+- SpeedLimitProvider.swift
+- OSMSpeedLimitService.swift
+- OSMSpeedLimitProvider.swift
+- AircraftProvider.swift
+- OpenSkyAircraftProvider.swift
+- EnforcementAlertProvider.swift
 - TripAnalysisEngine.swift
 - PaceAnalysisMath.swift
 - TripHistoryStore.swift
@@ -173,19 +227,29 @@ Important current files include:
 8. RELEASE STATE RIGHT NOW
 
 Current version:
-- Version: 1.4.3
-- Build: 7
+- Version: 1.5.5
+- Build: 13
 
 Current release story:
-TimeThrottle 1.4.3 is a Live Drive-focused polish release.
+TimeThrottle 1.5.5 is an alerts, map mode, top-speed, and Drive setup cleanup release.
 
 It:
-- polishes the Current Speed HUD and Avg Spd pill
-- updates wording around Apple Maps ETA and desired speed
+- adds optional passive Enforcement Alerts for configured camera/enforcement providers
+- shows quiet empty/unavailable alert states when no source is configured and does not fake live alerts
+- adds Standard / Satellite map mode with local persistence
+- tracks Top speed from valid GPS speed samples and saves it to new completed trips
+- removes Custom Start from the Drive setup UI and keeps Current Location as the start
+- replaces the large navigation app list with a compact selector
+- adds guidance based on Apple Maps route steps
+- adds route weather checkpoints with graceful unavailable handling
+- shows Speed Limit / Unavailable using cached OpenStreetMap estimates where confidence is sufficient
+- measures Time Above Speed Limit and Time Below Speed Limit only where speed-limit estimates are available
+- shows optional passive Nearby Low Aircraft using filtered OpenSky ADS-B data without safety-grade claims
+- avoids guaranteed enforcement, police-detection, or legal claims
 - keeps Apple Maps as the route lookup / ETA-baseline layer
 - keeps the HUD map follow and recenter behavior
-- keeps the finished-trip story focused on Time Above Set Speed, Time Below Set Speed, and projected arrival versus Apple Maps ETA baseline
+- keeps the finished-trip story focused on Time Above Speed Limit, Time Below Speed Limit, and projected arrival versus Apple Maps ETA baseline
 
 9. CURRENT PRODUCT SUMMARY
 
-TimeThrottle is now a Live Drive-first iPhone pace-analysis app. It uses Apple Maps as the route and ETA-baseline layer, tracks real trips, supports optional external navigation handoff, saves completed trips locally, and focuses the product on Time Above Set Speed, Time Below Set Speed, and projected arrival versus Apple Maps ETA baseline.
+TimeThrottle is now a Live Drive-first iPhone pace-analysis app with route intelligence and bottom navigation. It uses Apple Maps as the route and ETA-baseline layer, tracks real trips, supports optional external navigation handoff, saves completed trips locally, and adds truthful guidance, persistent local system voice prompts, route weather, cached OpenStreetMap speed-limit estimates, optional passive Nearby Low Aircraft with stale-data handling, optional provider-backed Enforcement Alerts, Standard / Satellite map mode, and Top speed tracking while keeping finished-trip results focused on Time Above Speed Limit, Time Below Speed Limit, Top speed, and Apple Maps ETA baseline.

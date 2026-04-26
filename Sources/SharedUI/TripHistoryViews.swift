@@ -15,6 +15,7 @@ struct TripHistoryScreen: View {
     @ObservedObject var store: TripHistoryStore
     let brandLogo: Image?
     let resultBrandLogo: Image?
+    var showsCloseButton = true
 
     @Environment(\.dismiss) private var dismiss
 
@@ -47,9 +48,11 @@ struct TripHistoryScreen: View {
             .navigationTitle("Trips")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("Close") {
-                        dismiss()
+                if showsCloseButton {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("Close") {
+                            dismiss()
+                        }
                     }
                 }
             }
@@ -76,7 +79,7 @@ struct TripHistoryScreen: View {
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(tripHistoryPrimaryText)
 
-                Text("Completed Live Drive trips will appear here with Time Above / Time Below and Apple ETA results.")
+                Text("Completed Live Drive trips will appear here with speed-limit analysis and Apple ETA results.")
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(tripHistorySecondaryText)
                     .multilineTextAlignment(.center)
@@ -111,8 +114,8 @@ private struct TripHistoryRow: View {
             }
 
             HStack(spacing: 8) {
-                StatPill(title: "Time Above", value: durationString(trip.timeSavedBySpeeding), foreground: Palette.success, background: tripHistoryPanelMuted, compact: true, titleColor: tripHistorySecondaryText, borderColor: tripHistoryBorder)
-                StatPill(title: "Time Below", value: durationString(trip.timeLostBelowTargetPace), foreground: Palette.danger, background: tripHistoryPanelMuted, compact: true, titleColor: tripHistorySecondaryText, borderColor: tripHistoryBorder)
+                StatPill(title: "Above Limit", value: speedLimitMetricString(trip.timeSavedBySpeeding, measuredMinutes: trip.speedLimitMeasuredMinutes), foreground: Palette.success, background: tripHistoryPanelMuted, compact: true, titleColor: tripHistorySecondaryText, borderColor: tripHistoryBorder)
+                StatPill(title: "Below Limit", value: speedLimitMetricString(trip.timeLostBelowTargetPace, measuredMinutes: trip.speedLimitMeasuredMinutes), foreground: Palette.danger, background: tripHistoryPanelMuted, compact: true, titleColor: tripHistorySecondaryText, borderColor: tripHistoryBorder)
                 StatPill(title: "Vs ETA", value: netString(trip.netTimeGain), foreground: trip.netTimeGain >= 0 ? Palette.success : Palette.danger, background: tripHistoryPanelMuted, compact: true, titleColor: tripHistorySecondaryText, borderColor: tripHistoryBorder)
             }
         }
@@ -177,16 +180,17 @@ private struct TripHistoryDetailView: View {
                             ],
                             spacing: 12
                         ) {
-                            SummaryCard(title: "Time Above Set Speed", value: durationString(trip.timeSavedBySpeeding), tint: Palette.success, compact: true, titleColor: tripHistorySecondaryText, backgroundColor: tripHistoryPanelMuted, borderColor: tripHistoryBorder, shadowColor: tripHistoryShadow.opacity(0.65))
-                            SummaryCard(title: "Time Below Set Speed", value: durationString(trip.timeLostBelowTargetPace), tint: Palette.danger, compact: true, titleColor: tripHistorySecondaryText, backgroundColor: tripHistoryPanelMuted, borderColor: tripHistoryBorder, shadowColor: tripHistoryShadow.opacity(0.65))
+                            SummaryCard(title: "Time Above Speed Limit", value: speedLimitMetricString(trip.timeSavedBySpeeding, measuredMinutes: trip.speedLimitMeasuredMinutes), tint: Palette.success, compact: true, titleColor: tripHistorySecondaryText, backgroundColor: tripHistoryPanelMuted, borderColor: tripHistoryBorder, shadowColor: tripHistoryShadow.opacity(0.65))
+                            SummaryCard(title: "Time Below Speed Limit", value: speedLimitMetricString(trip.timeLostBelowTargetPace, measuredMinutes: trip.speedLimitMeasuredMinutes), tint: Palette.danger, compact: true, titleColor: tripHistorySecondaryText, backgroundColor: tripHistoryPanelMuted, borderColor: tripHistoryBorder, shadowColor: tripHistoryShadow.opacity(0.65))
                             SummaryCard(title: "Overall vs Apple ETA", value: netString(trip.netTimeGain), tint: trip.netTimeGain >= 0 ? Palette.success : Palette.danger, isProminent: true, compact: true, titleColor: tripHistorySecondaryText, backgroundColor: tripHistoryPanelMuted, borderColor: trip.netTimeGain >= 0 ? Palette.success.opacity(0.32) : Palette.danger.opacity(0.28), shadowColor: tripHistoryShadow.opacity(0.65))
                             SummaryCard(title: "Elapsed drive time", value: durationString(trip.elapsedDriveMinutes), tint: tripHistoryPrimaryText, compact: true, titleColor: tripHistorySecondaryText, backgroundColor: tripHistoryPanelMuted, borderColor: tripHistoryBorder, shadowColor: tripHistoryShadow.opacity(0.65))
                             SummaryCard(title: "Distance driven", value: "\(milesString(trip.distanceDrivenMiles)) mi", tint: tripHistoryPrimaryText, compact: true, titleColor: tripHistorySecondaryText, backgroundColor: tripHistoryPanelMuted, borderColor: tripHistoryBorder, shadowColor: tripHistoryShadow.opacity(0.65))
                             SummaryCard(title: "Average trip speed", value: "\(speedString(trip.averageTripSpeed)) mph", tint: tripHistoryPrimaryText, compact: true, titleColor: tripHistorySecondaryText, backgroundColor: tripHistoryPanelMuted, borderColor: tripHistoryBorder, shadowColor: tripHistoryShadow.opacity(0.65))
-                            SummaryCard(title: "Target speed", value: "\(speedString(trip.targetSpeed)) mph", tint: tripHistoryPrimaryText, compact: true, titleColor: tripHistorySecondaryText, backgroundColor: tripHistoryPanelMuted, borderColor: tripHistoryBorder, shadowColor: tripHistoryShadow.opacity(0.65))
+                            SummaryCard(title: "Top speed", value: topSpeedString(trip.topSpeedMPH), tint: tripHistoryPrimaryText, compact: true, titleColor: tripHistorySecondaryText, backgroundColor: tripHistoryPanelMuted, borderColor: tripHistoryBorder, shadowColor: tripHistoryShadow.opacity(0.65))
+                            SummaryCard(title: "Speed-limit coverage", value: speedLimitCoverageString(for: trip), tint: tripHistoryPrimaryText, compact: true, titleColor: tripHistorySecondaryText, backgroundColor: tripHistoryPanelMuted, borderColor: tripHistoryBorder, shadowColor: tripHistoryShadow.opacity(0.65))
                         }
 
-                        Text("Overall vs Apple ETA compares the whole trip to Apple Maps. Time Above Set Speed and Time Below Set Speed are measured against your chosen target speed.")
+                        Text("Overall vs Apple ETA compares the whole trip to Apple Maps. Time Above Speed Limit and Time Below Speed Limit are measured against available OpenStreetMap speed-limit estimates.")
                             .font(.footnote.weight(.medium))
                             .foregroundStyle(tripHistorySecondaryText)
                     }
@@ -240,10 +244,24 @@ private func netString(_ minutes: Double) -> String {
     return minutes > 0 ? "\(durationString(minutes)) saved" : "\(durationString(abs(minutes))) lost"
 }
 
+private func speedLimitMetricString(_ minutes: Double, measuredMinutes: Double) -> String {
+    measuredMinutes > 0 ? durationString(minutes) : "—"
+}
+
+private func speedLimitCoverageString(for trip: CompletedTripRecord) -> String {
+    guard let ratio = trip.speedLimitCoverageRatio else { return "—" }
+    return "\(Int((ratio * 100).rounded()))% measured"
+}
+
 private func milesString(_ miles: Double) -> String {
     String(format: "%.1f", miles)
 }
 
 private func speedString(_ speed: Double) -> String {
     String(format: "%.0f", speed)
+}
+
+private func topSpeedString(_ speed: Double?) -> String {
+    guard let speed, speed > 0 else { return "—" }
+    return "\(speedString(speed)) mph"
 }

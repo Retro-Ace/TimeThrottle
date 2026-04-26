@@ -26,6 +26,15 @@
 		A10000000000000000000011 /* TripHistoryViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000014 /* TripHistoryViews.swift */; };
 		A10000000000000000000012 /* LiveDriveHUDView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000015 /* LiveDriveHUDView.swift */; };
 		A10000000000000000000013 /* LiveDriveHUDMapView_iOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000016 /* LiveDriveHUDMapView_iOS.swift */; };
+		A10000000000000000000015 /* TurnByTurnGuidanceEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000018 /* TurnByTurnGuidanceEngine.swift */; };
+		A10000000000000000000016 /* WeatherRouteProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000019 /* WeatherRouteProvider.swift */; };
+		A10000000000000000000017 /* SpeedLimitProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001A /* SpeedLimitProvider.swift */; };
+		A10000000000000000000018 /* OSMSpeedLimitProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001B /* OSMSpeedLimitProvider.swift */; };
+		A10000000000000000000019 /* AircraftProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001C /* AircraftProvider.swift */; };
+		A1000000000000000000001A /* OpenSkyAircraftProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001D /* OpenSkyAircraftProvider.swift */; };
+		A1000000000000000000001B /* OSMSpeedLimitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001E /* OSMSpeedLimitService.swift */; };
+		A1000000000000000000001C /* VoiceGuidanceSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001F /* VoiceGuidanceSettings.swift */; };
+		A1000000000000000000001D /* EnforcementAlertProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000020 /* EnforcementAlertProvider.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -50,6 +59,15 @@
 		A20000000000000000000014 /* TripHistoryViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripHistoryViews.swift; sourceTree = "<group>"; };
 		A20000000000000000000015 /* LiveDriveHUDView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveDriveHUDView.swift; sourceTree = "<group>"; };
 		A20000000000000000000016 /* LiveDriveHUDMapView_iOS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveDriveHUDMapView_iOS.swift; sourceTree = "<group>"; };
+		A20000000000000000000018 /* TurnByTurnGuidanceEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TurnByTurnGuidanceEngine.swift; sourceTree = "<group>"; };
+		A20000000000000000000019 /* WeatherRouteProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherRouteProvider.swift; sourceTree = "<group>"; };
+		A2000000000000000000001A /* SpeedLimitProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeedLimitProvider.swift; sourceTree = "<group>"; };
+		A2000000000000000000001B /* OSMSpeedLimitProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OSMSpeedLimitProvider.swift; sourceTree = "<group>"; };
+		A2000000000000000000001C /* AircraftProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AircraftProvider.swift; sourceTree = "<group>"; };
+		A2000000000000000000001D /* OpenSkyAircraftProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenSkyAircraftProvider.swift; sourceTree = "<group>"; };
+		A2000000000000000000001E /* OSMSpeedLimitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OSMSpeedLimitService.swift; sourceTree = "<group>"; };
+		A2000000000000000000001F /* VoiceGuidanceSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceGuidanceSettings.swift; sourceTree = "<group>"; };
+		A20000000000000000000020 /* EnforcementAlertProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnforcementAlertProvider.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -109,6 +127,15 @@
 				A20000000000000000000010 /* TripAnalysisEngine.swift */,
 				A20000000000000000000011 /* LiveDriveTracker.swift */,
 				A20000000000000000000013 /* TripHistoryStore.swift */,
+				A20000000000000000000018 /* TurnByTurnGuidanceEngine.swift */,
+				A2000000000000000000001F /* VoiceGuidanceSettings.swift */,
+				A20000000000000000000019 /* WeatherRouteProvider.swift */,
+				A2000000000000000000001A /* SpeedLimitProvider.swift */,
+				A2000000000000000000001B /* OSMSpeedLimitProvider.swift */,
+				A2000000000000000000001E /* OSMSpeedLimitService.swift */,
+				A2000000000000000000001C /* AircraftProvider.swift */,
+				A2000000000000000000001D /* OpenSkyAircraftProvider.swift */,
+				A20000000000000000000020 /* EnforcementAlertProvider.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -226,6 +253,15 @@
 				A10000000000000000000011 /* TripHistoryViews.swift in Sources */,
 				A10000000000000000000012 /* LiveDriveHUDView.swift in Sources */,
 				A10000000000000000000013 /* LiveDriveHUDMapView_iOS.swift in Sources */,
+				A10000000000000000000015 /* TurnByTurnGuidanceEngine.swift in Sources */,
+				A1000000000000000000001C /* VoiceGuidanceSettings.swift in Sources */,
+				A10000000000000000000016 /* WeatherRouteProvider.swift in Sources */,
+				A10000000000000000000017 /* SpeedLimitProvider.swift in Sources */,
+				A10000000000000000000018 /* OSMSpeedLimitProvider.swift in Sources */,
+				A1000000000000000000001B /* OSMSpeedLimitService.swift in Sources */,
+				A10000000000000000000019 /* AircraftProvider.swift in Sources */,
+				A1000000000000000000001A /* OpenSkyAircraftProvider.swift in Sources */,
+				A1000000000000000000001D /* EnforcementAlertProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -268,7 +304,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 1.4.3;
+				MARKETING_VERSION = 1.5.5;
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = com.timethrottle.app;
 				SDKROOT = iphoneos;
@@ -313,7 +349,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 1.4.3;
+				MARKETING_VERSION = 1.5.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.timethrottle.app;
 				SDKROOT = iphoneos;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -329,7 +365,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 7;
+				CURRENT_PROJECT_VERSION = 13;
 				DEVELOPMENT_TEAM = GRYEGJ3MAY;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Resources/iOS/Info.plist;
@@ -339,7 +375,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.4.3;
+				MARKETING_VERSION = 1.5.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.timethrottle.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -356,7 +392,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 7;
+				CURRENT_PROJECT_VERSION = 13;
 				DEVELOPMENT_TEAM = GRYEGJ3MAY;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Resources/iOS/Info.plist;
@@ -366,7 +402,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.4.3;
+				MARKETING_VERSION = 1.5.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.timethrottle.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;

@@ -9,6 +9,9 @@ import TimeThrottleSharedUI
 struct LiveDriveHUDMapView: View {
     let routes: [RouteEstimate]
     let selectedRouteID: UUID?
+    var aircraft: [Aircraft] = []
+    var enforcementAlerts: [EnforcementAlert] = []
+    var mapMode: LiveDriveMapMode = .standard
 
     @State private var isFollowingUser = true
     @State private var recenterToken = UUID()
@@ -18,6 +21,9 @@ struct LiveDriveHUDMapView: View {
             LiveDriveHUDTrackingMap(
                 routes: routes,
                 selectedRouteID: selectedRouteID,
+                aircraft: aircraft,
+                enforcementAlerts: enforcementAlerts,
+                mapMode: mapMode,
                 isFollowingUser: $isFollowingUser,
                 recenterToken: recenterToken
             )
@@ -68,6 +74,9 @@ struct LiveDriveHUDMapView: View {
 private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
     let routes: [RouteEstimate]
     let selectedRouteID: UUID?
+    let aircraft: [Aircraft]
+    let enforcementAlerts: [EnforcementAlert]
+    let mapMode: LiveDriveMapMode
     @Binding var isFollowingUser: Bool
     let recenterToken: UUID
 
@@ -106,6 +115,8 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
         var parent: LiveDriveHUDTrackingMap
 
         private var lastRouteSignature = ""
+        private var lastAircraftSignature = ""
+        private var lastEnforcementAlertSignature = ""
         private var lastRecenterToken: UUID?
         private var hasAppliedInitialFollowRegion = false
         private var userInitiatedMapChange = false
@@ -142,6 +153,11 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
         }
 
         func update(mapView: MKMapView) {
+            let desiredMapType = mapType(for: parent.mapMode)
+            if mapView.mapType != desiredMapType {
+                mapView.mapType = desiredMapType
+            }
+
             let signature = routeSignature(routes: parent.routes, selectedRouteID: parent.selectedRouteID)
 
             if signature != lastRouteSignature {
@@ -152,12 +168,53 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
                 }
             }
 
+            let aircraftSignature = parent.aircraft.map {
+                [
+                    $0.id,
+                    String($0.coordinate.latitude),
+                    String($0.coordinate.longitude),
+                    String($0.altitudeFeet ?? -1),
+                    String($0.groundSpeedMPH ?? -1),
+                    String($0.headingDegrees ?? -1),
+                    String($0.lastPositionDate?.timeIntervalSince1970 ?? 0),
+                    String($0.isStale)
+                ].joined(separator: ":")
+            }.joined(separator: "|")
+            if aircraftSignature != lastAircraftSignature {
+                lastAircraftSignature = aircraftSignature
+                syncAircraft(on: mapView)
+            }
+
+            let enforcementAlertSignature = parent.enforcementAlerts.map {
+                [
+                    $0.id,
+                    String($0.coordinate.latitude),
+                    String($0.coordinate.longitude),
+                    String($0.distanceMiles ?? -1),
+                    String($0.lastUpdated?.timeIntervalSince1970 ?? 0),
+                    String($0.isStale)
+                ].joined(separator: ":")
+            }.joined(separator: "|")
+            if enforcementAlertSignature != lastEnforcementAlertSignature {
+                lastEnforcementAlertSignature = enforcementAlertSignature
+                syncEnforcementAlerts(on: mapView)
+            }
+
             let shouldRecenter = lastRecenterToken != parent.recenterToken
             if shouldRecenter {
                 lastRecenterToken = parent.recenterToken
             }
 
             syncFollowState(on: mapView, forceRecenter: shouldRecenter)
+        }
+
+        private func mapType(for mode: LiveDriveMapMode) -> MKMapType {
+            switch mode {
+            case .standard:
+                return .mutedStandard
+            case .satellite:
+                return .satellite
+            }
         }
 
         private func routeSignature(routes: [RouteEstimate], selectedRouteID: UUID?) -> String {
@@ -202,6 +259,29 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
             destinationAnnotation.title = "Destination"
             destinationAnnotation.subtitle = selectedRoute.destinationName
             mapView.addAnnotation(destinationAnnotation)
+
+            syncAircraft(on: mapView)
+            syncEnforcementAlerts(on: mapView)
+        }
+
+        private func syncAircraft(on mapView: MKMapView) {
+            let aircraftAnnotations = mapView.annotations.compactMap { $0 as? AircraftMapAnnotation }
+            mapView.removeAnnotations(aircraftAnnotations)
+
+            let annotations = parent.aircraft.map { aircraft in
+                AircraftMapAnnotation(aircraft: aircraft)
+            }
+            mapView.addAnnotations(annotations)
+        }
+
+        private func syncEnforcementAlerts(on mapView: MKMapView) {
+            let alertAnnotations = mapView.annotations.compactMap { $0 as? EnforcementAlertMapAnnotation }
+            mapView.removeAnnotations(alertAnnotations)
+
+            let annotations = parent.enforcementAlerts.map { alert in
+                EnforcementAlertMapAnnotation(alert: alert)
+            }
+            mapView.addAnnotations(annotations)
         }
 
         private func syncFollowState(on mapView: MKMapView, forceRecenter: Bool) {
@@ -283,6 +363,30 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
         func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
             guard !(annotation is MKUserLocation) else { return nil }
 
+            if let aircraftAnnotation = annotation as? AircraftMapAnnotation {
+                let identifier = "HUDAircraftMarker"
+                let view = mapView.dequeueReusableAnnotationView(withIdentifier: identifier) as? MKMarkerAnnotationView
+                    ?? MKMarkerAnnotationView(annotation: annotation, reuseIdentifier: identifier)
+
+                view.annotation = aircraftAnnotation
+                view.canShowCallout = true
+                view.markerTintColor = .systemTeal
+                view.glyphImage = UIImage(systemName: "airplane")
+                return view
+            }
+
+            if let alertAnnotation = annotation as? EnforcementAlertMapAnnotation {
+                let identifier = "HUDEnforcementAlertMarker"
+                let view = mapView.dequeueReusableAnnotationView(withIdentifier: identifier) as? MKMarkerAnnotationView
+                    ?? MKMarkerAnnotationView(annotation: annotation, reuseIdentifier: identifier)
+
+                view.annotation = alertAnnotation
+                view.canShowCallout = true
+                view.markerTintColor = alertAnnotation.markerColor
+                view.glyphImage = UIImage(systemName: alertAnnotation.glyphName)
+                return view
+            }
+
             let identifier = "HUDRouteMarker"
             let view = mapView.dequeueReusableAnnotationView(withIdentifier: identifier) as? MKMarkerAnnotationView
                 ?? MKMarkerAnnotationView(annotation: annotation, reuseIdentifier: identifier)
@@ -340,6 +444,76 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
                 parent.isFollowingUser = true
             }
         }
+    }
+}
+
+private final class EnforcementAlertMapAnnotation: NSObject, MKAnnotation {
+    let alert: EnforcementAlert
+    let coordinate: CLLocationCoordinate2D
+    let title: String?
+    let subtitle: String?
+
+    init(alert: EnforcementAlert) {
+        self.alert = alert
+        self.coordinate = alert.coordinate.clLocationCoordinate
+        self.title = alert.title
+
+        let detailParts = [
+            alert.distanceMiles.map { "\(String(format: "%.1f", $0)) mi away" },
+            alert.confidence.map { "Confidence \(Int(($0 * 100).rounded()))%" },
+            alert.source.isEmpty ? nil : alert.source,
+            alert.isStale ? "Stale" : nil
+        ].compactMap { $0 }
+        self.subtitle = detailParts.joined(separator: " • ")
+    }
+
+    var glyphName: String {
+        switch alert.type {
+        case .speedCamera, .redLightCamera:
+            return "camera.viewfinder"
+        case .policeReported:
+            return "exclamationmark.triangle.fill"
+        case .other:
+            return "mappin.and.ellipse"
+        }
+    }
+
+    var markerColor: UIColor {
+        switch alert.type {
+        case .speedCamera, .redLightCamera:
+            return .systemOrange
+        case .policeReported:
+            return .systemYellow
+        case .other:
+            return .systemGray
+        }
+    }
+}
+
+private final class AircraftMapAnnotation: NSObject, MKAnnotation {
+    let aircraft: Aircraft
+    let coordinate: CLLocationCoordinate2D
+    let title: String?
+    let subtitle: String?
+
+    init(aircraft: Aircraft) {
+        self.aircraft = aircraft
+        self.coordinate = aircraft.coordinate.clLocationCoordinate
+        self.title = aircraft.callsign
+
+        let detailParts = [
+            aircraft.altitudeFeet.map { "Alt \(Int($0.rounded())) ft" },
+            aircraft.groundSpeedMPH.map { "Speed \(Int($0.rounded())) mph" },
+            aircraft.headingDegrees.map { "Heading \(Int($0.rounded()))°" },
+            aircraft.distanceMiles.map { "\(String(format: "%.1f", $0)) mi away" },
+            aircraft.dataAgeSeconds.map { "Updated \(Self.ageString($0)) ago" }
+        ].compactMap { $0 }
+        self.subtitle = detailParts.joined(separator: " • ")
+    }
+
+    private static func ageString(_ seconds: TimeInterval) -> String {
+        let value = max(0, Int(seconds.rounded()))
+        return value < 60 ? "\(value)s" : "\(value / 60)m"
     }
 }
 #endif

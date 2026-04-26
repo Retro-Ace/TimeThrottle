@@ -6,7 +6,6 @@ import Foundation
 public struct LiveDriveConfiguration: Equatable, Sendable {
     public var baselineRouteETAMinutes: Double
     public var baselineRouteDistanceMiles: Double
-    public var targetSpeed: Double
     public var locationUpdateThrottleSeconds: TimeInterval
     public var summaryUpdateIntervalSeconds: TimeInterval
     public var distanceFilterMeters: CLLocationDistance
@@ -15,7 +14,6 @@ public struct LiveDriveConfiguration: Equatable, Sendable {
     public init(
         baselineRouteETAMinutes: Double = 0,
         baselineRouteDistanceMiles: Double = 0,
-        targetSpeed: Double = 0,
         locationUpdateThrottleSeconds: TimeInterval = 1,
         summaryUpdateIntervalSeconds: TimeInterval = 2,
         distanceFilterMeters: CLLocationDistance = 10,
@@ -23,7 +21,6 @@ public struct LiveDriveConfiguration: Equatable, Sendable {
     ) {
         self.baselineRouteETAMinutes = baselineRouteETAMinutes
         self.baselineRouteDistanceMiles = baselineRouteDistanceMiles
-        self.targetSpeed = targetSpeed
         self.locationUpdateThrottleSeconds = locationUpdateThrottleSeconds
         self.summaryUpdateIntervalSeconds = min(max(summaryUpdateIntervalSeconds, 1), 3)
         self.distanceFilterMeters = distanceFilterMeters
@@ -33,6 +30,7 @@ public struct LiveDriveConfiguration: Equatable, Sendable {
 
 public struct LiveDriveSnapshot: Equatable, Sendable {
     public var currentSpeed: Double
+    public var topSpeed: Double
     public var distanceTraveled: Double
     public var tripDuration: Double
     public var timeAboveTargetSpeed: Double
@@ -46,6 +44,7 @@ public struct LiveDriveSnapshot: Equatable, Sendable {
 
     public init(
         currentSpeed: Double = 0,
+        topSpeed: Double = 0,
         distanceTraveled: Double = 0,
         tripDuration: Double = 0,
         timeAboveTargetSpeed: Double = 0,
@@ -58,6 +57,7 @@ public struct LiveDriveSnapshot: Equatable, Sendable {
         didFinishTrip: Bool = false
     ) {
         self.currentSpeed = currentSpeed
+        self.topSpeed = topSpeed
         self.distanceTraveled = distanceTraveled
         self.tripDuration = tripDuration
         self.timeAboveTargetSpeed = timeAboveTargetSpeed
@@ -90,6 +90,7 @@ public enum LiveDrivePermissionState: Equatable, Sendable {
 @MainActor
 public final class LiveDriveTracker: NSObject, ObservableObject {
     @Published public private(set) var currentSpeed: Double = 0
+    @Published public private(set) var topSpeed: Double = 0
     @Published public private(set) var distanceTraveled: Double = 0
     @Published public private(set) var tripDuration: Double = 0
     @Published public private(set) var timeAboveTargetSpeed: Double = 0
@@ -98,10 +99,12 @@ public final class LiveDriveTracker: NSObject, ObservableObject {
     @Published public private(set) var expectedArrivalTime: Date?
     @Published public private(set) var tripSummary: TripSummary = TripSummary()
     @Published public private(set) var analysisResult: TripAnalysisResult = TripAnalysisResult()
+    @Published public private(set) var currentSpeedLimitMPH: Int?
     @Published public private(set) var isTracking = false
     @Published public private(set) var isPaused = false
     @Published public private(set) var didFinishTrip = false
     @Published public private(set) var permissionState: LiveDrivePermissionState
+    @Published public private(set) var currentCoordinate: GuidanceCoordinate?
 
     public var configuration: LiveDriveConfiguration {
         didSet {
@@ -212,6 +215,7 @@ public final class LiveDriveTracker: NSObject, ObservableObject {
         isPaused = false
         didFinishTrip = false
         currentSpeed = 0
+        topSpeed = 0
         distanceTraveled = 0
         tripDuration = 0
         timeAboveTargetSpeed = 0
@@ -220,8 +224,10 @@ public final class LiveDriveTracker: NSObject, ObservableObject {
         expectedArrivalTime = nil
         tripSummary = TripSummary()
         analysisResult = TripAnalysisResult()
+        currentSpeedLimitMPH = nil
         analysisState = TripAnalysisState()
         lastAcceptedLocation = nil
+        currentCoordinate = nil
         lastAcceptedSampleTimestamp = nil
         lastSummaryComputation = nil
         acceptedLocationCount = 0
@@ -246,6 +252,10 @@ public final class LiveDriveTracker: NSObject, ObservableObject {
         }
     }
 
+    public func updateSpeedLimitEstimate(_ speedLimitMPH: Int?) {
+        currentSpeedLimitMPH = speedLimitMPH
+    }
+
     public func refreshAuthorizationState() {
         permissionState = Self.permissionState(for: locationManager.authorizationStatus)
         updateBackgroundLocationBehavior()
@@ -254,6 +264,7 @@ public final class LiveDriveTracker: NSObject, ObservableObject {
     public var snapshot: LiveDriveSnapshot {
         LiveDriveSnapshot(
             currentSpeed: currentSpeed,
+            topSpeed: topSpeed,
             distanceTraveled: distanceTraveled,
             tripDuration: tripDuration,
             timeAboveTargetSpeed: timeAboveTargetSpeed,
@@ -357,10 +368,11 @@ public final class LiveDriveTracker: NSObject, ObservableObject {
                 update: TripAnalysisUpdate(
                     deltaDistanceMiles: distanceIncrementMiles,
                     deltaTimeMinutes: elapsedMinutes,
-                    speedMilesPerHour: speedMilesPerHour
+                    speedMilesPerHour: speedMilesPerHour,
+                    speedLimitMilesPerHour: currentSpeedLimitMPH.map(Double.init)
                 ),
                 to: analysisState,
-                targetSpeed: configuration.targetSpeed
+                speedLimitMilesPerHour: currentSpeedLimitMPH.map(Double.init)
             )
 
             distanceTraveled = analysisState.distanceTraveledMiles
@@ -369,8 +381,15 @@ public final class LiveDriveTracker: NSObject, ObservableObject {
         }
 
         currentSpeed = speedMilesPerHour
+        if location.speed >= 0 {
+            topSpeed = max(topSpeed, speedMilesPerHour)
+        }
         updateTripDuration(now: location.timestamp)
         lastAcceptedLocation = location
+        currentCoordinate = GuidanceCoordinate(
+            latitude: location.coordinate.latitude,
+            longitude: location.coordinate.longitude
+        )
         lastAcceptedSampleTimestamp = location.timestamp
         acceptedLocationCount += 1
 
@@ -407,8 +426,7 @@ public final class LiveDriveTracker: NSObject, ObservableObject {
         let result = TripAnalysisEngine.summarize(
             state: analysisState,
             baselineRouteETAMinutes: configuration.baselineRouteETAMinutes,
-            baselineRouteDistanceMiles: configuration.baselineRouteDistanceMiles,
-            targetSpeed: configuration.targetSpeed
+            baselineRouteDistanceMiles: configuration.baselineRouteDistanceMiles
         )
 
         analysisResult = result

@@ -39,9 +39,16 @@ public enum NavigationProvider: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
+public enum LiveDriveMapMode: String, CaseIterable, Identifiable, Sendable {
+    case standard = "Standard"
+    case satellite = "Satellite"
+
+    public var id: String { rawValue }
+}
+
 enum RouteOriginInputMode: String, CaseIterable, Identifiable {
     case currentLocation = "Current Location"
-    case custom = "Custom Start"
+    case custom = "Custom"
 
     var id: String { rawValue }
 }
@@ -295,7 +302,7 @@ final class CurrentLocationResolver: NSObject, ObservableObject {
             locationManager.requestWhenInUseAuthorization()
         case .denied:
             isResolving = false
-            errorMessage = "Location access is off. Use a custom start or enable location access in Settings."
+            errorMessage = "Location access is off. Enable location access in Settings to use Current Location."
         case .restricted:
             isResolving = false
             errorMessage = "Current Location is unavailable because location access is restricted."
@@ -372,7 +379,7 @@ extension CurrentLocationResolver: CLLocationManagerDelegate {
                 }
             case .denied:
                 self.isResolving = false
-                self.errorMessage = "Location access is off. Use a custom start or enable location access in Settings."
+                self.errorMessage = "Location access is off. Enable location access in Settings to use Current Location."
             case .restricted:
                 self.isResolving = false
                 self.errorMessage = "Current Location is unavailable because location access is restricted."
@@ -402,7 +409,7 @@ extension CurrentLocationResolver: CLLocationManagerDelegate {
         Task { @MainActor [weak self] in
             self?.isResolving = false
             self?.hasPendingRequest = false
-            self?.errorMessage = "Current Location is unavailable right now. Use a custom start or try again."
+            self?.errorMessage = "Current Location is unavailable right now. Refresh Current Location or try again."
         }
     }
 }
@@ -422,7 +429,7 @@ public enum RouteLookupError: LocalizedError {
         case .blankAddress(let label):
             return "Enter a \(label) address."
         case .currentLocationUnavailable:
-            return "Current Location is not ready yet. Wait for the location fix or choose a custom start."
+            return "Current Location is not ready yet. Wait for the location fix or refresh Current Location."
         case .noResults(let query):
             return "Apple Maps could not find \"\(query)\"."
         case .noRoute:
@@ -444,6 +451,7 @@ public struct RouteEstimate: Identifiable, Sendable {
     public var expectedTravelMinutes: Double
     public var routeName: String
     public var routeCoordinates: [RouteCoordinate]
+    public var maneuverSteps: [RouteManeuverStep]
     public var advisories: [String]
 
     public init(
@@ -459,6 +467,7 @@ public struct RouteEstimate: Identifiable, Sendable {
         expectedTravelMinutes: Double,
         routeName: String,
         routeCoordinates: [RouteCoordinate],
+        maneuverSteps: [RouteManeuverStep] = [],
         advisories: [String]
     ) {
         self.id = id
@@ -473,6 +482,7 @@ public struct RouteEstimate: Identifiable, Sendable {
         self.expectedTravelMinutes = expectedTravelMinutes
         self.routeName = routeName
         self.routeCoordinates = routeCoordinates
+        self.maneuverSteps = maneuverSteps
         self.advisories = advisories
     }
 
@@ -511,6 +521,33 @@ enum RouteGeometry {
 
         return coordinates.map { coordinate in
             RouteCoordinate(latitude: coordinate.latitude, longitude: coordinate.longitude)
+        }
+    }
+
+    static func maneuverSteps(from route: MKRoute) -> [RouteManeuverStep] {
+        route.steps.map { step in
+            let instruction = step.instructions
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .nonEmpty ?? "Continue on route"
+
+            return RouteManeuverStep(
+                instruction: instruction,
+                distanceMeters: step.distance,
+                geometry: guidanceCoordinates(from: step.polyline),
+                transportType: RouteStepTransportType(mapKitType: step.transportType)
+            )
+        }
+    }
+
+    private static func guidanceCoordinates(from polyline: MKPolyline) -> [GuidanceCoordinate] {
+        var coordinates = Array(
+            repeating: CLLocationCoordinate2D(latitude: 0, longitude: 0),
+            count: polyline.pointCount
+        )
+        polyline.getCoordinates(&coordinates, range: NSRange(location: 0, length: polyline.pointCount))
+
+        return coordinates.map { coordinate in
+            GuidanceCoordinate(latitude: coordinate.latitude, longitude: coordinate.longitude)
         }
     }
 }
@@ -571,6 +608,7 @@ enum RouteLookupService {
                     expectedTravelMinutes: route.expectedTravelTime / 60,
                     routeName: route.name,
                     routeCoordinates: RouteGeometry.coordinates(from: route),
+                    maneuverSteps: RouteGeometry.maneuverSteps(from: route),
                     advisories: route.advisoryNotices
                 )
             }

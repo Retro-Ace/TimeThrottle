@@ -107,7 +107,10 @@ build_with_swiftc_fallback() {
     copy_bundle_metadata
     compile_launch_screen
     compile_asset_catalog || true
-    cp "$ROOT_DIR/Resources/TimeThrottleLogo/TimeThrottle.png" "$APP_BUNDLE/TimeThrottle.png"
+    if [[ -d "$ROOT_DIR/Resources/TimeThrottleLogo" ]]; then
+        mkdir -p "$APP_BUNDLE/TimeThrottleLogo"
+        cp "$ROOT_DIR/Resources/TimeThrottleLogo/"*.png "$APP_BUNDLE/TimeThrottleLogo/"
+    fi
 }
 
 if build_with_xcodebuild; then

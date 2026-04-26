@@ -26,10 +26,11 @@ final class TripHistoryStoreTests: XCTestCase {
             distanceDrivenMiles: 50,
             elapsedDriveMinutes: 54,
             averageTripSpeed: 55,
-            targetSpeed: 65,
             timeSavedBySpeeding: 6,
             timeLostBelowTargetPace: 0,
-            netTimeGain: 6
+            netTimeGain: 6,
+            speedLimitMeasuredMinutes: 54,
+            speedLimitUnavailableMinutes: 0
         )
 
         let newerTrip = CompletedTripRecord(
@@ -42,10 +43,11 @@ final class TripHistoryStoreTests: XCTestCase {
             distanceDrivenMiles: 195,
             elapsedDriveMinutes: 170,
             averageTripSpeed: 68.8,
-            targetSpeed: 75,
             timeSavedBySpeeding: 10,
             timeLostBelowTargetPace: 0,
-            netTimeGain: 10
+            netTimeGain: 10,
+            speedLimitMeasuredMinutes: 160,
+            speedLimitUnavailableMinutes: 10
         )
 
         await MainActor.run {
@@ -90,10 +92,11 @@ final class TripHistoryStoreTests: XCTestCase {
             distanceDrivenMiles: 92,
             elapsedDriveMinutes: 88,
             averageTripSpeed: 62.7,
-            targetSpeed: 70,
             timeSavedBySpeeding: 2,
             timeLostBelowTargetPace: 0,
-            netTimeGain: 2
+            netTimeGain: 2,
+            speedLimitMeasuredMinutes: 80,
+            speedLimitUnavailableMinutes: 8
         )
 
         var updatedTrip = trip

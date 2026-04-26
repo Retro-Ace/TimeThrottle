@@ -15,30 +15,42 @@ public struct TripAnalysisInput: Equatable, Sendable {
     public var baselineRouteDistanceMiles: Double
     public var distanceTraveledMiles: Double
     public var currentSpeedHistory: [SpeedSample]
-    public var targetSpeed: Double
+    public var speedLimitMilesPerHour: Double?
 
     public init(
         baselineRouteETAMinutes: Double = 0,
         baselineRouteDistanceMiles: Double = 0,
         distanceTraveledMiles: Double = 0,
         currentSpeedHistory: [SpeedSample] = [],
-        targetSpeed: Double = 0
+        speedLimitMilesPerHour: Double? = nil
     ) {
         self.baselineRouteETAMinutes = baselineRouteETAMinutes
         self.baselineRouteDistanceMiles = baselineRouteDistanceMiles
         self.distanceTraveledMiles = distanceTraveledMiles
         self.currentSpeedHistory = currentSpeedHistory
-        self.targetSpeed = targetSpeed
+        self.speedLimitMilesPerHour = speedLimitMilesPerHour
     }
 }
 
 public struct TripAnalysisState: Equatable, Sendable {
     public var distanceTraveledMiles: Double
     public var actualTravelMinutes: Double
-    public var timeAboveTargetSpeed: Double
-    public var timeBelowTargetSpeed: Double
+    public var timeAboveSpeedLimit: Double
+    public var timeBelowSpeedLimit: Double
     public var timeSavedBySpeeding: Double
     public var timeLostBelowTargetPace: Double
+    public var speedLimitMeasuredMinutes: Double
+    public var speedLimitUnavailableMinutes: Double
+
+    public var timeAboveTargetSpeed: Double {
+        get { timeAboveSpeedLimit }
+        set { timeAboveSpeedLimit = newValue }
+    }
+
+    public var timeBelowTargetSpeed: Double {
+        get { timeBelowSpeedLimit }
+        set { timeBelowSpeedLimit = newValue }
+    }
 
     public init(
         distanceTraveledMiles: Double = 0,
@@ -46,14 +58,18 @@ public struct TripAnalysisState: Equatable, Sendable {
         timeAboveTargetSpeed: Double = 0,
         timeBelowTargetSpeed: Double = 0,
         timeSavedBySpeeding: Double = 0,
-        timeLostBelowTargetPace: Double = 0
+        timeLostBelowTargetPace: Double = 0,
+        speedLimitMeasuredMinutes: Double = 0,
+        speedLimitUnavailableMinutes: Double = 0
     ) {
         self.distanceTraveledMiles = distanceTraveledMiles
         self.actualTravelMinutes = actualTravelMinutes
-        self.timeAboveTargetSpeed = timeAboveTargetSpeed
-        self.timeBelowTargetSpeed = timeBelowTargetSpeed
+        self.timeAboveSpeedLimit = timeAboveTargetSpeed
+        self.timeBelowSpeedLimit = timeBelowTargetSpeed
         self.timeSavedBySpeeding = timeSavedBySpeeding
         self.timeLostBelowTargetPace = timeLostBelowTargetPace
+        self.speedLimitMeasuredMinutes = speedLimitMeasuredMinutes
+        self.speedLimitUnavailableMinutes = speedLimitUnavailableMinutes
     }
 }
 
@@ -61,15 +77,18 @@ public struct TripAnalysisUpdate: Equatable, Sendable {
     public var deltaDistanceMiles: Double
     public var deltaTimeMinutes: Double
     public var speedMilesPerHour: Double
+    public var speedLimitMilesPerHour: Double?
 
     public init(
         deltaDistanceMiles: Double = 0,
         deltaTimeMinutes: Double = 0,
-        speedMilesPerHour: Double = 0
+        speedMilesPerHour: Double = 0,
+        speedLimitMilesPerHour: Double? = nil
     ) {
         self.deltaDistanceMiles = deltaDistanceMiles
         self.deltaTimeMinutes = deltaTimeMinutes
         self.speedMilesPerHour = speedMilesPerHour
+        self.speedLimitMilesPerHour = speedLimitMilesPerHour
     }
 }
 
@@ -77,15 +96,27 @@ public struct TripSummary: Equatable, Sendable {
     public var timeSavedBySpeeding: Double
     public var timeLostBelowTargetPace: Double
     public var netTimeGain: Double
+    public var speedLimitMeasuredMinutes: Double
+    public var speedLimitUnavailableMinutes: Double
+
+    public var speedLimitCoverageRatio: Double? {
+        let total = speedLimitMeasuredMinutes + speedLimitUnavailableMinutes
+        guard total > 0 else { return nil }
+        return speedLimitMeasuredMinutes / total
+    }
 
     public init(
         timeSavedBySpeeding: Double = 0,
         timeLostBelowTargetPace: Double = 0,
-        netTimeGain: Double = 0
+        netTimeGain: Double = 0,
+        speedLimitMeasuredMinutes: Double = 0,
+        speedLimitUnavailableMinutes: Double = 0
     ) {
         self.timeSavedBySpeeding = timeSavedBySpeeding
         self.timeLostBelowTargetPace = timeLostBelowTargetPace
         self.netTimeGain = netTimeGain
+        self.speedLimitMeasuredMinutes = speedLimitMeasuredMinutes
+        self.speedLimitUnavailableMinutes = speedLimitUnavailableMinutes
     }
 }
 
@@ -99,7 +130,23 @@ public struct TripAnalysisResult: Equatable, Sendable {
     public var timeSavedBySpeeding: Double
     public var timeLostBelowTargetPace: Double
     public var netTimeDifference: Double
+    public var speedLimitMeasuredMinutes: Double
+    public var speedLimitUnavailableMinutes: Double
     public var summary: TripSummary
+
+    public var timeAboveSpeedLimit: Double {
+        timeSavedBySpeeding
+    }
+
+    public var timeBelowSpeedLimit: Double {
+        timeLostBelowTargetPace
+    }
+
+    public var speedLimitCoverageRatio: Double? {
+        let total = speedLimitMeasuredMinutes + speedLimitUnavailableMinutes
+        guard total > 0 else { return nil }
+        return speedLimitMeasuredMinutes / total
+    }
 
     public init(
         baselineRouteETAMinutes: Double = 0,
@@ -111,6 +158,8 @@ public struct TripAnalysisResult: Equatable, Sendable {
         timeSavedBySpeeding: Double = 0,
         timeLostBelowTargetPace: Double = 0,
         netTimeDifference: Double = 0,
+        speedLimitMeasuredMinutes: Double = 0,
+        speedLimitUnavailableMinutes: Double = 0,
         summary: TripSummary = TripSummary()
     ) {
         self.baselineRouteETAMinutes = baselineRouteETAMinutes
@@ -122,15 +171,20 @@ public struct TripAnalysisResult: Equatable, Sendable {
         self.timeSavedBySpeeding = timeSavedBySpeeding
         self.timeLostBelowTargetPace = timeLostBelowTargetPace
         self.netTimeDifference = netTimeDifference
+        self.speedLimitMeasuredMinutes = speedLimitMeasuredMinutes
+        self.speedLimitUnavailableMinutes = speedLimitUnavailableMinutes
         self.summary = summary
     }
 }
 
 public enum TripAnalysisEngine {
+    public static let defaultSpeedLimitToleranceMPH: Double = 2
+
     public static func applying(
         update: TripAnalysisUpdate,
         to state: TripAnalysisState,
-        targetSpeed: Double
+        speedLimitMilesPerHour: Double?,
+        toleranceMPH: Double = defaultSpeedLimitToleranceMPH
     ) -> TripAnalysisState {
         guard update.deltaTimeMinutes > 0 else { return state }
 
@@ -138,48 +192,37 @@ public enum TripAnalysisEngine {
         nextState.distanceTraveledMiles += max(update.deltaDistanceMiles, 0)
         nextState.actualTravelMinutes += update.deltaTimeMinutes
 
-        if targetSpeed > 0 {
-            if update.speedMilesPerHour > targetSpeed {
-                nextState.timeAboveTargetSpeed += update.deltaTimeMinutes
-            } else if update.speedMilesPerHour < targetSpeed {
-                nextState.timeBelowTargetSpeed += update.deltaTimeMinutes
-            }
-
-            let delta: Double
-            if update.speedMilesPerHour <= 0 {
-                delta = -update.deltaTimeMinutes
-            } else {
-                delta = PaceAnalysisMath.timeDeltaAgainstTargetPace(
-                    targetSpeed: targetSpeed,
-                    segment: DriveSegment(
-                        speed: update.speedMilesPerHour,
-                        minutes: update.deltaTimeMinutes
-                    )
-                )
-            }
-
-            if delta >= 0 {
-                nextState.timeSavedBySpeeding += delta
-            } else {
-                nextState.timeLostBelowTargetPace += abs(delta)
-            }
+        guard let speedLimitMilesPerHour, speedLimitMilesPerHour > 0 else {
+            nextState.speedLimitUnavailableMinutes += update.deltaTimeMinutes
+            return nextState
         }
 
+        nextState.speedLimitMeasuredMinutes += update.deltaTimeMinutes
+
+        if update.speedMilesPerHour > speedLimitMilesPerHour + toleranceMPH {
+            nextState.timeAboveSpeedLimit += update.deltaTimeMinutes
+        } else if update.speedMilesPerHour < speedLimitMilesPerHour - toleranceMPH {
+            nextState.timeBelowSpeedLimit += update.deltaTimeMinutes
+        }
+
+        nextState.timeSavedBySpeeding = nextState.timeAboveSpeedLimit
+        nextState.timeLostBelowTargetPace = nextState.timeBelowSpeedLimit
         return nextState
     }
 
     public static func summarize(
         state: TripAnalysisState,
         baselineRouteETAMinutes: Double,
-        baselineRouteDistanceMiles: Double = 0,
-        targetSpeed: Double
+        baselineRouteDistanceMiles: Double = 0
     ) -> TripAnalysisResult {
         guard
             state.distanceTraveledMiles > 0,
-            state.actualTravelMinutes > 0,
-            targetSpeed > 0
+            state.actualTravelMinutes > 0
         else {
-            return TripAnalysisResult()
+            return TripAnalysisResult(
+                speedLimitMeasuredMinutes: state.speedLimitMeasuredMinutes,
+                speedLimitUnavailableMinutes: state.speedLimitUnavailableMinutes
+            )
         }
 
         let resolvedBaselineDistanceMiles = max(baselineRouteDistanceMiles, state.distanceTraveledMiles)
@@ -203,7 +246,9 @@ public enum TripAnalysisEngine {
         let summary = TripSummary(
             timeSavedBySpeeding: state.timeSavedBySpeeding,
             timeLostBelowTargetPace: state.timeLostBelowTargetPace,
-            netTimeGain: netTimeDifference
+            netTimeGain: netTimeDifference,
+            speedLimitMeasuredMinutes: state.speedLimitMeasuredMinutes,
+            speedLimitUnavailableMinutes: state.speedLimitUnavailableMinutes
         )
 
         return TripAnalysisResult(
@@ -216,6 +261,8 @@ public enum TripAnalysisEngine {
             timeSavedBySpeeding: state.timeSavedBySpeeding,
             timeLostBelowTargetPace: state.timeLostBelowTargetPace,
             netTimeDifference: netTimeDifference,
+            speedLimitMeasuredMinutes: state.speedLimitMeasuredMinutes,
+            speedLimitUnavailableMinutes: state.speedLimitUnavailableMinutes,
             summary: summary
         )
     }
@@ -232,10 +279,11 @@ public enum TripAnalysisEngine {
                 update: TripAnalysisUpdate(
                     deltaDistanceMiles: deltaDistanceMiles,
                     deltaTimeMinutes: deltaTimeMinutes,
-                    speedMilesPerHour: current.speedMilesPerHour
+                    speedMilesPerHour: current.speedMilesPerHour,
+                    speedLimitMilesPerHour: input.speedLimitMilesPerHour
                 ),
                 to: state,
-                targetSpeed: input.targetSpeed
+                speedLimitMilesPerHour: input.speedLimitMilesPerHour
             )
         }
 
@@ -246,15 +294,14 @@ public enum TripAnalysisEngine {
         return summarize(
             state: state,
             baselineRouteETAMinutes: input.baselineRouteETAMinutes,
-            baselineRouteDistanceMiles: input.baselineRouteDistanceMiles,
-            targetSpeed: input.targetSpeed
+            baselineRouteDistanceMiles: input.baselineRouteDistanceMiles
         )
     }
 
     public static func state(
         from speedHistory: [SpeedSample],
         distanceTraveledMiles: Double = 0,
-        targetSpeed: Double
+        speedLimitMilesPerHour: Double?
     ) -> TripAnalysisState {
         var state = TripAnalysisState()
 
@@ -267,10 +314,11 @@ public enum TripAnalysisEngine {
                 update: TripAnalysisUpdate(
                     deltaDistanceMiles: deltaDistanceMiles,
                     deltaTimeMinutes: deltaTimeMinutes,
-                    speedMilesPerHour: current.speedMilesPerHour
+                    speedMilesPerHour: current.speedMilesPerHour,
+                    speedLimitMilesPerHour: speedLimitMilesPerHour
                 ),
                 to: state,
-                targetSpeed: targetSpeed
+                speedLimitMilesPerHour: speedLimitMilesPerHour
             )
         }
 

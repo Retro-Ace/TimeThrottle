@@ -2,36 +2,36 @@ import XCTest
 @testable import TimeThrottleCore
 
 final class TimeThrottleCoreTests: XCTestCase {
-    func testTimeDeltaAgainstTargetPaceReturnsSavedTimeWhenDrivingFasterThanTarget() {
-        let delta = PaceAnalysisMath.timeDeltaAgainstTargetPace(
-            targetSpeed: 60,
+    func testTimeDeltaAgainstSpeedLimitReturnsPositiveDeltaWhenDrivingFasterThanLimit() {
+        let delta = PaceAnalysisMath.timeDeltaAgainstSpeedLimit(
+            speedLimit: 60,
             segment: DriveSegment(speed: 80, minutes: 30)
         )
 
         XCTAssertEqual(delta, 10, accuracy: 0.0001)
     }
 
-    func testTimeDeltaAgainstTargetPaceReturnsLostTimeWhenDrivingSlowerThanTarget() {
-        let delta = PaceAnalysisMath.timeDeltaAgainstTargetPace(
-            targetSpeed: 60,
+    func testTimeDeltaAgainstSpeedLimitReturnsNegativeDeltaWhenDrivingSlowerThanLimit() {
+        let delta = PaceAnalysisMath.timeDeltaAgainstSpeedLimit(
+            speedLimit: 60,
             segment: DriveSegment(speed: 40, minutes: 30)
         )
 
         XCTAssertEqual(delta, -10, accuracy: 0.0001)
     }
 
-    func testTimeDeltaAgainstTargetPaceReturnsZeroForInvalidInputs() {
+    func testTimeDeltaAgainstSpeedLimitReturnsZeroForInvalidInputs() {
         XCTAssertEqual(
-            PaceAnalysisMath.timeDeltaAgainstTargetPace(
-                targetSpeed: 0,
+            PaceAnalysisMath.timeDeltaAgainstSpeedLimit(
+                speedLimit: 0,
                 segment: DriveSegment(speed: 80, minutes: 30)
             ),
             0
         )
 
         XCTAssertEqual(
-            PaceAnalysisMath.timeDeltaAgainstTargetPace(
-                targetSpeed: 60,
+            PaceAnalysisMath.timeDeltaAgainstSpeedLimit(
+                speedLimit: 60,
                 segment: DriveSegment(speed: 0, minutes: 30)
             ),
             0
