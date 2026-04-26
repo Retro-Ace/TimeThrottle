@@ -10,7 +10,7 @@ public struct VoiceGuidanceSettings: Codable, Equatable, Sendable {
     public var isMuted: Bool
 
     public init(
-        selectedVoiceIdentifier: String? = VoiceGuidanceVoiceCatalog.bestAvailableEnglishVoiceIdentifier(),
+        selectedVoiceIdentifier: String? = VoiceGuidanceVoiceCatalog.preferredDefaultVoiceIdentifier(),
         speechRate: Float = Self.defaultSpeechRate,
         volume: Float = 0.92,
         isMuted: Bool = false
@@ -72,11 +72,41 @@ public enum VoiceGuidanceVoiceCatalog {
         availableEnglishVoices().first?.identifier
     }
 
+    public static func preferredDefaultVoiceIdentifier() -> String? {
+        let voices = availableEnglishVoices()
+        return danielVoiceIdentifier(in: voices) ?? voices.first?.identifier
+    }
+
+    public static func danielVoiceIdentifier(in voices: [VoiceGuidanceVoiceOption]) -> String? {
+        let englishDanielByName = voices.first {
+            isEnglishLanguage($0.language) && $0.name.localizedCaseInsensitiveContains("Daniel")
+        }
+        if let englishDanielByName {
+            return englishDanielByName.identifier
+        }
+
+        let englishDanielByIdentifier = voices.first {
+            isEnglishLanguage($0.language) && $0.identifier.localizedCaseInsensitiveContains("Daniel")
+        }
+        if let englishDanielByIdentifier {
+            return englishDanielByIdentifier.identifier
+        }
+
+        return voices.first {
+            $0.name.localizedCaseInsensitiveContains("Daniel") ||
+                $0.identifier.localizedCaseInsensitiveContains("Daniel")
+        }?.identifier
+    }
+
     private static func preferredLanguageScore(_ language: String) -> Int {
         let normalized = language.lowercased()
         if normalized == "en-us" { return 3 }
         if normalized.hasPrefix("en-") { return 2 }
         if normalized.hasPrefix("en") { return 1 }
         return 0
+    }
+
+    private static func isEnglishLanguage(_ language: String) -> Bool {
+        language.lowercased().hasPrefix("en")
     }
 }

@@ -92,7 +92,7 @@ If you enable the optional Nearby Low Aircraft layer, TimeThrottle may query Ope
 
 ### Enforcement Alerts
 
-Enforcement Alerts are enabled by default on fresh installs and can be turned off. When enabled, TimeThrottle may use a configured provider or open-data source for speed-camera, red-light-camera, and enforcement-report information near your route or current location. Coverage varies by region and may be unavailable in a given build or area. Alerts are passive and informational only; they are not guaranteed, not legal advice, and not a law-enforcement tracking or detection system. If no source is configured or data is unavailable, TimeThrottle shows a quiet empty/unavailable state rather than fake live alerts.
+Enforcement Alerts are enabled by default on fresh installs and can be turned off. When enabled, TimeThrottle may use OpenStreetMap Overpass or another configured open-data source for speed-camera, red-light-camera, and enforcement-report information near your route or current location. Coverage varies by region and may be unavailable in a given build or area. Alerts are passive and informational only; they are not guaranteed, not legal advice, and not a law-enforcement tracking or detection system. If no source is configured or data is unavailable, TimeThrottle shows a quiet empty/unavailable state rather than fake live alerts.
 
 ### Public Scanner Feed Providers
 

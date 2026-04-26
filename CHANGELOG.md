@@ -4,6 +4,18 @@ All notable release-facing changes to **TimeThrottle** should be documented in t
 
 ## v2.0 - April 26, 2026
 
+### Build 20 Real-Device Fix Pass
+
+- Keeps marketing version at 2.0 and bumps the build to 20.
+- Fixes Scanner playback startup by using a playback-safe AVAudioSession setup without the incompatible HFP option.
+- Lets the main Scanner play button start the selected call or first/latest playable call, and keeps each Latest Calls row play button tied to that specific call.
+- Adds clearer Scanner diagnostics for device audio-session failure, unsupported or insecure audio URLs, and provider/player failures.
+- Cleans WeatherKit unavailable UI so signed-build WeatherDaemon/WDSJWT failures do not appear raw in route forecast cards.
+- Adds a TimeThrottle-owned route advisory display path for real WeatherKit advisory data, with Learn More only when a valid URL exists.
+- Defaults fresh installs to Daniel for local voice guidance when available, while preserving saved user voice choices and falling back to available English voices.
+- Adds an OpenStreetMap Overpass-backed Enforcement Alerts provider path and keeps map icons limited to real tagged source data with valid coordinates.
+- Improves passive aircraft and enforcement marker visibility by raising MapKit marker priority without changing map-follow behavior.
+
 ### Build 19 Real-Device Fix Pass
 
 - Keeps marketing version at 2.0 and bumps the build to 19.

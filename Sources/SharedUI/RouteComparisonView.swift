@@ -71,6 +71,11 @@ private struct RouteWeatherDisplayEntry: Identifiable, Equatable {
     var temperatureText: String?
     var aqiText: String?
     var alertText: String?
+    var advisorySummary: String?
+    var advisoryAffectedArea: String?
+    var advisoryIssuedText: String?
+    var advisorySource: String?
+    var advisorySourceURL: URL?
 }
 
 private struct MapWeatherChipContent: Equatable {
@@ -91,6 +96,7 @@ public struct RouteComparisonView: View {
     private let aircraftRefreshIntervalSeconds: TimeInterval = 25
     private let aircraftStaleTimeoutSeconds: TimeInterval = 90
     private let enforcementAlertRefreshIntervalSeconds: TimeInterval = 60
+    private static let guidanceVoiceIdentifierStorageKey = "timethrottle.voice.selectedVoiceIdentifier"
 
     @Environment(\.scenePhase) private var scenePhase
     @FocusState private var focusedRouteAddressField: RouteAddressField?
@@ -1621,11 +1627,7 @@ public struct RouteComparisonView: View {
                         } else {
                             VStack(spacing: 8) {
                                 ForEach(routeWeatherEntries.prefix(4)) { entry in
-                                    mapOptionsDetailRow(
-                                        title: entry.title,
-                                        value: entry.forecastText,
-                                        detail: "\(entry.arrivalText) • \(entry.detailText)"
-                                    )
+                                    routeWeatherOptionsRow(entry)
                                 }
                             }
                         }
@@ -1876,6 +1878,52 @@ public struct RouteComparisonView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(10)
         .background(setupSurfaceMuted, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    private func routeWeatherOptionsRow(_ entry: RouteWeatherDisplayEntry) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            mapOptionsDetailRow(
+                title: entry.title,
+                value: entry.forecastText,
+                detail: "\(entry.arrivalText) • \(entry.detailText)"
+            )
+
+            if let alertText = entry.alertText {
+                VStack(alignment: .leading, spacing: 5) {
+                    Label(alertText, systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(Palette.danger)
+
+                    if let advisorySummary = entry.advisorySummary, !advisorySummary.isEmpty {
+                        Text(advisorySummary)
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(setupSecondaryText)
+                            .lineLimit(3)
+                    }
+
+                    let context = [
+                        entry.advisoryAffectedArea.map { "Area: \($0)" },
+                        entry.advisoryIssuedText.map { "Issued \($0)" },
+                        entry.advisorySource.map { "Source: \($0)" }
+                    ].compactMap { $0 }
+
+                    if !context.isEmpty {
+                        Text(context.joined(separator: " • "))
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(setupTertiaryText)
+                            .lineLimit(3)
+                    }
+
+                    if let url = entry.advisorySourceURL {
+                        Link("Learn More", destination: url)
+                            .font(.caption.weight(.semibold))
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(10)
+                .background(setupSurfaceMuted.opacity(0.82), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            }
+        }
     }
 
     private var aircraftOptionsStatusText: String {
@@ -3539,6 +3587,13 @@ public struct RouteComparisonView: View {
                     .font(.caption2.weight(.medium))
                     .foregroundStyle(setupTertiaryText)
                     .lineLimit(1)
+
+                if let alertText = entry.alertText {
+                    Text(alertText)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(Palette.danger)
+                        .lineLimit(1)
+                }
             }
 
             Spacer(minLength: 4)
@@ -4214,9 +4269,6 @@ public struct RouteComparisonView: View {
 
     private func applyStoredVoiceSettings() {
         let resolvedIdentifier = resolvedStoredGuidanceVoiceIdentifier()
-        if storedGuidanceVoiceIdentifier != (resolvedIdentifier ?? "") {
-            storedGuidanceVoiceIdentifier = resolvedIdentifier ?? ""
-        }
 
         guidanceEngine.applyVoiceSettings(
             VoiceGuidanceSettings(
@@ -4231,13 +4283,20 @@ public struct RouteComparisonView: View {
     private func resolvedStoredGuidanceVoiceIdentifier() -> String? {
         let voices = guidanceEngine.availableVoiceOptions
         let storedIdentifier = storedGuidanceVoiceIdentifier.trimmingCharacters(in: .whitespacesAndNewlines)
+        let hasSavedVoicePreference = UserDefaults.standard.object(
+            forKey: Self.guidanceVoiceIdentifierStorageKey
+        ) != nil
 
         if !storedIdentifier.isEmpty,
            voices.contains(where: { $0.identifier == storedIdentifier }) {
             return storedIdentifier
         }
 
-        return voices.first?.identifier
+        if !hasSavedVoicePreference {
+            return VoiceGuidanceVoiceCatalog.danielVoiceIdentifier(in: voices) ?? voices.first?.identifier
+        }
+
+        return nil
     }
 
     private func selectGuidanceVoice(_ identifier: String?) {
@@ -4386,12 +4445,14 @@ public struct RouteComparisonView: View {
                 await MainActor.run {
                     enforcementAlerts = alerts
                     enforcementAlertsLastUpdatedAt = Date()
-                    enforcementAlertStatusText = alerts.isEmpty ? "No alerts nearby" : "\(alerts.count) alerts nearby"
+                    enforcementAlertStatusText = alerts.isEmpty
+                        ? "No configured camera/enforcement source returned alerts nearby"
+                        : "\(alerts.count) alerts nearby"
                 }
             } catch {
                 await MainActor.run {
                     enforcementAlerts = []
-                    enforcementAlertStatusText = "Alert data unavailable"
+                    enforcementAlertStatusText = "Camera/enforcement source unavailable"
                 }
             }
         }
@@ -4620,6 +4681,7 @@ public struct RouteComparisonView: View {
             forecast.precipitationChance.map { "\(Int(($0 * 100).rounded()))% precip" },
             forecast.windDescription.map { "Wind \($0)" }
         ].compactMap { $0 }
+        let advisory = forecast.advisories.first
 
         return RouteWeatherDisplayEntry(
             title: Self.checkpointTitle(for: entry.checkpoint),
@@ -4628,7 +4690,12 @@ public struct RouteComparisonView: View {
             detailText: detailParts.isEmpty ? "Forecasts are matched to expected arrival times." : detailParts.joined(separator: " • "),
             temperatureText: temperatureText,
             aqiText: nil,
-            alertText: forecast.alertStatus
+            alertText: forecast.alertStatus,
+            advisorySummary: advisory?.summary,
+            advisoryAffectedArea: advisory?.affectedArea,
+            advisoryIssuedText: advisory?.issuedAt.map { Self.timeString($0, timeZone: timeZone) },
+            advisorySource: advisory?.source,
+            advisorySourceURL: advisory?.sourceURL
         )
     }
 
@@ -4644,7 +4711,12 @@ public struct RouteComparisonView: View {
             detailText: detailText,
             temperatureText: nil,
             aqiText: nil,
-            alertText: nil
+            alertText: nil,
+            advisorySummary: nil,
+            advisoryAffectedArea: nil,
+            advisoryIssuedText: nil,
+            advisorySource: nil,
+            advisorySourceURL: nil
         )
     }
 
@@ -4658,7 +4730,7 @@ public struct RouteComparisonView: View {
             case .forecastUnavailable:
                 return "WeatherKit did not return forecast data for this route."
             case .weatherKitRequestFailed(let reason):
-                return reason
+                return Self.cleanWeatherUnavailableMessage(reason)
             }
         }
 
@@ -4667,7 +4739,27 @@ public struct RouteComparisonView: View {
             return "WeatherKit did not return forecast data for this route."
         }
 
-        return "WeatherKit request failed: \(description)"
+        return Self.cleanWeatherUnavailableMessage(description)
+    }
+
+    private static func cleanWeatherUnavailableMessage(_ text: String) -> String {
+        let normalized = text.lowercased()
+        if normalized.contains("weatherdaemon") ||
+            normalized.contains("wdsjwt") ||
+            normalized.contains("authenticator") ||
+            normalized.contains("jwt") ||
+            normalized.contains("provisioning") ||
+            normalized.contains("entitlement") ||
+            normalized.contains("not authorized") ||
+            normalized.contains("authorization") {
+            return "WeatherKit is not available for this signed build. Check the WeatherKit capability and provisioning profile."
+        }
+
+        if normalized.contains("weatherkit") {
+            return text
+        }
+
+        return "WeatherKit request failed. Check WeatherKit capability, provisioning profile, and network availability."
     }
 
     private static func labeledWeatherEntries(

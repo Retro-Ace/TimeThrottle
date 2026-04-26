@@ -439,7 +439,20 @@ private struct ScannerPlayerCard: View {
     }
 
     private var playerDetail: String {
-        guard let call = viewModel.currentCall else { return "Select a latest call to start listening." }
+        guard let call = viewModel.currentCall else {
+            if viewModel.latestCalls.contains(where: { viewModel.canPlay($0) }) {
+                return "Press play to start the latest available call."
+            }
+
+            if viewModel.latestCalls.isEmpty {
+                return viewModel.isLoadingCalls
+                    ? "Latest calls are loading."
+                    : "Latest calls will appear here when the provider responds."
+            }
+
+            return "Latest calls loaded, but no playable audio URL is available."
+        }
+
         return [
             call.talkgroup.map { "Talkgroup \($0)" },
             ScannerFormatters.timestampText(call.timestamp)

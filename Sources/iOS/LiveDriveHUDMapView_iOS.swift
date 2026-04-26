@@ -389,6 +389,10 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
 
                 view.annotation = alertAnnotation
                 view.canShowCallout = true
+                view.displayPriority = .required
+                view.zPriority = .max
+                view.selectedZPriority = .max
+                view.collisionMode = .none
                 view.markerTintColor = alertAnnotation.markerColor
                 view.glyphImage = UIImage(systemName: alertAnnotation.glyphName)
                 return view
@@ -481,9 +485,9 @@ private final class EnforcementAlertMapAnnotation: NSObject, MKAnnotation {
         case .redLightCamera:
             return "trafficlight"
         case .policeReported:
-            return "exclamationmark.triangle.fill"
+            return "camera.viewfinder"
         case .other:
-            return "mappin.and.ellipse"
+            return "camera.viewfinder"
         }
     }
 
@@ -494,7 +498,7 @@ private final class EnforcementAlertMapAnnotation: NSObject, MKAnnotation {
         case .redLightCamera:
             return .systemRed
         case .policeReported:
-            return .systemYellow
+            return .systemBlue
         case .other:
             return .systemGray
         }
@@ -512,7 +516,10 @@ private final class AircraftAnnotationView: MKAnnotationView {
         frame = CGRect(x: 0, y: 0, width: 30, height: 30)
         centerOffset = CGPoint(x: 0, y: -15)
         canShowCallout = true
-        displayPriority = .defaultHigh
+        displayPriority = .required
+        zPriority = .max
+        selectedZPriority = .max
+        collisionMode = .none
 
         backgroundView.backgroundColor = UIColor.systemTeal.withAlphaComponent(0.88)
         backgroundView.layer.cornerRadius = 15

@@ -37,7 +37,7 @@ Live Drive supports:
 - route weather checkpoints shown as forecasts near the route and expected around arrival time
 - OpenStreetMap speed-limit estimates where available, with local caching to avoid repeated segment lookups
 - optional passive Nearby Low Aircraft display using OpenSky ADS-B data
-- optional passive Enforcement Alerts when a configured camera/enforcement source is available
+- optional passive Enforcement Alerts from the configured OpenStreetMap Overpass camera/enforcement source when tagged data is available
 - Standard / Satellite map mode with local persistence
 - direct Map tab Pause / Resume and End Trip controls
 - always-visible floating Map recenter control
@@ -58,7 +58,7 @@ Scanner supports:
 - Nearby scanner systems when location is available
 - Browse and search by system name, short name, city, county, or state
 - latest public scanner calls for a selected system
-- simple play / pause / next-call playback
+- selected-call or latest-playable call play / pause / next-call playback
 - background audio while scanner playback is active
 - graceful unavailable states when provider data or audio is unavailable
 
@@ -158,6 +158,7 @@ TimeThrottle does **not** currently claim:
 - v1.5.9: polished the Map-first driving hierarchy, consolidated route intelligence into Options, and cleaned Trips wording around ETA, speed-limit analysis, top speed, and speed-limit coverage
 - v2.0: added a separate Scanner tab with Nearby / Browse public scanner systems, latest calls, OpenMHz-style service models, playback, background audio, and privacy updates
 - v2.0 build 19: added real-device WeatherKit entitlement wiring and diagnostics, fixed Scanner latest-call/playback loading states, defaulted passive Enforcement Alerts on for fresh installs, and added fresh ADS-B aircraft map markers
+- v2.0 build 20: fixed real-device Scanner playback startup, cleaned WeatherKit signed-build unavailable UI, defaulted fresh installs to Daniel when available, added the OpenStreetMap Overpass Enforcement Alerts source path, and raised passive aircraft/enforcement marker visibility priority
 
 ## Repo / App Structure
 
@@ -188,4 +189,4 @@ TimeThrottle
 
 ## Plain-English Summary
 
-**TimeThrottle is now a Live Drive-first iPhone pace-analysis app with Drive / Map / Trips / Scanner navigation. Map is the primary driving HUD, while Options holds route intelligence details. Scanner is separate and provides informational public scanner listening through Nearby / Browse systems, latest calls, and playback. The app uses Apple Maps as the route and ETA-baseline layer, tracks real trips, adds truthful route-step guidance, persistent local system voice prompts, route weather, cached OpenStreetMap speed-limit estimates, optional passive Nearby Low Aircraft with stale-data handling, optional provider-backed Enforcement Alerts with varied coverage, Standard / Satellite map mode, local Trip History, external navigation handoff, and finished-trip results centered on Time Above Speed Limit, Time Below Speed Limit, Top speed, and Apple Maps ETA baseline.**
+**TimeThrottle is now a Live Drive-first iPhone pace-analysis app with Drive / Map / Trips / Scanner navigation. Map is the primary driving HUD, while Options holds route intelligence details. Scanner is separate and provides informational public scanner listening through Nearby / Browse systems, latest calls, and selected/latest-call playback. The app uses Apple Maps as the route and ETA-baseline layer, tracks real trips, adds truthful route-step guidance, persistent local system voice prompts with Daniel as the fresh-install default when available, route weather, cached OpenStreetMap speed-limit estimates, optional passive Nearby Low Aircraft with stale-data handling, optional OpenStreetMap Overpass-backed Enforcement Alerts with varied coverage, Standard / Satellite map mode, local Trip History, external navigation handoff, and finished-trip results centered on Time Above Speed Limit, Time Below Speed Limit, Top speed, and Apple Maps ETA baseline.**

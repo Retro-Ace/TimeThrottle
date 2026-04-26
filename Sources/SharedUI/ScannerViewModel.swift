@@ -46,6 +46,7 @@ final class ScannerViewModel: ObservableObject {
     private let observerStore = ScannerNotificationObserverStore()
     private var didLoadSystems = false
     private var player: AVPlayer?
+    private var playerItemStatusObservation: NSKeyValueObservation?
 
     init(
         service: OpenMHzScannerService = OpenMHzScannerService(),
@@ -86,7 +87,7 @@ final class ScannerViewModel: ObservableObject {
     }
 
     func canPlay(_ call: ScannerCall) -> Bool {
-        call.resolvedAudioURL(relativeTo: service.baseURL) != nil
+        playableAudioURL(for: call) != nil
     }
 
     func loadSystemsIfNeeded() async {
@@ -210,19 +211,23 @@ final class ScannerViewModel: ObservableObject {
     }
 
     func play(_ call: ScannerCall) {
-        guard let url = call.resolvedAudioURL(relativeTo: service.baseURL) else {
-            Self.logScannerMessage("Scanner call missing playable audio URL id=\(call.id)")
-            playbackState = .failed("No playable audio URL is available for this call.")
-            currentCall = call
+        currentCall = call
+        player?.pause()
+        player = nil
+        removePlaybackObservers()
+
+        guard let url = playableAudioURL(for: call) else {
+            let message = audioURLFailureMessage(for: call)
+            Self.logScannerMessage("Scanner call missing supported audio URL id=\(call.id)")
+            playbackState = .failed(message)
+            releaseAudioSession()
             return
         }
 
         guard configureAudioSessionForPlayback() else { return }
-        currentCall = call
         playbackState = .loading
 
         let item = AVPlayerItem(url: url)
-        removePlaybackEndObserver()
         let playbackEndObserver = NotificationCenter.default.addObserver(
             forName: .AVPlayerItemDidPlayToEndTime,
             object: item,
@@ -234,11 +239,28 @@ final class ScannerViewModel: ObservableObject {
         }
         observerStore.setPlaybackEndObserver(playbackEndObserver)
 
+        let playbackFailureObserver = NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemFailedToPlayToEndTime,
+            object: item,
+            queue: .main
+        ) { [weak self] notification in
+            let error = notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? Error
+            Task { @MainActor [weak self] in
+                self?.handlePlaybackFailure(call: call, url: url, error: error)
+            }
+        }
+        observerStore.setPlaybackFailureObserver(playbackFailureObserver)
+
+        playerItemStatusObservation = item.observe(\.status, options: [.initial, .new]) { [weak self] item, _ in
+            Task { @MainActor [weak self] in
+                self?.handlePlayerItemStatusChange(item, call: call, url: url)
+            }
+        }
+
         let player = AVPlayer(playerItem: item)
         self.player = player
         player.play()
-        playbackState = .playing
-        Self.logScannerMessage("Scanner playback started call=\(call.id)")
+        Self.logScannerMessage("Scanner playback requested call=\(call.id)")
     }
 
     func togglePlayback() {
@@ -248,7 +270,9 @@ final class ScannerViewModel: ObservableObject {
         case .paused:
             resume()
         case .stopped, .failed:
-            if let firstPlayable = latestCalls.first(where: { $0.resolvedAudioURL(relativeTo: service.baseURL) != nil }) {
+            if let currentCall, canPlay(currentCall) {
+                play(currentCall)
+            } else if let firstPlayable = latestCalls.first(where: { canPlay($0) }) {
                 play(firstPlayable)
             } else if latestCalls.isEmpty {
                 playbackState = .failed("No recent scanner calls are loaded for playback.")
@@ -282,19 +306,23 @@ final class ScannerViewModel: ObservableObject {
         player = nil
         currentCall = nil
         playbackState = .stopped
-        removePlaybackEndObserver()
+        removePlaybackObservers()
         releaseAudioSession()
     }
 
     func playNextCall() {
         guard let currentCall,
               let currentIndex = latestCalls.firstIndex(where: { $0.id == currentCall.id }) else {
-            stop()
+            if let firstPlayable = latestCalls.first(where: { canPlay($0) }) {
+                play(firstPlayable)
+            } else {
+                stop()
+            }
             return
         }
 
         let remainingCalls = latestCalls.dropFirst(currentIndex + 1)
-        guard let nextCall = remainingCalls.first(where: { $0.resolvedAudioURL(relativeTo: service.baseURL) != nil }) else {
+        guard let nextCall = remainingCalls.first(where: { canPlay($0) }) else {
             stop()
             return
         }
@@ -347,13 +375,90 @@ final class ScannerViewModel: ObservableObject {
     private func configureAudioSessionForPlayback() -> Bool {
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers, .allowBluetoothHFP, .allowAirPlay])
+            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers, .allowAirPlay])
             try session.setActive(true)
             return true
         } catch {
-            playbackState = .failed("Scanner audio could not start on this device.")
+            Self.logScannerFailure("audio session setup", error: error)
+            playbackState = .failed("Scanner audio could not start on this device. iOS rejected the playback audio session.")
             return false
         }
+    }
+
+    private func playableAudioURL(for call: ScannerCall) -> URL? {
+        guard let url = call.resolvedAudioURL(relativeTo: service.baseURL) else { return nil }
+        guard let scheme = url.scheme?.lowercased() else { return nil }
+        return scheme == "https" ? url : nil
+    }
+
+    private func audioURLFailureMessage(for call: ScannerCall) -> String {
+        guard let url = call.resolvedAudioURL(relativeTo: service.baseURL),
+              let scheme = url.scheme?.lowercased() else {
+            return "This latest call did not include a playable audio URL."
+        }
+
+        if scheme == "http" {
+            return "The scanner provider returned an HTTP audio URL that this signed build is not configured to play."
+        }
+
+        return "The scanner provider returned an audio URL this device cannot play."
+    }
+
+    private func handlePlayerItemStatusChange(_ item: AVPlayerItem, call: ScannerCall, url: URL) {
+        guard currentCall?.id == call.id else { return }
+
+        switch item.status {
+        case .readyToPlay:
+            guard playbackState == .loading else { return }
+            playbackState = .playing
+            player?.play()
+            Self.logScannerMessage("Scanner playback ready call=\(call.id)")
+        case .failed:
+            handlePlaybackFailure(call: call, url: url, error: item.error)
+        case .unknown:
+            break
+        @unknown default:
+            break
+        }
+    }
+
+    private func handlePlaybackFailure(call: ScannerCall, url: URL, error: Error?) {
+        guard currentCall?.id == call.id else { return }
+        player?.pause()
+        player = nil
+        removePlaybackObservers()
+        releaseAudioSession()
+
+        if let error {
+            Self.logScannerFailure("AVPlayer item call=\(call.id) host=\(url.host ?? "unknown")", error: error)
+        } else {
+            Self.logScannerMessage("Scanner AVPlayer item failed without error call=\(call.id) host=\(url.host ?? "unknown")")
+        }
+
+        playbackState = .failed(Self.playbackFailureMessage(for: error))
+    }
+
+    private static func playbackFailureMessage(for error: Error?) -> String {
+        guard let error else {
+            return "Scanner audio could not load from the provider for this call."
+        }
+
+        let nsError = error as NSError
+        if nsError.domain == AVFoundationErrorDomain,
+           let code = AVError.Code(rawValue: nsError.code) {
+            switch code {
+            case .fileFormatNotRecognized, .decoderNotFound:
+                return "The scanner provider returned audio in a format this device cannot play."
+            default:
+                break
+            }
+        }
+
+        if nsError.domain == NSURLErrorDomain {
+            return "The scanner provider audio URL could not be reached."
+        }
+
+        return "Scanner audio could not load from the provider for this call."
     }
 
     private func releaseAudioSession() {
@@ -394,8 +499,10 @@ final class ScannerViewModel: ObservableObject {
         }
     }
 
-    private func removePlaybackEndObserver() {
+    private func removePlaybackObservers() {
+        playerItemStatusObservation = nil
         observerStore.removePlaybackEndObserver()
+        observerStore.removePlaybackFailureObserver()
     }
 
     private static func callsErrorTitle(for error: Error) -> String {
@@ -460,16 +567,23 @@ final class ScannerViewModel: ObservableObject {
 
 private final class ScannerNotificationObserverStore {
     private var playbackEndObserver: NSObjectProtocol?
+    private var playbackFailureObserver: NSObjectProtocol?
     private var interruptionObserver: NSObjectProtocol?
 
     deinit {
         removePlaybackEndObserver()
+        removePlaybackFailureObserver()
         removeInterruptionObserver()
     }
 
     func setPlaybackEndObserver(_ observer: NSObjectProtocol) {
         removePlaybackEndObserver()
         playbackEndObserver = observer
+    }
+
+    func setPlaybackFailureObserver(_ observer: NSObjectProtocol) {
+        removePlaybackFailureObserver()
+        playbackFailureObserver = observer
     }
 
     func setInterruptionObserver(_ observer: NSObjectProtocol) {
@@ -481,6 +595,13 @@ private final class ScannerNotificationObserverStore {
         if let playbackEndObserver {
             NotificationCenter.default.removeObserver(playbackEndObserver)
             self.playbackEndObserver = nil
+        }
+    }
+
+    func removePlaybackFailureObserver() {
+        if let playbackFailureObserver {
+            NotificationCenter.default.removeObserver(playbackFailureObserver)
+            self.playbackFailureObserver = nil
         }
     }
 

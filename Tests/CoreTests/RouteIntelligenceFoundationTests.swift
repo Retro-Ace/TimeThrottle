@@ -113,6 +113,28 @@ final class RouteIntelligenceFoundationTests: XCTestCase {
         XCTAssertEqual(cachedWayResult, result)
     }
 
+    func testDanielVoiceResolverPrefersDanielWhenAvailable() {
+        let voices = [
+            VoiceGuidanceVoiceOption(
+                identifier: "com.apple.voice.compact.en-US.Samantha",
+                name: "Samantha",
+                language: "en-US",
+                qualityRank: 1
+            ),
+            VoiceGuidanceVoiceOption(
+                identifier: "com.apple.voice.compact.en-GB.Daniel",
+                name: "Daniel",
+                language: "en-GB",
+                qualityRank: 1
+            )
+        ]
+
+        XCTAssertEqual(
+            VoiceGuidanceVoiceCatalog.danielVoiceIdentifier(in: voices),
+            "com.apple.voice.compact.en-GB.Daniel"
+        )
+    }
+
     func testOpenSkyAircraftParsingShowsInsideRadiusBelowAltitude() {
         let now = Date(timeIntervalSince1970: 2_000)
         let data = """
@@ -201,5 +223,62 @@ final class RouteIntelligenceFoundationTests: XCTestCase {
         XCTAssertEqual(alerts.map(\.id), ["near-camera"])
         XCTAssertEqual(alerts.first?.type, .speedCamera)
         XCTAssertNotNil(alerts.first?.distanceMiles)
+    }
+
+    func testOSMEnforcementAlertProviderParsesRealTaggedCameraElements() {
+        let data = """
+        {
+          "elements": [
+            {
+              "type": "node",
+              "id": 101,
+              "lat": 41.0001,
+              "lon": -87.0001,
+              "tags": {
+                "highway": "speed_camera",
+                "name": "Speed camera"
+              }
+            },
+            {
+              "type": "node",
+              "id": 102,
+              "lat": 41.0002,
+              "lon": -87.0002,
+              "tags": {
+                "red_light_camera": "yes"
+              }
+            },
+            {
+              "type": "way",
+              "id": 103,
+              "center": { "lat": 41.0003, "lon": -87.0003 },
+              "tags": {
+                "type": "enforcement",
+                "enforcement": "access"
+              }
+            },
+            {
+              "type": "node",
+              "id": 104,
+              "lat": 41.0004,
+              "lon": -87.0004,
+              "tags": {
+                "amenity": "cafe"
+              }
+            }
+          ]
+        }
+        """.data(using: .utf8)!
+
+        let alerts = OSMEnforcementAlertProvider.parseAlerts(
+            from: data,
+            reference: GuidanceCoordinate(latitude: 41.0, longitude: -87.0)
+        )
+
+        XCTAssertEqual(alerts.map(\.id).sorted(), ["osm-node-101", "osm-node-102", "osm-way-103"])
+        XCTAssertEqual(alerts.first(where: { $0.id == "osm-node-101" })?.type, .speedCamera)
+        XCTAssertEqual(alerts.first(where: { $0.id == "osm-node-102" })?.type, .redLightCamera)
+        XCTAssertEqual(alerts.first(where: { $0.id == "osm-way-103" })?.type, .other)
+        XCTAssertTrue(alerts.allSatisfy { $0.source == "OpenStreetMap Overpass" })
     }
 }

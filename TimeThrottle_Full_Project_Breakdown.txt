@@ -45,7 +45,7 @@ It lets the user:
 - see cached OpenStreetMap speed-limit estimates where available
 - optionally show passive Nearby Low Aircraft from ADS-B data with conservative refresh and stale cleanup
 - see a compact nearest-aircraft Map bar when nearby aircraft data is available
-- optionally show passive Enforcement Alerts from configured camera/enforcement providers, with quiet empty states when no source is available
+- optionally show passive Enforcement Alerts from the configured OpenStreetMap Overpass camera/enforcement source, with quiet empty states when no tagged source data is available
 - switch Standard / Satellite map mode
 - use a visible floating Recenter control on Map
 - see a compact floating weather chip on Map when route forecast data is available
@@ -65,10 +65,10 @@ It lets the user:
 - search by system name, short name, city, county, or state
 - open a selected scanner system
 - view latest public scanner calls
-- play, pause, and advance scanner audio
+- play the selected call or latest playable call, pause, and advance scanner audio
 - continue scanner playback in the background after starting audio
 
-Scanner uses an OpenMHz-style API client with a configurable base URL. It does not record scanner audio, does not support user-uploaded scanner feeds, and does not feed Live Drive calculations, route intelligence, route warnings, incident prediction, or driving recommendations.
+Scanner uses an OpenMHz-style API client with a configurable base URL. It does not record scanner audio, does not support user-uploaded scanner feeds, and does not feed Live Drive calculations, route intelligence, route warnings, incident prediction, or driving recommendations. Playback starts from the selected call or latest playable call, and row play controls start their own call directly.
 
 Live Drive setup includes:
 - From
@@ -121,7 +121,7 @@ Live Drive finished-trip flow includes:
 - route weather checkpoints
 - OpenStreetMap speed-limit estimates where available, with current-road matching and local caching
 - optional passive OpenSky ADS-B Nearby Low Aircraft layer with refresh/stale-state handling
-- optional passive Enforcement Alerts foundation for configured speed-camera, red-light-camera, and enforcement-report sources
+- optional passive Enforcement Alerts source path for OpenStreetMap Overpass speed-camera, red-light-camera, and enforcement-report tags
 - Standard / Satellite map mode selection
 - Top speed tracking and Trip History persistence
 - persisted local iOS voice selection, mute state, and speech speed
@@ -175,6 +175,7 @@ The app remains careful not to claim:
 - v1.5.9: polished the Map-first driving hierarchy, consolidated route intelligence into Options, and cleaned Trips wording around ETA, speed-limit analysis, top speed, and speed-limit coverage
 - v2.0: added a separate Scanner tab with Nearby / Browse public scanner systems, latest calls, OpenMHz-style scanner service, playback, background audio, and privacy updates
 - v2.0 build 19: added real-device WeatherKit entitlement wiring and diagnostics, fixed Scanner latest-call/playback loading states, defaulted passive Enforcement Alerts on for fresh installs, and added fresh ADS-B aircraft map markers
+- v2.0 build 20: fixed real-device Scanner playback startup, cleaned WeatherKit signed-build unavailable UI, defaulted fresh installs to Daniel when available, added the OpenStreetMap Overpass Enforcement Alerts source path, and raised passive aircraft/enforcement marker visibility priority
 
 6. WHAT THE AGENTS DO
 
@@ -261,34 +262,35 @@ Important current files include:
 
 Current version:
 - Version: 2.0
-- Build: 19
+- Build: 20
 
 Current release story:
 TimeThrottle 2.0 adds Scanner as a separate public listening tab while preserving the Map-first Live Drive app structure.
 
 It:
-- keeps marketing version 2.0 and moves the build to 19
+- keeps marketing version 2.0 and moves the build to 20
 - keeps bottom navigation to Drive, Map, Trips, and Scanner
 - makes Map the primary active driving surface
-- adds real-device WeatherKit entitlement wiring and clearer WeatherKit diagnostics/unavailable wording
+- keeps WeatherKit entitlement wiring and shows clean signed-build unavailable wording instead of raw WeatherDaemon diagnostics
 - adds Scanner Nearby and Browse public scanner systems
 - fixes latest public scanner call loading so call metadata is not hidden by talkgroup-provider failures
-- adds scanner playback and background audio support
-- makes scanner no-calls, provider, decode, and missing-audio states clearer
+- fixes scanner playback startup with a safer playback audio session
+- adds selected/latest-call scanner playback, row-level call playback, and background audio support
+- makes scanner no-calls, provider, decode, device-audio, and missing-audio states clearer
 - keeps Scanner independent from Live Drive, route intelligence, route warnings, and trip results
 - does not record scanner audio or support user-uploaded scanner feeds
 - defaults Nearby Low Aircraft on while preserving the user toggle
-- defaults passive Enforcement Alerts on for fresh installs while preserving saved user choice
+- defaults passive Enforcement Alerts on for fresh installs while preserving saved user choice and using OpenStreetMap Overpass as the configured source path
 - makes the floating Recenter control icon-only
 - fixes visible weather icon rendering in the weather chip
 - adds a compact nearest-aircraft Map bar when nearby aircraft data is available
-- adds passive aircraft map markers when ADS-B coordinates are fresh
+- adds passive aircraft map markers when ADS-B coordinates are fresh and keeps marker priority high enough to remain visible
 - puts Pause / Resume and End Trip directly on Map
 - keeps Options as the home for route intelligence details
 - keeps Top speed, average speed, distance, and speed-limit-based results visible in Trips where useful
 - keeps Current Location as the route start in Drive setup
 - adds guidance based on Apple Maps route steps
-- adds route weather checkpoints with graceful unavailable handling
+- adds route weather checkpoints with graceful unavailable handling and compact advisory display when WeatherKit returns real advisory data
 - shows Speed Limit / Unavailable using cached OpenStreetMap estimates where confidence is sufficient
 - measures Time Above Speed Limit and Time Below Speed Limit only where speed-limit estimates are available
 - shows optional passive Nearby Low Aircraft using filtered OpenSky ADS-B data without safety-grade claims
@@ -299,4 +301,4 @@ It:
 
 9. CURRENT PRODUCT SUMMARY
 
-TimeThrottle is now a Live Drive-first iPhone pace-analysis app with Drive / Map / Trips / Scanner navigation. Map is the primary driving HUD. Scanner is a separate informational public listening tab with Nearby / Browse systems, latest calls, and playback. The app uses Apple Maps as the route and ETA-baseline layer, tracks real trips, supports optional external navigation handoff, saves completed trips locally, and adds truthful guidance, persistent local system voice prompts, route weather, cached OpenStreetMap speed-limit estimates, optional passive Nearby Low Aircraft with stale-data handling, optional provider-backed Enforcement Alerts, Standard / Satellite map mode, and Top speed tracking while keeping finished-trip results focused on Time Above Speed Limit, Time Below Speed Limit, Top speed, and Apple Maps ETA baseline.
+TimeThrottle is now a Live Drive-first iPhone pace-analysis app with Drive / Map / Trips / Scanner navigation. Map is the primary driving HUD. Scanner is a separate informational public listening tab with Nearby / Browse systems, latest calls, and selected/latest-call playback. The app uses Apple Maps as the route and ETA-baseline layer, tracks real trips, supports optional external navigation handoff, saves completed trips locally, and adds truthful guidance, persistent local system voice prompts with Daniel as the fresh-install default when available, route weather, cached OpenStreetMap speed-limit estimates, optional passive Nearby Low Aircraft with stale-data handling, optional OpenStreetMap Overpass-backed Enforcement Alerts, Standard / Satellite map mode, and Top speed tracking while keeping finished-trip results focused on Time Above Speed Limit, Time Below Speed Limit, Top speed, and Apple Maps ETA baseline.

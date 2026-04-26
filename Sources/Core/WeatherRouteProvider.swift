@@ -32,6 +32,7 @@ public struct RouteWeatherForecast: Equatable, Sendable {
     public var precipitationChance: Double?
     public var windDescription: String?
     public var alertStatus: String?
+    public var advisories: [RouteWeatherAdvisory]
     public var source: String
 
     public init(
@@ -40,6 +41,7 @@ public struct RouteWeatherForecast: Equatable, Sendable {
         precipitationChance: Double? = nil,
         windDescription: String? = nil,
         alertStatus: String? = nil,
+        advisories: [RouteWeatherAdvisory] = [],
         source: String = "WeatherKit"
     ) {
         self.summary = summary
@@ -47,7 +49,33 @@ public struct RouteWeatherForecast: Equatable, Sendable {
         self.precipitationChance = precipitationChance
         self.windDescription = windDescription
         self.alertStatus = alertStatus
+        self.advisories = advisories
         self.source = source
+    }
+}
+
+public struct RouteWeatherAdvisory: Equatable, Sendable {
+    public var title: String
+    public var summary: String?
+    public var affectedArea: String?
+    public var issuedAt: Date?
+    public var source: String?
+    public var sourceURL: URL?
+
+    public init(
+        title: String,
+        summary: String? = nil,
+        affectedArea: String? = nil,
+        issuedAt: Date? = nil,
+        source: String? = nil,
+        sourceURL: URL? = nil
+    ) {
+        self.title = title
+        self.summary = summary
+        self.affectedArea = affectedArea
+        self.issuedAt = issuedAt
+        self.source = source
+        self.sourceURL = sourceURL
     }
 }
 
@@ -254,6 +282,7 @@ public struct WeatherKitRouteWeatherForecastClient: RouteWeatherForecastClient {
         let hourlyForecast = weather.hourlyForecast.forecast.min {
             abs($0.date.timeIntervalSince(arrival)) < abs($1.date.timeIntervalSince(arrival))
         }
+        let advisories = Self.routeAdvisories(from: weather)
 
         if let hourlyForecast {
             Self.logSuccess(checkpoint: checkpoint, usedHourlyForecast: true)
@@ -262,7 +291,8 @@ public struct WeatherKitRouteWeatherForecastClient: RouteWeatherForecastClient {
                 temperatureCelsius: hourlyForecast.temperature.converted(to: .celsius).value,
                 precipitationChance: hourlyForecast.precipitationChance,
                 windDescription: "\(Int(hourlyForecast.wind.speed.converted(to: .milesPerHour).value.rounded())) mph",
-                alertStatus: weather.weatherAlerts?.isEmpty == false ? "Weather alert nearby" : nil,
+                alertStatus: advisories.first?.title,
+                advisories: advisories,
                 source: "WeatherKit"
             )
         }
@@ -273,7 +303,8 @@ public struct WeatherKitRouteWeatherForecastClient: RouteWeatherForecastClient {
             temperatureCelsius: weather.currentWeather.temperature.converted(to: .celsius).value,
             precipitationChance: nil,
             windDescription: "\(Int(weather.currentWeather.wind.speed.converted(to: .milesPerHour).value.rounded())) mph",
-            alertStatus: weather.weatherAlerts?.isEmpty == false ? "Weather alert nearby" : nil,
+            alertStatus: advisories.first?.title,
+            advisories: advisories,
             source: "WeatherKit"
         )
     }
@@ -283,10 +314,19 @@ public struct WeatherKitRouteWeatherForecastClient: RouteWeatherForecastClient {
         let description = error.localizedDescription
         let diagnosticText = "\(nsError.domain) \(nsError.code) \(description)".lowercased()
 
-        if diagnosticText.contains("entitlement") ||
+        if diagnosticText.contains("weatherdaemon") ||
+            diagnosticText.contains("wdsjwt") ||
+            diagnosticText.contains("authenticator") ||
+            diagnosticText.contains("jwt") ||
+            diagnosticText.contains("signature") ||
+            diagnosticText.contains("provisioning") ||
+            diagnosticText.contains("app identifier") ||
+            diagnosticText.contains("bundle identifier") ||
+            diagnosticText.contains("team id") ||
+            diagnosticText.contains("entitlement") ||
             diagnosticText.contains("not authorized") ||
             diagnosticText.contains("authorization") {
-            return "WeatherKit request failed. Confirm the WeatherKit capability is enabled for the app identifier and included in the signed entitlements."
+            return "WeatherKit is not available for this signed build. Check the WeatherKit capability and provisioning profile."
         }
 
         if let urlError = error as? URLError {
@@ -307,6 +347,17 @@ public struct WeatherKitRouteWeatherForecastClient: RouteWeatherForecastClient {
         }
 
         return "WeatherKit request failed: \(description)"
+    }
+
+    private static func routeAdvisories(from weather: Weather) -> [RouteWeatherAdvisory] {
+        guard weather.weatherAlerts?.isEmpty == false else { return [] }
+        return [
+            RouteWeatherAdvisory(
+                title: "Weather advisory nearby",
+                summary: "WeatherKit reports an active advisory near this checkpoint.",
+                source: "WeatherKit"
+            )
+        ]
     }
 
     private static func logRequest(checkpoint: RouteWeatherCheckpoint) {

@@ -28,11 +28,12 @@ TimeThrottle now adds in-app guidance and route intelligence on top of the Apple
 
 ## What's New in v2.0
 
-Build 19 is a real-device fix pass for route intelligence and Scanner:
-- WeatherKit is now wired through the app entitlement file, with clearer request diagnostics and truthful unavailable wording when the provider or entitlement is not available
-- Scanner latest calls are loaded independently from talkgroup metadata, with clearer no-calls, provider, decode, and audio-URL unavailable states
-- Enforcement Alerts default on for fresh installs, preserve saved user choice, and show map markers only from configured real provider data
-- Nearby ADS-B aircraft show as passive map plane markers when fresh coordinate data is available
+Build 20 is a real-device fix pass for Scanner playback, route intelligence, and map markers:
+- Scanner playback uses a safer AVAudioSession setup, the main play button starts the selected or latest playable call, and call rows start their own audio directly
+- WeatherKit signed-build failures are shown with clean unavailable wording instead of raw WeatherDaemon diagnostics
+- Fresh installs prefer Daniel for local voice guidance when available, while saved user voice choices remain unchanged
+- Enforcement Alerts use a real OpenStreetMap Overpass provider path and show camera/enforcement markers only when tagged source data with coordinates is returned
+- Nearby ADS-B aircraft markers keep higher MapKit priority while remaining passive and informational
 
 Use this block for GitHub releases, TestFlight notes, and App Store Connect:
 
@@ -147,7 +148,7 @@ TimeThrottle starts tracking first, then opens the selected navigation app if ba
 - WeatherKit may be used for route weather forecasts near sampled route checkpoints
 - OpenStreetMap may be queried and locally cached for speed-limit estimates where available
 - OpenSky ADS-B may be queried on a conservative refresh interval when the optional passive Nearby Low Aircraft layer is enabled; stale or unavailable data is handled quietly and is not a safety system
-- Passive Enforcement Alerts default on for fresh installs and may use configured provider or open-data lookups where available; coverage varies by region, users can turn the layer off, and alerts are not guaranteed legal or enforcement guidance
+- Passive Enforcement Alerts default on for fresh installs and may use OpenStreetMap Overpass or another configured open-data lookup where available; coverage varies by region, users can turn the layer off, and alerts are not guaranteed legal or enforcement guidance
 - Scanner may use location to find nearby public scanner systems when Scanner Nearby is used
 - Scanner audio comes from third-party public scanner feed providers; TimeThrottle does not record scanner audio
 - Scanner playback can continue in the background when the user starts scanner audio
@@ -165,7 +166,7 @@ For the full policy, see [privacy-policy.md](/Users/anthonylarosa/CODEX/TimeThro
 - **Deployment target:** iOS 17+
 - **Bundle ID:** `com.timethrottle.app`
 - **Current release:** v2.0
-- **Current build:** 19
+- **Current build:** 20
 - **Primary app target:** `TimeThrottle.xcodeproj`
 - **Primary shared UI:** `Sources/SharedUI/RouteComparisonView.swift`
 
@@ -173,11 +174,11 @@ For the full policy, see [privacy-policy.md](/Users/anthonylarosa/CODEX/TimeThro
 
 - `LiveDriveTracker.swift` — Live Drive tracking, permission state, speed, and distance updates
 - `TurnByTurnGuidanceEngine.swift` — Apple Maps route-step guidance, speech prompts, off-route detection, and reroute request foundation
-- `VoiceGuidanceSettings.swift` — local iOS system voice settings and best-available English voice selection
+- `VoiceGuidanceSettings.swift` — local iOS system voice settings, Daniel fresh-install default resolution, and English fallback selection
 - `WeatherRouteProvider.swift` — route checkpoint sampling and WeatherKit forecast pipeline
 - `SpeedLimitProvider.swift` / `OSMSpeedLimitService.swift` / `OSMSpeedLimitProvider.swift` — speed-limit estimate protocol, current-road OpenStreetMap lookup, and local cache wrapper
 - `AircraftProvider.swift` / `OpenSkyAircraftProvider.swift` — optional passive Nearby Low Aircraft models and OpenSky implementation
-- `EnforcementAlertProvider.swift` — optional camera and enforcement report model/provider/service foundation
+- `EnforcementAlertProvider.swift` — optional camera and enforcement report models plus OpenStreetMap Overpass provider/service path
 - `ScannerModels.swift` — public scanner system, call, talkgroup, nearby sorting, and geocode cache models
 - `OpenMHzScannerService.swift` — configurable OpenMHz-style scanner API client for systems, latest calls, and talkgroups
 - `TripHistoryStore.swift` — local persistence for completed Live Drive trips
