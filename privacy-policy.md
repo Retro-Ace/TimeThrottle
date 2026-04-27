@@ -1,6 +1,6 @@
 # Privacy Policy for TimeThrottle
 
-**Effective date:** April 26, 2026
+**Effective date:** April 27, 2026
 
 TimeThrottle is an iPhone Live Drive pace-analysis app with a separate Scanner tab for informational public scanner listening. It uses Apple Maps route planning as the route and ETA baseline layer and, when enabled by the user, iPhone location services for live trip tracking, guidance based on route steps, route intelligence features, and nearby scanner discovery.
 
@@ -65,7 +65,7 @@ TimeThrottle uses the information above only to:
 - save completed Live Drive trips on-device for later review
 - hand off navigation to Apple Maps, Google Maps, or Waze when the user chooses that option
 - find nearby public scanner systems when Scanner Nearby is used
-- play third-party public scanner feed audio when the user starts Scanner playback
+- play configured third-party or public scanner feed audio when the user starts Scanner playback
 
 ## External Services and Handoff
 
@@ -96,9 +96,9 @@ Enforcement Alerts are enabled by default on fresh installs and can be turned of
 
 ### Public Scanner Feed Providers
 
-The Scanner tab may request public scanner system lists, latest call metadata, talkgroup metadata, and scanner audio URLs from a configured OpenMHz-style or compatible public scanner feed provider. Scanner is listening only and independent from Live Drive.
+The Scanner tab may request public scanner system lists, latest call metadata, talkgroup metadata, and scanner audio URLs from a configured OpenMHz-style or compatible public scanner feed provider. Scanner may also play a configured direct Live Feed stream when a permitted public or third-party stream URL is bundled for a selected scanner system. Scanner is listening only and independent from Live Drive.
 
-Scanner audio comes from third-party public scanner feed providers. TimeThrottle does not record scanner audio, does not save scanner audio files locally except for normal system playback caching that iOS may perform, and does not support user-uploaded scanner feeds. Coverage, freshness, metadata, and audio availability vary by provider and system. Scanner playback can continue in the background if the user starts audio.
+Scanner audio comes from configured third-party or public scanner feed providers. TimeThrottle does not scrape Broadcastify, does not record scanner audio, does not save scanner audio files locally except for normal system playback caching that iOS may perform, does not upload scanner feeds, and does not support user-uploaded scanner feeds. TimeThrottle does not use scanner audio for Live Drive, route warnings, route intelligence, incident prediction, or driving recommendations. Coverage, freshness, metadata, live stream availability, and audio availability vary by provider and system. Scanner playback can continue in the background if the user starts audio.
 
 ### Google Maps
 

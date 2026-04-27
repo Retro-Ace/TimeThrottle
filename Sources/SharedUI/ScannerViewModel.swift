@@ -36,10 +36,14 @@ final class ScannerViewModel: ObservableObject {
     @Published private(set) var callsEmptyTitle = "No latest calls"
     @Published private(set) var callsEmptyMessage = "This public feed has no recent calls available from the provider."
     @Published var searchText = ""
+    @Published private(set) var selectedLiveStream: ScannerLiveStream?
     @Published private(set) var currentCall: ScannerCall?
+    @Published private(set) var currentLiveStream: ScannerLiveStream?
+    @Published private(set) var playbackMode: ScannerPlaybackMode = .idle
     @Published private(set) var playbackState: PlaybackState = .stopped
 
     private let service: OpenMHzScannerService
+    private let liveStreamResolver: ScannerLiveStreamResolver
     private let locationProvider: ScannerLocationProvider
     private let geocodeCache: ScannerGeocodeCache
     private let geocoder = CLGeocoder()
@@ -50,9 +54,11 @@ final class ScannerViewModel: ObservableObject {
 
     init(
         service: OpenMHzScannerService = OpenMHzScannerService(),
-        geocodeCache: ScannerGeocodeCache = ScannerGeocodeCache()
+        geocodeCache: ScannerGeocodeCache = ScannerGeocodeCache(),
+        liveStreamCatalog: ScannerLiveStreamCatalog = .bundled()
     ) {
         self.service = service
+        self.liveStreamResolver = ScannerLiveStreamResolver(catalog: liveStreamCatalog)
         self.locationProvider = ScannerLocationProvider()
         self.geocodeCache = geocodeCache
         observeAudioInterruptions()
@@ -77,8 +83,63 @@ final class ScannerViewModel: ObservableObject {
         playbackState == .playing
     }
 
-    var canStartPlayback: Bool {
+    var isCallReplayPlaying: Bool {
+        playbackMode.callReplay != nil && playbackState == .playing
+    }
+
+    var isLiveFeedPlaying: Bool {
+        playbackMode.liveStream != nil && playbackState == .playing
+    }
+
+    var liveFeedStatusTitle: String {
+        guard selectedLiveStream != nil else { return "Unavailable" }
+        guard playbackMode.liveStream != nil else { return "Ready" }
+
         switch playbackState {
+        case .stopped:
+            return "Ready"
+        case .loading:
+            return "Connecting"
+        case .playing:
+            return "Playing"
+        case .paused:
+            return "Paused"
+        case .failed:
+            return "Failed"
+        }
+    }
+
+    var liveFeedStatusMessage: String {
+        guard let selectedLiveStream else {
+            return "Live feed unavailable for this system. Latest calls may still be available."
+        }
+
+        guard playbackMode.liveStream != nil else {
+            return selectedLiveStream.notes?.scannerViewNonEmpty
+                ?? "Ready when you tap play."
+        }
+
+        switch playbackState {
+        case .stopped:
+            return selectedLiveStream.notes?.scannerViewNonEmpty ?? "Ready when you tap play."
+        case .loading:
+            return "Connecting to the configured public stream."
+        case .playing:
+            return "Live feed is playing."
+        case .paused:
+            return "Live feed is paused."
+        case .failed(let message):
+            return message
+        }
+    }
+
+    var canStartLiveFeed: Bool {
+        selectedLiveStream != nil
+    }
+
+    var canStartPlayback: Bool {
+        let callPlaybackState = playbackMode.callReplay == nil ? PlaybackState.stopped : playbackState
+        switch callPlaybackState {
         case .playing, .loading, .paused:
             return true
         case .stopped, .failed:
@@ -161,6 +222,7 @@ final class ScannerViewModel: ObservableObject {
         }
 
         selectedSystem = system
+        selectedLiveStream = liveStreamResolver.liveStream(for: system)
         latestCalls = []
         talkgroups = []
         callsErrorTitle = nil
@@ -212,6 +274,8 @@ final class ScannerViewModel: ObservableObject {
 
     func play(_ call: ScannerCall) {
         currentCall = call
+        currentLiveStream = nil
+        playbackMode = .callReplay(call)
         player?.pause()
         player = nil
         removePlaybackObservers()
@@ -263,8 +327,80 @@ final class ScannerViewModel: ObservableObject {
         Self.logScannerMessage("Scanner playback requested call=\(call.id)")
     }
 
+    func toggleLiveStreamPlayback() {
+        guard let selectedLiveStream else { return }
+
+        if playbackMode.liveStream?.id == selectedLiveStream.id {
+            switch playbackState {
+            case .playing, .loading:
+                pause()
+            case .paused:
+                resume()
+            case .stopped, .failed:
+                playLiveStream(selectedLiveStream)
+            }
+        } else {
+            playLiveStream(selectedLiveStream)
+        }
+    }
+
+    func playLiveStream(_ stream: ScannerLiveStream) {
+        currentCall = nil
+        currentLiveStream = stream
+        playbackMode = .liveStream(stream)
+        player?.pause()
+        player = nil
+        removePlaybackObservers()
+
+        guard let url = playableLiveStreamURL(for: stream) else {
+            Self.logScannerMessage("Scanner live stream missing supported URL system=\(stream.systemShortName)")
+            playbackState = .failed("This Live Feed is not configured with a supported HTTPS stream URL.")
+            releaseAudioSession()
+            return
+        }
+
+        guard configureAudioSessionForPlayback() else { return }
+        playbackState = .loading
+
+        let item = AVPlayerItem(url: url)
+        let playbackEndObserver = NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemDidPlayToEndTime,
+            object: item,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.handleLiveStreamEnded(stream: stream, url: url)
+            }
+        }
+        observerStore.setPlaybackEndObserver(playbackEndObserver)
+
+        let playbackFailureObserver = NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemFailedToPlayToEndTime,
+            object: item,
+            queue: .main
+        ) { [weak self] notification in
+            let error = notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? Error
+            Task { @MainActor [weak self] in
+                self?.handleLiveStreamFailure(stream: stream, url: url, error: error)
+            }
+        }
+        observerStore.setPlaybackFailureObserver(playbackFailureObserver)
+
+        playerItemStatusObservation = item.observe(\.status, options: [.initial, .new]) { [weak self] item, _ in
+            Task { @MainActor [weak self] in
+                self?.handleLiveStreamItemStatusChange(item, stream: stream, url: url)
+            }
+        }
+
+        let player = AVPlayer(playerItem: item)
+        self.player = player
+        player.play()
+        Self.logScannerMessage("Scanner live stream playback requested system=\(stream.systemShortName)")
+    }
+
     func togglePlayback() {
-        switch playbackState {
+        let callPlaybackState = playbackMode.callReplay == nil ? PlaybackState.stopped : playbackState
+        switch callPlaybackState {
         case .playing:
             pause()
         case .paused:
@@ -286,7 +422,7 @@ final class ScannerViewModel: ObservableObject {
 
     func pause() {
         player?.pause()
-        if currentCall != nil {
+        if playbackMode != .idle {
             playbackState = .paused
         }
     }
@@ -305,6 +441,8 @@ final class ScannerViewModel: ObservableObject {
         player?.pause()
         player = nil
         currentCall = nil
+        currentLiveStream = nil
+        playbackMode = .idle
         playbackState = .stopped
         removePlaybackObservers()
         releaseAudioSession()
@@ -410,6 +548,11 @@ final class ScannerViewModel: ObservableObject {
         return scheme == "https" ? url : nil
     }
 
+    private func playableLiveStreamURL(for stream: ScannerLiveStream) -> URL? {
+        guard liveStreamResolver.isValid(stream) else { return nil }
+        return stream.streamURL
+    }
+
     private func audioURLFailureMessage(for call: ScannerCall) -> String {
         guard let url = call.resolvedAudioURL(relativeTo: service.baseURL),
               let scheme = url.scheme?.lowercased() else {
@@ -441,6 +584,24 @@ final class ScannerViewModel: ObservableObject {
         }
     }
 
+    private func handleLiveStreamItemStatusChange(_ item: AVPlayerItem, stream: ScannerLiveStream, url: URL) {
+        guard currentLiveStream?.id == stream.id else { return }
+
+        switch item.status {
+        case .readyToPlay:
+            guard playbackState == .loading else { return }
+            playbackState = .playing
+            player?.play()
+            Self.logScannerMessage("Scanner live stream ready system=\(stream.systemShortName)")
+        case .failed:
+            handleLiveStreamFailure(stream: stream, url: url, error: item.error)
+        case .unknown:
+            break
+        @unknown default:
+            break
+        }
+    }
+
     private func handlePlaybackFailure(call: ScannerCall, url: URL, error: Error?) {
         guard currentCall?.id == call.id else { return }
         player?.pause()
@@ -455,6 +616,32 @@ final class ScannerViewModel: ObservableObject {
         }
 
         playbackState = .failed(Self.playbackFailureMessage(for: error))
+    }
+
+    private func handleLiveStreamFailure(stream: ScannerLiveStream, url: URL, error: Error?) {
+        guard currentLiveStream?.id == stream.id else { return }
+        player?.pause()
+        player = nil
+        removePlaybackObservers()
+        releaseAudioSession()
+
+        if let error {
+            Self.logScannerFailure("AVPlayer live stream system=\(stream.systemShortName) host=\(url.host ?? "unknown")", error: error)
+        } else {
+            Self.logScannerMessage("Scanner live stream failed without error system=\(stream.systemShortName) host=\(url.host ?? "unknown")")
+        }
+
+        playbackState = .failed(Self.liveStreamFailureMessage(for: error))
+    }
+
+    private func handleLiveStreamEnded(stream: ScannerLiveStream, url: URL) {
+        guard currentLiveStream?.id == stream.id else { return }
+        player?.pause()
+        player = nil
+        removePlaybackObservers()
+        releaseAudioSession()
+        Self.logScannerMessage("Scanner live stream ended system=\(stream.systemShortName) host=\(url.host ?? "unknown")")
+        playbackState = .failed("Live Feed ended from the configured stream provider.")
     }
 
     private static func playbackFailureMessage(for error: Error?) -> String {
@@ -478,6 +665,29 @@ final class ScannerViewModel: ObservableObject {
         }
 
         return "Scanner audio could not load from the provider for this call."
+    }
+
+    private static func liveStreamFailureMessage(for error: Error?) -> String {
+        guard let error else {
+            return "Live Feed could not load from the configured stream provider."
+        }
+
+        let nsError = error as NSError
+        if nsError.domain == AVFoundationErrorDomain,
+           let code = AVError.Code(rawValue: nsError.code) {
+            switch code {
+            case .fileFormatNotRecognized, .decoderNotFound:
+                return "The configured Live Feed uses audio this device cannot play."
+            default:
+                break
+            }
+        }
+
+        if nsError.domain == NSURLErrorDomain {
+            return "The configured Live Feed URL could not be reached."
+        }
+
+        return "Live Feed could not load from the configured stream provider."
     }
 
     private func releaseAudioSession() {
@@ -512,7 +722,7 @@ final class ScannerViewModel: ObservableObject {
         case .began:
             pause()
         case .ended:
-            playbackState = currentCall == nil ? .stopped : .paused
+            playbackState = playbackMode == .idle ? .stopped : .paused
         @unknown default:
             break
         }

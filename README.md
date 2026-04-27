@@ -28,13 +28,12 @@ TimeThrottle now adds in-app guidance and route intelligence on top of the Apple
 
 ## What's New in v2.0
 
-Build 23 is a Map always-on and route-intelligence cleanup pass:
-- Map remains usable without an active route and returns to inactive live-map mode after End Trip
-- Ending a trip clears the old route, guidance, ETA values, and trip controls while keeping passive layers available
-- Enforcement Alerts are capped at 50 visible markers, with route-aware ranking while driving and a nearby-only fallback without a route
-- Enforcement details in Options stay lightweight; map icons are the main visual surface
-- The navigation picker now shows Apple Maps, Google Maps, and Waze
-- Route Forecast checkpoints scale by route distance with a hard maximum of 12 for long drives
+Build 24 adds True Live Scanner support:
+- Scanner detail now has a Live Feed card above Latest Calls
+- Live Feed uses only approved direct stream URLs from bundled configuration
+- Latest Calls replay remains separate from continuous live stream playback
+- Empty live-stream config works cleanly and shows an unavailable state
+- Scanner remains independent from Live Drive, route warnings, route intelligence, and driving recommendations
 
 Use this block for GitHub releases, TestFlight notes, and App Store Connect:
 
@@ -43,7 +42,7 @@ Use this block for GitHub releases, TestFlight notes, and App Store Connect:
 > - Adds a fourth Scanner tab for informational public scanner listening
 > - Adds Nearby and Browse scanner system discovery using an OpenMHz-style public scanner client
 > - Shows latest public scanner calls for a selected system
-> - Adds scanner audio playback with background audio support when the user starts playback
+> - Adds Latest Calls replay and optional configured Live Feed playback with background audio support when the user starts playback
 > - Keeps Scanner independent from Live Drive, route intelligence, and driving calculations
 
 ## Core Product
@@ -78,11 +77,13 @@ It supports:
 - public scanner listening
 - Nearby scanner systems when location access is available
 - Browse and search by system name, short name, city, county, or state
+- optional Live Feed playback when a permitted direct stream URL is configured
 - latest public scanner calls for a selected system
-- simple play / pause / next-call playback
+- separate Live Feed and Latest Calls replay playback modes
+- simple play / pause / next-call playback for latest calls
 - background audio while scanner playback is active
 
-Scanner uses an OpenMHz-style API client with a configurable base URL. It can point to a hosted OpenMHz endpoint, a self-hosted OpenMHz endpoint, or a compatible backend later. Scanner is listening only: TimeThrottle does not record scanner audio, does not upload scanner feeds, and does not use scanner audio for Live Drive, route warnings, incident prediction, or driving recommendations.
+Scanner uses an OpenMHz-style API client with a configurable base URL for Latest Calls and a bundled approved-direct-stream config for optional Live Feed playback. It can point to a hosted OpenMHz endpoint, a self-hosted OpenMHz endpoint, or a compatible backend later. Scanner is listening only: TimeThrottle does not scrape Broadcastify, does not record scanner audio, does not upload scanner feeds, and does not use scanner audio for Live Drive, route warnings, incident prediction, or driving recommendations.
 
 ### Map Tab Driving HUD
 
@@ -150,7 +151,8 @@ TimeThrottle starts tracking first, then opens the selected navigation app if ba
 - OpenSky ADS-B may be queried on a conservative refresh interval when the optional passive Nearby Low Aircraft layer is enabled; stale or unavailable data is handled quietly and is not a safety system
 - Passive Enforcement Alerts default on for fresh installs and may use OpenStreetMap Overpass or another configured open-data lookup where available; coverage varies by region, users can turn the layer off, and alerts are not guaranteed legal or enforcement guidance
 - Scanner may use location to find nearby public scanner systems when Scanner Nearby is used
-- Scanner audio comes from third-party public scanner feed providers; TimeThrottle does not record scanner audio
+- Scanner audio comes from configured third-party or public scanner feed providers; TimeThrottle does not record scanner audio
+- Live Feed appears only when a permitted direct stream URL is configured
 - Scanner playback can continue in the background when the user starts scanner audio
 - Live Drive uses iPhone location services when the user enables them
 - Completed Live Drive trips are stored locally on-device
@@ -181,6 +183,7 @@ For the full policy, see [privacy-policy.md](/Users/anthonylarosa/CODEX/TimeThro
 - `EnforcementAlertProvider.swift` — optional camera and enforcement report models, OpenStreetMap Overpass provider/service path, and capped route-aware visibility policy
 - `ScannerModels.swift` — public scanner system, call, talkgroup, nearby sorting, and geocode cache models
 - `OpenMHzScannerService.swift` — configurable OpenMHz-style scanner API client for systems, latest calls, and talkgroups
+- `ScannerLiveStreamCatalog.swift` — approved direct live-stream config models, validation, and selected-system resolver
 - `TripHistoryStore.swift` — local persistence for completed Live Drive trips
 - `TripAnalysisEngine.swift` — live pace and trip summary generation
 - `PaceAnalysisMath.swift` — shared speed-limit comparison helper
@@ -188,8 +191,8 @@ For the full policy, see [privacy-policy.md](/Users/anthonylarosa/CODEX/TimeThro
 - `LiveDriveHUDView.swift` — legacy compact driving-view component retained internally while Map is the primary driving HUD
 - `LiveDriveHUDMapView_iOS.swift` — Map follow, route polyline, user location, aircraft markers, enforcement alert markers, and recenter behavior
 - `NavigationHandoffService.swift` — Apple Maps / Google Maps / Waze handoff behavior
-- `ScannerViewModel.swift` — Scanner tab systems, Nearby/Browse, selected system, latest calls, and player state
-- `ScannerTabView.swift` — Scanner tab UI, system lists, selected-system detail, latest calls, and player controls
+- `ScannerViewModel.swift` — Scanner tab systems, Nearby/Browse, selected system, Live Feed availability, latest calls, and player state
+- `ScannerTabView.swift` — Scanner tab UI, system lists, selected-system Live Feed card, latest calls, and player controls
 
 ## Repository Layout
 

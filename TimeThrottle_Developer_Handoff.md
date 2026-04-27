@@ -41,7 +41,7 @@ Supports:
 - bottom navigation for Drive, Map, Trips, and Scanner
 - Scanner Nearby / Browse public scanner systems
 - OpenMHz-style scanner systems, latest calls, and talkgroups client
-- scanner playback with background audio while playback is active
+- optional configured Live Feed playback and Latest Calls replay with background audio while playback is active
 - dedicated map-first active driving view
 - improved local iOS system voice guidance with persisted voice settings
 - Map tab Options panel for weather, aircraft, enforcement alerts, voice, speed-limit, pace, map mode, average speed, and top speed details
@@ -62,7 +62,7 @@ Supports:
 
 ### Version / build
 - **Version:** 2.0
-- **Build:** 23
+- **Build:** 24
 
 - adds the Scanner tab as a separate listening-only feature
 - supports Nearby and Browse scanner systems
@@ -71,6 +71,7 @@ Supports:
 - adds build 21 real-device fixes for Scanner audio-session fallback diagnostics, aircraft marker visibility, and OpenStreetMap Overpass-backed enforcement/camera source and marker diagnostics
 - adds build 22 Enforcement Alerts capping so route-active results are limited to 35 visible alerts within 3.5 miles and no-route results are limited to 25 nearby alerts within 3.0 miles
 - adds build 23 Map always-on behavior, route clearing after End Trip, 50 visible Enforcement Alerts, lightweight Enforcement Options, Apple Maps / Google Maps / Waze picker cleanup, and distance-scaled Route Forecast checkpoints
+- adds build 24 True Live Scanner support with a Live Feed card, approved direct stream URL config, separate live/replay playback modes, no Broadcastify scraping, and no scanner recording
 - keeps route intelligence details in Map Options
 - keeps Live Drive tracking, Apple Maps ETA baseline, speed-limit analysis, route intelligence, Trip History, and external handoff intact
 
@@ -118,6 +119,7 @@ TimeThrottle can safely show:
 - `Sources/Core/EnforcementAlertProvider.swift`
 - `Sources/Core/ScannerModels.swift`
 - `Sources/Core/OpenMHzScannerService.swift`
+- `Sources/Core/ScannerLiveStreamCatalog.swift`
 
 ### Shared UI
 - `Sources/SharedUI/RouteComparisonView.swift`
@@ -154,7 +156,7 @@ TimeThrottle can safely show:
 - **Drive:** Live Drive setup, Current Location start, destination input, route options, compact navigation app choice, and Start Drive.
 - **Map:** primary active driving HUD with route polyline, user location, next maneuver, speed, Speed Limit estimate where available, Apple Maps ETA, projected arrival, route distance, miles driven, Pause / Resume, End Trip, recenter, and Options.
 - **Trips:** Trip History list and details.
-- **Scanner:** Nearby / Browse public scanner systems, selected-system latest calls, and playback.
+- **Scanner:** Nearby / Browse public scanner systems, optional configured Live Feed playback, selected-system latest calls, and replay.
 
 Switching tabs should not reset active trip state.
 
@@ -189,7 +191,7 @@ TimeThrottle
 
 ## Release / Packaging Notes
 
-- current release target: **v2.0 / build 23**
+- current release target: **v2.0 / build 24**
 - simulator build path: `./dist-ios`
 - current simulator bundle output: `dist/iOSSimulator/TimeThrottle.app`
 
@@ -208,4 +210,4 @@ Protect:
 ## Final Plain-English Summary
 
 TimeThrottle is now a Live Drive-first pace-analysis app with bottom navigation. It uses Apple Maps for route lookup and ETA baseline planning, tracks real trips, stores Trip History locally, supports optional external navigation handoff, and focuses driving results on Time Above Speed Limit, Time Below Speed Limit, and projected arrival versus Apple Maps ETA baseline.
-TimeThrottle 2.0 keeps speed-limit analysis tied to available OpenStreetMap estimates, keeps optional OpenStreetMap Overpass-backed Enforcement Alerts carefully worded, keeps Standard / Satellite map mode, uses Drive / Map / Trips / Scanner with Scanner as a separate public listening tab, and keeps Map route-intelligence details in Options without adding unsupported navigation, enforcement, weather, speed-limit, scanner, or safety claims.
+TimeThrottle 2.0 keeps speed-limit analysis tied to available OpenStreetMap estimates, keeps optional OpenStreetMap Overpass-backed Enforcement Alerts carefully worded, keeps Standard / Satellite map mode, uses Drive / Map / Trips / Scanner with Scanner as a separate public listening tab with optional configured Live Feed playback and Latest Calls replay, and keeps Map route-intelligence details in Options without adding unsupported navigation, enforcement, weather, speed-limit, scanner, or safety claims.

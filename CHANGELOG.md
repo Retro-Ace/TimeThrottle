@@ -4,6 +4,14 @@ All notable release-facing changes to **TimeThrottle** should be documented in t
 
 ## v2.0 - April 26, 2026
 
+### Build 24 True Live Scanner Support
+
+- Keeps marketing version at 2.0 and bumps the build to 24.
+- Adds a Live Feed card to Scanner detail above Latest Calls.
+- Adds bundled approved-direct-stream configuration for optional live scanner playback, starting empty until approved URLs are provided.
+- Keeps Live Feed playback separate from OpenMHz-style Latest Calls replay, with one active AVPlayer mode at a time.
+- Keeps Scanner listening-only, with no Broadcastify scraping, no scanner recording, no uploaded feeds, and no Scanner-based Live Drive route warnings or driving recommendations.
+
 ### Build 23 Map Always-On and Route-Intelligence Cleanup
 
 - Keeps marketing version at 2.0 and bumps the build to 23.
@@ -63,7 +71,7 @@ Use this block for GitHub releases, TestFlight notes, or App Store Connect:
 > - Adds a Scanner tab for informational public scanner listening
 > - Adds Nearby and Browse scanner system discovery
 > - Adds an OpenMHz-style public scanner client for systems, latest calls, and talkgroups
-> - Adds latest-call scanner playback with background audio support
+> - Adds separate Latest Calls replay and optional configured Live Feed playback with background audio support
 > - Updates location, privacy, and release docs for Scanner
 > - Keeps Live Drive, Map driving HUD, Drive, Trips, and route intelligence unchanged
 
@@ -71,9 +79,9 @@ Use this block for GitHub releases, TestFlight notes, or App Store Connect:
 
 - Bottom navigation is now Drive / Map / Trips / Scanner.
 - Scanner is independent from Live Drive and does not affect driving calculations, route intelligence, or trip results.
-- Scanner supports public scanner systems, latest calls, simple play / pause / next-call controls, and graceful unavailable states.
+- Scanner supports public scanner systems, optional configured Live Feed playback, latest calls, simple play / pause / next-call controls, and graceful unavailable states.
 - The scanner service uses a configurable OpenMHz-style base URL so provider configuration can change later.
-- TimeThrottle does not record scanner audio or support user-uploaded scanner feeds.
+- TimeThrottle does not scrape Broadcastify, record scanner audio, or support user-uploaded scanner feeds.
 - Scanner coverage varies by system and provider; no push alerts or incident prediction are included in v2.0.
 
 ### Release Positioning

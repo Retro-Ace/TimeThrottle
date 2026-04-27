@@ -57,12 +57,14 @@ Scanner supports:
 - public scanner listening
 - Nearby scanner systems when location is available
 - Browse and search by system name, short name, city, county, or state
+- optional Live Feed playback when a permitted direct stream URL is configured
 - latest public scanner calls for a selected system
+- separate Live Feed and Latest Calls replay playback modes
 - selected-call or latest-playable call play / pause / next-call playback
 - background audio while scanner playback is active
 - graceful unavailable states when provider data or audio is unavailable
 
-Scanner uses a configurable OpenMHz-style API client for systems, latest calls, and talkgroups. TimeThrottle does not record scanner audio, does not support user-uploaded scanner feeds, and does not claim provider coverage or freshness guarantees.
+Scanner uses a configurable OpenMHz-style API client for systems, latest calls, and talkgroups, plus a bundled approved-direct-stream config for optional Live Feed playback. TimeThrottle does not scrape Broadcastify, does not record scanner audio, does not upload scanner feeds, does not support user-uploaded scanner feeds, and does not claim provider coverage or freshness guarantees.
 
 ## Live Drive Results
 
@@ -104,7 +106,7 @@ v2.0 uses a bottom app navigation structure:
 - **Drive** = Live Drive setup, Current Location start, destination input, route options, compact navigation app choice, and Start Drive
 - **Map** = primary active driving HUD with route polyline, user location, next maneuver, speed, Speed Limit estimate where available, Apple Maps ETA, projected arrival, route distance, miles driven, Pause / Resume, End Trip, recenter, and an Options panel for route-intelligence details
 - **Trips** = Trip History list and trip detail screens
-- **Scanner** = public scanner listening with Nearby / Browse system discovery, latest calls, and playback
+- **Scanner** = public scanner listening with Nearby / Browse system discovery, optional configured Live Feed playback, latest calls, and replay
 
 Switching between these tabs preserves the active trip state.
 
@@ -120,7 +122,7 @@ TimeThrottle currently does:
 - speed-limit estimates where OpenStreetMap data is available, with confidence and local cache support
 - optional passive nearby low aircraft from OpenSky ADS-B data, refreshed conservatively and removed when stale
 - optional passive camera/enforcement alerts from configured providers when available; coverage varies by region and alerts are not guaranteed
-- separate public scanner listening with OpenMHz-style systems, latest calls, talkgroups, and playback
+- separate public scanner listening with OpenMHz-style systems, optional configured Live Feed playback, latest calls, talkgroups, and replay
 - Standard / Satellite map mode
 - local iOS system voice selection with persisted voice, mute, and speech speed settings
 - trip result review
@@ -162,6 +164,7 @@ TimeThrottle does **not** currently claim:
 - v2.0 build 21: added Scanner audio-session fallback diagnostics, raised aircraft/enforcement map annotation reliability, and broadened conservative OpenStreetMap traffic-camera tag coverage
 - v2.0 build 22: capped Enforcement Alerts for performance, prioritized route-relevant and ahead-of-travel alerts within 3.5 miles, added a 25-alert nearby fallback within 3.0 miles when no route is active, and clarified capped-count wording
 - v2.0 build 23: keeps Map usable without an active route, clears old route overlays after End Trip, raises visible Enforcement Alerts to 50, removes the Enforcement list from Options, simplifies navigation handoff choices, and scales Route Forecast checkpoints by distance
+- v2.0 build 24: adds True Live Scanner support with a Live Feed card, approved direct stream URL config, separate live/replay playback modes, no Broadcastify scraping, and no scanner recording
 
 ## Repo / App Structure
 
@@ -188,8 +191,8 @@ TimeThrottle
 ## Current Release State
 
 - **Version:** 2.0
-- **Build:** 23
+- **Build:** 24
 
 ## Plain-English Summary
 
-**TimeThrottle is now a Live Drive-first iPhone pace-analysis app with Drive / Map / Trips / Scanner navigation. Map is the primary driving HUD, while Options holds route intelligence details. Scanner is separate and provides informational public scanner listening through Nearby / Browse systems, latest calls, and selected/latest-call playback. The app uses Apple Maps as the route and ETA-baseline layer, tracks real trips, adds truthful route-step guidance, persistent local system voice prompts with Daniel as the fresh-install default when available, route weather, cached OpenStreetMap speed-limit estimates, optional passive Nearby Low Aircraft with stale-data handling, optional OpenStreetMap Overpass-backed Enforcement Alerts with varied coverage, Standard / Satellite map mode, local Trip History, external navigation handoff, and finished-trip results centered on Time Above Speed Limit, Time Below Speed Limit, Top speed, and Apple Maps ETA baseline.**
+**TimeThrottle is now a Live Drive-first iPhone pace-analysis app with Drive / Map / Trips / Scanner navigation. Map is the primary driving HUD, while Options holds route intelligence details. Scanner is separate and provides informational public scanner listening through Nearby / Browse systems, optional configured Live Feed playback, latest calls, and selected/latest-call replay. The app uses Apple Maps as the route and ETA-baseline layer, tracks real trips, adds truthful route-step guidance, persistent local system voice prompts with Daniel as the fresh-install default when available, route weather, cached OpenStreetMap speed-limit estimates, optional passive Nearby Low Aircraft with stale-data handling, optional OpenStreetMap Overpass-backed Enforcement Alerts with varied coverage, Standard / Satellite map mode, local Trip History, external navigation handoff, and finished-trip results centered on Time Above Speed Limit, Time Below Speed Limit, Top speed, and Apple Maps ETA baseline.**

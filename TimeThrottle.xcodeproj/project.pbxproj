@@ -39,6 +39,8 @@
 		A1000000000000000000001F /* OpenMHzScannerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000022 /* OpenMHzScannerService.swift */; };
 		A10000000000000000000020 /* ScannerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000023 /* ScannerViewModel.swift */; };
 		A10000000000000000000021 /* ScannerTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000024 /* ScannerTabView.swift */; };
+		A10000000000000000000022 /* ScannerLiveStreamCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000026 /* ScannerLiveStreamCatalog.swift */; };
+		A10000000000000000000023 /* ScannerLiveStreams.json in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000027 /* ScannerLiveStreams.json */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -77,6 +79,8 @@
 		A20000000000000000000023 /* ScannerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScannerViewModel.swift; sourceTree = "<group>"; };
 		A20000000000000000000024 /* ScannerTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScannerTabView.swift; sourceTree = "<group>"; };
 		A20000000000000000000025 /* TimeThrottle.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TimeThrottle.entitlements; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000026 /* ScannerLiveStreamCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScannerLiveStreamCatalog.swift; sourceTree = "<group>"; };
+		A20000000000000000000027 /* ScannerLiveStreams.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = ScannerLiveStreams.json; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -148,6 +152,7 @@
 				A20000000000000000000020 /* EnforcementAlertProvider.swift */,
 				A20000000000000000000021 /* ScannerModels.swift */,
 				A20000000000000000000022 /* OpenMHzScannerService.swift */,
+				A20000000000000000000026 /* ScannerLiveStreamCatalog.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -175,6 +180,7 @@
 				A2000000000000000000000E /* TimeThrottleLogo/TimeThrottle-Logo.png */,
 				A20000000000000000000017 /* TimeThrottleLogo/TimeThrottle-Logo-Only.png */,
 				A2000000000000000000000F /* iOS/Info.plist */,
+				A20000000000000000000027 /* ScannerLiveStreams.json */,
 			);
 			path = Resources;
 			sourceTree = SOURCE_ROOT;
@@ -242,6 +248,7 @@
 				A1000000000000000000000B /* LaunchScreen.storyboard in Resources */,
 				A1000000000000000000000C /* TimeThrottleLogo/TimeThrottle-Logo.png in Resources */,
 				A10000000000000000000014 /* TimeThrottleLogo/TimeThrottle-Logo-Only.png in Resources */,
+				A10000000000000000000023 /* ScannerLiveStreams.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -280,6 +287,7 @@
 				A1000000000000000000001F /* OpenMHzScannerService.swift in Sources */,
 				A10000000000000000000020 /* ScannerViewModel.swift in Sources */,
 				A10000000000000000000021 /* ScannerTabView.swift in Sources */,
+				A10000000000000000000022 /* ScannerLiveStreamCatalog.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -384,7 +392,7 @@
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CODE_SIGN_ENTITLEMENTS = TimeThrottle.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 23;
+				CURRENT_PROJECT_VERSION = 24;
 				DEVELOPMENT_TEAM = GRYEGJ3MAY;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Resources/iOS/Info.plist;
@@ -412,7 +420,7 @@
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CODE_SIGN_ENTITLEMENTS = TimeThrottle.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 23;
+				CURRENT_PROJECT_VERSION = 24;
 				DEVELOPMENT_TEAM = GRYEGJ3MAY;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Resources/iOS/Info.plist;

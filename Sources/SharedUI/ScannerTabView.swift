@@ -233,7 +233,7 @@ private struct ScannerSystemDetailView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     systemHeader
-                    ScannerPlayerCard(viewModel: viewModel)
+                    ScannerLiveFeedCard(viewModel: viewModel)
                     latestCallsSection
                     scannerSafetyNote
                 }
@@ -308,6 +308,8 @@ private struct ScannerSystemDetailView: View {
                 .font(.headline.weight(.bold))
                 .foregroundStyle(ScannerTheme.primaryText)
 
+            ScannerPlayerCard(viewModel: viewModel)
+
             if viewModel.isLoadingCalls {
                 ScannerLoadingCard(title: "Loading latest calls")
             } else if let message = viewModel.callsErrorMessage {
@@ -349,6 +351,110 @@ private struct ScannerSystemDetailView: View {
             .font(.caption.weight(.medium))
             .foregroundStyle(ScannerTheme.tertiaryText)
             .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+private struct ScannerLiveFeedCard: View {
+    @ObservedObject var viewModel: ScannerViewModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center, spacing: 10) {
+                Button {
+                    viewModel.toggleLiveStreamPlayback()
+                } label: {
+                    Image(systemName: primaryIcon)
+                        .font(.headline.weight(.bold))
+                        .foregroundStyle(Color.white)
+                        .frame(width: 44, height: 44)
+                        .background(viewModel.canStartLiveFeed ? ScannerTheme.accent : ScannerTheme.panelRaised, in: Circle())
+                }
+                .buttonStyle(.plain)
+                .disabled(!viewModel.canStartLiveFeed)
+                .opacity(viewModel.canStartLiveFeed ? 1 : 0.45)
+                .accessibilityLabel(viewModel.isLiveFeedPlaying ? "Pause Live Feed" : "Play Live Feed")
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(viewModel.selectedLiveStream?.displayName.scannerViewNonEmpty ?? "Live Feed")
+                        .font(.headline.weight(.bold))
+                        .foregroundStyle(ScannerTheme.primaryText)
+                        .lineLimit(1)
+
+                    Text(providerText)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(ScannerTheme.secondaryText)
+                        .lineLimit(2)
+                }
+
+                Spacer(minLength: 8)
+
+                Text(viewModel.liveFeedStatusTitle)
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(statusColor)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(statusColor.opacity(0.16), in: Capsule())
+            }
+
+            Text(viewModel.liveFeedStatusMessage)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(statusMessageColor)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Text("Live feed availability depends on configured public stream providers.")
+                .font(.caption.weight(.medium))
+                .foregroundStyle(ScannerTheme.tertiaryText)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(14)
+        .background(ScannerTheme.panel, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(ScannerTheme.border, lineWidth: 1)
+        }
+    }
+
+    private var primaryIcon: String {
+        guard viewModel.playbackMode.liveStream != nil else { return "play.fill" }
+        switch viewModel.playbackState {
+        case .playing, .loading:
+            return "pause.fill"
+        case .paused, .stopped, .failed:
+            return "play.fill"
+        }
+    }
+
+    private var providerText: String {
+        guard let stream = viewModel.selectedLiveStream else {
+            return "Configured public stream required."
+        }
+
+        return [
+            stream.providerLabel.scannerViewNonEmpty,
+            stream.streamTypeText.scannerViewNonEmpty
+        ]
+        .compactMap { $0 }
+        .joined(separator: " • ")
+    }
+
+    private var statusColor: Color {
+        switch viewModel.liveFeedStatusTitle {
+        case "Playing":
+            return ScannerTheme.accent
+        case "Failed", "Unavailable":
+            return ScannerTheme.warning
+        default:
+            return ScannerTheme.secondaryText
+        }
+    }
+
+    private var statusMessageColor: Color {
+        switch viewModel.liveFeedStatusTitle {
+        case "Failed", "Unavailable":
+            return ScannerTheme.warning
+        default:
+            return ScannerTheme.secondaryText
+        }
     }
 }
 
@@ -396,12 +502,13 @@ private struct ScannerPlayerCard: View {
                         .background(ScannerTheme.panelRaised, in: Circle())
                 }
                 .buttonStyle(.plain)
-                .disabled(viewModel.latestCalls.isEmpty)
-                .opacity(viewModel.latestCalls.isEmpty ? 0.45 : 1)
+                .disabled(!hasPlayableCalls)
+                .opacity(hasPlayableCalls ? 1 : 0.45)
                 .accessibilityLabel("Next scanner call")
             }
 
-            if case .failed(let message) = viewModel.playbackState {
+            if viewModel.playbackMode.callReplay != nil,
+               case .failed(let message) = viewModel.playbackState {
                 Text(message)
                     .font(.caption.weight(.medium))
                     .foregroundStyle(ScannerTheme.warning)
@@ -421,6 +528,7 @@ private struct ScannerPlayerCard: View {
     }
 
     private var primaryIcon: String {
+        guard viewModel.playbackMode.callReplay != nil else { return "play.fill" }
         switch viewModel.playbackState {
         case .playing, .loading:
             return "pause.fill"
@@ -430,11 +538,11 @@ private struct ScannerPlayerCard: View {
     }
 
     private var primaryAccessibilityLabel: String {
-        viewModel.isPlaying ? "Pause scanner audio" : "Play scanner audio"
+        viewModel.isCallReplayPlaying ? "Pause scanner audio" : "Play scanner audio"
     }
 
     private var playerTitle: String {
-        guard let call = viewModel.currentCall else { return "Scanner player" }
+        guard let call = viewModel.currentCall else { return "Latest Calls player" }
         return call.displayTitle
     }
 
@@ -459,6 +567,10 @@ private struct ScannerPlayerCard: View {
         ]
         .compactMap { $0 }
         .joined(separator: " • ")
+    }
+
+    private var hasPlayableCalls: Bool {
+        viewModel.latestCalls.contains { viewModel.canPlay($0) }
     }
 }
 
