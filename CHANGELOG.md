@@ -4,6 +4,17 @@ All notable release-facing changes to **TimeThrottle** should be documented in t
 
 ## v2.0 - April 26, 2026
 
+### Build 23 Map Always-On and Route-Intelligence Cleanup
+
+- Keeps marketing version at 2.0 and bumps the build to 23.
+- Keeps the Map tab available without an active route, with a clean inactive map state and passive nearby layers when location and data are available.
+- Clears the active route, guidance, ETA values, and trip controls after End Trip while keeping the Map tab usable.
+- Raises the visible Enforcement Alerts cap to 50, keeps the 3.5-mile route-active distance cap, and uses a 50-alert nearby fallback within 3.0 miles when no route is active.
+- Refreshes Enforcement Alerts conservatively by route context, elapsed time, and meaningful movement while keeping raw provider results out of rendered map/list UI.
+- Removes the detailed Enforcement Alerts list from Map Options so the map markers carry the visual workload.
+- Simplifies the navigation app picker to Apple Maps, Google Maps, and Waze, with old Ask Every Time preferences falling back to Apple Maps.
+- Scales Route Forecast checkpoints by route distance with a hard maximum of 12 checkpoints for long drives.
+
 ### Build 22 Enforcement Alerts Performance / Capping Pass
 
 - Keeps marketing version at 2.0 and bumps the build to 22.

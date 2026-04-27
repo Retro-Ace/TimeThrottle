@@ -123,9 +123,9 @@ public struct EnforcementAlertVisibilityContext: Sendable {
 }
 
 public enum EnforcementAlertVisibilityPolicy {
-    public static let routeActiveVisibleLimit = 35
+    public static let routeActiveVisibleLimit = 50
     public static let routeActiveDistanceCapMiles = 3.5
-    public static let noRouteVisibleLimit = 25
+    public static let noRouteVisibleLimit = 50
     public static let noRouteDistanceCapMiles = 3.0
     public static let nearRouteThresholdMiles = 0.35
 
@@ -150,10 +150,11 @@ public enum EnforcementAlertVisibilityPolicy {
 
         let alertNoun = visibleAlertCount == 1 ? "alert" : "alerts"
         if hasActiveRoute {
-            return "Showing \(visibleAlertCount) \(alertNoun) within \(routeActiveDistanceCapMiles) mi"
+            return "Showing \(visibleAlertCount) route-relevant \(alertNoun) within \(routeActiveDistanceCapMiles) mi"
         }
 
-        return "Showing \(visibleAlertCount) \(alertNoun) within \(noRouteDistanceCapMiles) mi"
+        let reportNoun = visibleAlertCount == 1 ? "report" : "reports"
+        return "Showing \(visibleAlertCount) camera/enforcement \(reportNoun) nearby"
     }
 
     private static func visibleRouteAlerts(

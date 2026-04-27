@@ -28,12 +28,13 @@ TimeThrottle now adds in-app guidance and route intelligence on top of the Apple
 
 ## What's New in v2.0
 
-Build 22 is an Enforcement Alerts performance and capping pass:
-- Route-active Enforcement Alerts are capped at 35 visible alerts within 3.5 miles
-- Route-active results prioritize route-relevant and ahead-of-travel alerts before nearest-distance and confidence tie-breaks
-- No-route Enforcement Alerts use a nearby-only fallback capped at 25 alerts within 3.0 miles
-- Map markers and Options rows are driven by the capped visible alert list, not raw provider totals
-- Count wording now describes the capped alerts being shown instead of large raw source counts
+Build 23 is a Map always-on and route-intelligence cleanup pass:
+- Map remains usable without an active route and returns to inactive live-map mode after End Trip
+- Ending a trip clears the old route, guidance, ETA values, and trip controls while keeping passive layers available
+- Enforcement Alerts are capped at 50 visible markers, with route-aware ranking while driving and a nearby-only fallback without a route
+- Enforcement details in Options stay lightweight; map icons are the main visual surface
+- The navigation picker now shows Apple Maps, Google Maps, and Waze
+- Route Forecast checkpoints scale by route distance with a hard maximum of 12 for long drives
 
 Use this block for GitHub releases, TestFlight notes, and App Store Connect:
 
@@ -137,7 +138,6 @@ During Live Drive, users can choose:
 - **Apple Maps**
 - **Google Maps**
 - **Waze**
-- **Ask Every Time**
 
 TimeThrottle starts tracking first, then opens the selected navigation app if background-location requirements are met.
 
@@ -166,7 +166,7 @@ For the full policy, see [privacy-policy.md](/Users/anthonylarosa/CODEX/TimeThro
 - **Deployment target:** iOS 17+
 - **Bundle ID:** `com.timethrottle.app`
 - **Current release:** v2.0
-- **Current build:** 22
+- **Current build:** 23
 - **Primary app target:** `TimeThrottle.xcodeproj`
 - **Primary shared UI:** `Sources/SharedUI/RouteComparisonView.swift`
 
@@ -175,7 +175,7 @@ For the full policy, see [privacy-policy.md](/Users/anthonylarosa/CODEX/TimeThro
 - `LiveDriveTracker.swift` — Live Drive tracking, permission state, speed, and distance updates
 - `TurnByTurnGuidanceEngine.swift` — Apple Maps route-step guidance, speech prompts, off-route detection, and reroute request foundation
 - `VoiceGuidanceSettings.swift` — local iOS system voice settings, Daniel fresh-install default resolution, and English fallback selection
-- `WeatherRouteProvider.swift` — route checkpoint sampling and WeatherKit forecast pipeline
+- `WeatherRouteProvider.swift` — distance-scaled route checkpoint sampling and WeatherKit forecast pipeline
 - `SpeedLimitProvider.swift` / `OSMSpeedLimitService.swift` / `OSMSpeedLimitProvider.swift` — speed-limit estimate protocol, current-road OpenStreetMap lookup, and local cache wrapper
 - `AircraftProvider.swift` / `OpenSkyAircraftProvider.swift` — optional passive Nearby Low Aircraft models and OpenSky implementation
 - `EnforcementAlertProvider.swift` — optional camera and enforcement report models, OpenStreetMap Overpass provider/service path, and capped route-aware visibility policy
@@ -187,7 +187,7 @@ For the full policy, see [privacy-policy.md](/Users/anthonylarosa/CODEX/TimeThro
 - `RouteModels.swift` — shared route, lookup, autocomplete, and navigation-provider models
 - `LiveDriveHUDView.swift` — legacy compact driving-view component retained internally while Map is the primary driving HUD
 - `LiveDriveHUDMapView_iOS.swift` — Map follow, route polyline, user location, aircraft markers, enforcement alert markers, and recenter behavior
-- `NavigationHandoffService.swift` — Apple Maps / Google Maps / Waze / Ask Every Time handoff behavior
+- `NavigationHandoffService.swift` — Apple Maps / Google Maps / Waze handoff behavior
 - `ScannerViewModel.swift` — Scanner tab systems, Nearby/Browse, selected system, latest calls, and player state
 - `ScannerTabView.swift` — Scanner tab UI, system lists, selected-system detail, latest calls, and player controls
 

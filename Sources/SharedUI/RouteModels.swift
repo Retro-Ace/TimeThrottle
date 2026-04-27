@@ -23,6 +23,8 @@ public enum NavigationProvider: String, CaseIterable, Identifiable, Sendable {
     case waze = "Waze"
     case askEveryTime = "Ask Every Time"
 
+    public static let selectableCases: [NavigationProvider] = [.appleMaps, .googleMaps, .waze]
+
     public var id: String { rawValue }
 
     public var description: String {

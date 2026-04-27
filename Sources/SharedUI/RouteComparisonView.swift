@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import CoreLocation
 import SwiftUI
 #if canImport(TimeThrottleCore)
 import TimeThrottleCore
@@ -99,6 +100,9 @@ public struct RouteComparisonView: View {
     private let aircraftRefreshIntervalSeconds: TimeInterval = 25
     private let aircraftStaleTimeoutSeconds: TimeInterval = 90
     private let enforcementAlertRefreshIntervalSeconds: TimeInterval = 60
+    private let enforcementAlertMaximumRefreshIntervalSeconds: TimeInterval = 180
+    private let routeActiveEnforcementRefreshMovementMiles: Double = 0.75
+    private let noRouteEnforcementRefreshMovementMiles: Double = 1.0
     private static let guidanceVoiceIdentifierStorageKey = "timethrottle.voice.selectedVoiceIdentifier"
     #if canImport(OSLog)
     private static let routeIntelligenceLogger = Logger(subsystem: "com.timethrottle.app", category: "RouteIntelligence")
@@ -120,7 +124,7 @@ public struct RouteComparisonView: View {
     @State private var didRunCaptureBootstrap = false
     @State private var shareSheetItems: [Any] = []
     @State private var isShareSheetPresented = false
-    @AppStorage("timethrottle.preferredNavigationProvider") private var navigationProviderPreferenceRawValue = NavigationProvider.askEveryTime.rawValue
+    @AppStorage("timethrottle.preferredNavigationProvider") private var navigationProviderPreferenceRawValue = NavigationProvider.appleMaps.rawValue
     @State private var liveDriveRouteContext: LiveDriveRouteContext?
     @State private var liveDriveFinishedTrip: CompletedTripRecord?
     @State private var liveDriveNavigationProviderPending: NavigationProvider?
@@ -148,6 +152,8 @@ public struct RouteComparisonView: View {
     @State private var enforcementAlerts: [EnforcementAlert] = []
     @State private var enforcementAlertStatusText = "Not updated yet"
     @State private var lastEnforcementAlertLookupAt: Date?
+    @State private var lastEnforcementAlertLookupCoordinate: GuidanceCoordinate?
+    @State private var lastEnforcementAlertRouteContextID: String?
     @State private var enforcementAlertsLastUpdatedAt: Date?
     @State private var isMapOptionsPresented = false
     @State private var isVoiceSelectionPresented = false
@@ -605,10 +611,12 @@ public struct RouteComparisonView: View {
     }
 
     private var fullRouteMapRoute: RouteEstimate? {
-        liveDriveHUDRoute
+        liveDriveScreenState == .driving ? liveDriveHUDRoute : nil
     }
 
     private var fullRouteMapRoutes: [RouteEstimate] {
+        guard liveDriveScreenState == .driving else { return [] }
+
         if let liveDriveRouteContext {
             return liveDriveRouteContext.routes
         }
@@ -624,6 +632,15 @@ public struct RouteComparisonView: View {
     private var mapEnforcementAlertMarkers: [EnforcementAlert] {
         guard areEnforcementAlertsEnabled else { return [] }
         return Array(enforcementAlerts.filter { !$0.isStale }.prefix(EnforcementAlertVisibilityPolicy.routeActiveVisibleLimit))
+    }
+
+    private var passiveMapCoordinate: GuidanceCoordinate? {
+        if let currentCoordinate = tracker.currentCoordinate {
+            return currentCoordinate
+        }
+
+        guard let coordinate = currentLocationResolver.currentPlace?.coordinate else { return nil }
+        return GuidanceCoordinate(latitude: coordinate.latitude, longitude: coordinate.longitude)
     }
 
     private func enforcementAlertVisibilityContext(
@@ -642,7 +659,8 @@ public struct RouteComparisonView: View {
     }
 
     private var preferredNavigationProvider: NavigationProvider {
-        NavigationProvider(rawValue: navigationProviderPreferenceRawValue) ?? .askEveryTime
+        let provider = NavigationProvider(rawValue: navigationProviderPreferenceRawValue) ?? .appleMaps
+        return provider == .askEveryTime ? .appleMaps : provider
     }
 
     private var preferredNavigationProviderBinding: Binding<NavigationProvider> {
@@ -783,7 +801,6 @@ public struct RouteComparisonView: View {
         case .authorizedWhenInUse:
             return "Allow Always Location to keep Live Drive active while another navigation app is open."
         case .notDetermined:
-            guard preferredNavigationProvider != .askEveryTime else { return nil }
             return "External navigation needs Always Location so Live Drive can keep tracking in the background."
         }
     }
@@ -798,9 +815,7 @@ public struct RouteComparisonView: View {
     }
 
     private var liveDriveNavigationProviderHelperText: String {
-        preferredNavigationProvider == .askEveryTime
-            ? "You’ll choose a navigation app when the trip starts."
-            : "\(preferredNavigationProvider.rawValue) handoff ready."
+        "\(preferredNavigationProvider.rawValue) handoff ready."
     }
 
     private var liveDriveOverallResultTitle: String {
@@ -1065,24 +1080,10 @@ public struct RouteComparisonView: View {
             appTabRoot
         }
         .task {
-            applyStoredVoiceSettings()
-
-            if routeOriginInputMode == .currentLocation {
-                currentLocationResolver.requestCurrentLocationIfNeeded()
-            }
-
-            guard shouldRunCaptureBootstrap, !didRunCaptureBootstrap else { return }
-            didRunCaptureBootstrap = true
-            calculateAppleMapsRoute()
+            handleInitialViewTask()
         }
         .onChange(of: routeOriginInputMode) { _, newMode in
-            focusedRouteAddressField = nil
-            autocompleteController.clear()
-            resetCalculatedRouteState()
-
-            if newMode == .currentLocation {
-                currentLocationResolver.requestCurrentLocationIfNeeded()
-            }
+            handleRouteOriginInputModeChanged(newMode)
         }
         .onChange(of: fromAddressText) { _, newValue in
             handleFromAddressTextChanged(newValue)
@@ -1091,85 +1092,38 @@ public struct RouteComparisonView: View {
             handleToAddressTextChanged(newValue)
         }
         .onChange(of: focusedRouteAddressField) { _, newField in
-            guard let newField else {
-                autocompleteController.clear()
-                return
-            }
-
-            switch newField {
-            case .from:
-                if routeOriginInputMode == .custom {
-                    autocompleteController.updateQuery(fromAddressText, for: .from)
-                }
-            case .to:
-                autocompleteController.updateQuery(toAddressText, for: .to)
-            }
+            handleFocusedRouteAddressFieldChanged(newField)
         }
         .onChange(of: tracker.isTracking) { _, isTracking in
-            if isTracking {
-                processLiveDriveNavigationHandoffIfNeeded()
-            }
+            handleTrackingStateChanged(isTracking)
         }
         .onChange(of: tracker.distanceTraveled) { _, newDistance in
-            guidanceEngine.update(progressDistanceMeters: newDistance * 1_609.344)
-
-            if let currentCoordinate = tracker.currentCoordinate {
-                guidanceEngine.update(currentLocation: currentCoordinate)
-            }
+            handleDistanceTraveledChanged(newDistance)
         }
         .onChange(of: tracker.currentCoordinate) { _, newCoordinate in
-            guard let newCoordinate else { return }
-            guidanceEngine.update(currentLocation: newCoordinate)
-            refreshSpeedLimitIfNeeded(near: newCoordinate)
-            refreshAircraftIfNeeded(near: newCoordinate)
-            refreshEnforcementAlertsIfNeeded(near: newCoordinate)
-            requestGuidanceRerouteIfNeeded(from: newCoordinate)
+            handleCurrentCoordinateChanged(newCoordinate)
         }
         .onReceive(aircraftRefreshPublisher) { _ in
             handleAircraftRefreshTick()
             handleEnforcementAlertRefreshTick()
         }
         .onChange(of: areEnforcementAlertsEnabled) { _, isEnabled in
-            if isEnabled, let coordinate = tracker.currentCoordinate {
-                refreshEnforcementAlerts(near: coordinate, force: true)
-            } else if isEnabled {
-                enforcementAlertStatusText = "Waiting for location"
-            } else if !isEnabled {
-                enforcementAlerts = []
-                enforcementAlertStatusText = "Off"
-                enforcementAlertsLastUpdatedAt = nil
-            }
+            handleEnforcementAlertsEnabledChanged(isEnabled)
         }
         .onChange(of: liveDriveScreenState) { _, newState in
-            switch newState {
-            case .driving:
-                selectedAppTab = .map
-            case .setup, .tripComplete:
-                if selectedAppTab == .map, newState == .tripComplete {
-                    selectedAppTab = .drive
-                }
-            }
+            handleLiveDriveScreenStateChanged(newState)
+        }
+        .onChange(of: selectedAppTab) { _, newTab in
+            handleSelectedAppTabChanged(newTab)
+        }
+        .onChange(of: currentLocationResolver.currentPlace) { _, _ in
+            handleCurrentLocationPlaceChanged()
         }
         .onChange(of: tracker.permissionState) { _, newState in
-            if newState == .denied || newState == .restricted {
-                liveDriveNavigationProviderPending = nil
-                isNavigationProviderChoicePresented = false
-            } else if newState == .authorizedAlways, tracker.isTracking {
-                processLiveDriveNavigationHandoffIfNeeded()
-            }
+            handleTrackerPermissionStateChanged(newState)
         }
         .onChange(of: scenePhase) { _, newPhase in
-            guard newPhase == .active else { return }
-            tracker.refreshAuthorizationState()
-            currentLocationResolver.refreshAuthorizationState()
-
-            if routeOriginInputMode == .currentLocation {
-                currentLocationResolver.requestCurrentLocationIfNeeded()
-            }
-
-            if tracker.isTracking {
-                processLiveDriveNavigationHandoffIfNeeded()
-            }
+            handleScenePhaseChanged(newPhase)
         }
         #if os(iOS)
         .sheet(isPresented: $isShareSheetPresented) {
@@ -1226,6 +1180,131 @@ public struct RouteComparisonView: View {
         #endif
     }
 
+    private func handleInitialViewTask() {
+        applyStoredVoiceSettings()
+        migrateNavigationProviderPreferenceIfNeeded()
+
+        if routeOriginInputMode == .currentLocation {
+            currentLocationResolver.requestCurrentLocationIfNeeded()
+        }
+
+        guard shouldRunCaptureBootstrap, !didRunCaptureBootstrap else { return }
+        didRunCaptureBootstrap = true
+        calculateAppleMapsRoute()
+    }
+
+    private func handleRouteOriginInputModeChanged(_ newMode: RouteOriginInputMode) {
+        focusedRouteAddressField = nil
+        autocompleteController.clear()
+        resetCalculatedRouteState()
+
+        if newMode == .currentLocation {
+            currentLocationResolver.requestCurrentLocationIfNeeded()
+        }
+    }
+
+    private func handleFocusedRouteAddressFieldChanged(_ newField: RouteAddressField?) {
+        guard let newField else {
+            autocompleteController.clear()
+            return
+        }
+
+        switch newField {
+        case .from:
+            if routeOriginInputMode == .custom {
+                autocompleteController.updateQuery(fromAddressText, for: .from)
+            }
+        case .to:
+            autocompleteController.updateQuery(toAddressText, for: .to)
+        }
+    }
+
+    private func handleTrackingStateChanged(_ isTracking: Bool) {
+        if isTracking {
+            processLiveDriveNavigationHandoffIfNeeded()
+        }
+    }
+
+    private func handleDistanceTraveledChanged(_ newDistance: Double) {
+        guidanceEngine.update(progressDistanceMeters: newDistance * 1_609.344)
+
+        if let currentCoordinate = tracker.currentCoordinate {
+            guidanceEngine.update(currentLocation: currentCoordinate)
+        }
+    }
+
+    private func handleCurrentCoordinateChanged(_ newCoordinate: GuidanceCoordinate?) {
+        guard let newCoordinate else { return }
+        guidanceEngine.update(currentLocation: newCoordinate)
+        refreshSpeedLimitIfNeeded(near: newCoordinate)
+        refreshAircraftIfNeeded(near: newCoordinate)
+        refreshEnforcementAlertsIfNeeded(near: newCoordinate)
+        requestGuidanceRerouteIfNeeded(from: newCoordinate)
+    }
+
+    private func handleEnforcementAlertsEnabledChanged(_ isEnabled: Bool) {
+        if isEnabled, let coordinate = tracker.currentCoordinate {
+            refreshEnforcementAlerts(near: coordinate, force: true)
+        } else if isEnabled, let coordinate = passiveMapCoordinate {
+            refreshEnforcementAlerts(near: coordinate, force: true)
+        } else if isEnabled {
+            enforcementAlertStatusText = "Waiting for location"
+        } else {
+            enforcementAlerts = []
+            enforcementAlertStatusText = "Off"
+            enforcementAlertsLastUpdatedAt = nil
+            lastEnforcementAlertLookupCoordinate = nil
+            lastEnforcementAlertRouteContextID = nil
+        }
+    }
+
+    private func handleLiveDriveScreenStateChanged(_ newState: LiveDriveScreenState) {
+        switch newState {
+        case .driving:
+            selectedAppTab = .map
+        case .setup, .tripComplete:
+            prepareInactiveMapIfNeeded(forceRefresh: false)
+        }
+    }
+
+    private func handleSelectedAppTabChanged(_ newTab: LiveDriveAppTab) {
+        if newTab == .map {
+            prepareInactiveMapIfNeeded(forceRefresh: false)
+        }
+    }
+
+    private func handleCurrentLocationPlaceChanged() {
+        guard selectedAppTab == .map else { return }
+        refreshPassiveMapLayersIfPossible(force: false)
+    }
+
+    private func handleTrackerPermissionStateChanged(_ newState: LiveDrivePermissionState) {
+        if newState == .denied || newState == .restricted {
+            liveDriveNavigationProviderPending = nil
+            isNavigationProviderChoicePresented = false
+        } else if newState == .authorizedAlways, tracker.isTracking {
+            processLiveDriveNavigationHandoffIfNeeded()
+        }
+    }
+
+    private func handleScenePhaseChanged(_ newPhase: ScenePhase) {
+        guard newPhase == .active else { return }
+        tracker.refreshAuthorizationState()
+        currentLocationResolver.refreshAuthorizationState()
+
+        if routeOriginInputMode == .currentLocation || selectedAppTab == .map {
+            currentLocationResolver.requestCurrentLocationIfNeeded()
+        }
+
+        if selectedAppTab == .map {
+            refreshPassiveMapLayersIfPossible(force: false)
+        }
+
+        if tracker.isTracking {
+            processLiveDriveNavigationHandoffIfNeeded()
+        }
+    }
+
     private var appTabRoot: some View {
         TabView(selection: $selectedAppTab) {
             mobileScreen
@@ -1265,12 +1344,137 @@ public struct RouteComparisonView: View {
             if let route = fullRouteMapRoute {
                 fullRouteMapContent(route: route)
             } else {
-                tabEmptyState(
-                    title: "Route Map",
-                    message: "Start a Live Drive to see your route map.",
-                    systemImage: "map.fill"
-                )
+                inactiveMapContent
             }
+        }
+    }
+
+    private var inactiveMapContent: some View {
+        ZStack(alignment: .top) {
+            inactiveMapLayer
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .ignoresSafeArea(edges: .top)
+
+            VStack(spacing: 0) {
+                Spacer(minLength: 0)
+
+                inactiveMapBottomOverlay
+                    .padding(.horizontal, 14)
+                    .padding(.bottom, 12)
+            }
+        }
+        .background(setupBackgroundTop.ignoresSafeArea())
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    @ViewBuilder
+    private var inactiveMapLayer: some View {
+        #if os(iOS)
+        LiveDriveHUDMapView(
+            routes: [],
+            selectedRouteID: nil,
+            aircraft: mapAircraftMarkers,
+            enforcementAlerts: mapEnforcementAlertMarkers,
+            mapMode: selectedMapMode
+        )
+        #else
+        mapPreview([], nil)
+        #endif
+    }
+
+    private var inactiveMapBottomOverlay: some View {
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: inactiveMapStatusSystemImage)
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(inactiveMapStatusTint)
+                .frame(width: 34, height: 34)
+                .background(setupSurfaceMuted, in: Circle())
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(inactiveMapStatusTitle)
+                    .font(.headline.weight(.bold))
+                    .foregroundStyle(setupPrimaryText)
+
+                Text(inactiveMapStatusMessage)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(setupSecondaryText)
+                    .lineLimit(2)
+            }
+
+            Spacer(minLength: 8)
+
+            Button {
+                isMapOptionsPresented = true
+            } label: {
+                Image(systemName: "slider.horizontal.3")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(setupPrimaryText)
+                    .frame(width: 38, height: 38)
+                    .background(setupSurfaceMuted, in: Circle())
+                    .overlay {
+                        Circle()
+                            .stroke(setupPanelBorder, lineWidth: 1)
+                    }
+                    .accessibilityLabel("Map options")
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(12)
+        .background(setupSurface.opacity(0.94), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .stroke(setupPanelBorder, lineWidth: 1)
+        }
+        .shadow(color: setupShadowColor, radius: 22, y: 10)
+    }
+
+    private var inactiveMapStatusTitle: String {
+        switch currentLocationResolver.authorizationStatus {
+        case .denied, .restricted:
+            return "Location unavailable"
+        case .notDetermined:
+            return "Map ready"
+        case .authorizedAlways, .authorizedWhenInUse:
+            return "Map ready"
+        @unknown default:
+            return "Map ready"
+        }
+    }
+
+    private var inactiveMapStatusMessage: String {
+        switch currentLocationResolver.authorizationStatus {
+        case .denied:
+            return "Enable location access to show your position and nearby passive layers."
+        case .restricted:
+            return "Location access is restricted, so nearby passive layers may be unavailable."
+        case .notDetermined:
+            return "Allow location access to show your position. Start a Live Drive to add route guidance and trip tracking."
+        case .authorizedAlways, .authorizedWhenInUse:
+            return "Start a Live Drive to add route guidance and trip tracking."
+        @unknown default:
+            return "Start a Live Drive to add route guidance and trip tracking."
+        }
+    }
+
+    private var inactiveMapStatusSystemImage: String {
+        switch currentLocationResolver.authorizationStatus {
+        case .denied, .restricted:
+            return "location.slash.fill"
+        case .notDetermined, .authorizedAlways, .authorizedWhenInUse:
+            return "map.fill"
+        @unknown default:
+            return "map.fill"
+        }
+    }
+
+    private var inactiveMapStatusTint: Color {
+        switch currentLocationResolver.authorizationStatus {
+        case .denied, .restricted:
+            return Palette.danger
+        case .notDetermined, .authorizedAlways, .authorizedWhenInUse:
+            return Palette.success
+        @unknown default:
+            return Palette.success
         }
     }
 
@@ -1381,6 +1585,7 @@ public struct RouteComparisonView: View {
     }
 
     private var mapWeatherChipContent: MapWeatherChipContent? {
+        guard liveDriveScreenState == .driving else { return nil }
         guard isRouteWeatherVisible, !isRouteWeatherLoading else { return nil }
         guard let entry = routeWeatherEntries.first(where: { $0.temperatureText?.isEmpty == false }) else { return nil }
         guard let temperatureText = entry.temperatureText else { return nil }
@@ -1646,11 +1851,14 @@ public struct RouteComparisonView: View {
                                 .foregroundStyle(setupSecondaryText)
                                 .padding(.top, 2)
                         } else {
-                            VStack(spacing: 8) {
-                                ForEach(routeWeatherEntries.prefix(4)) { entry in
-                                    routeWeatherOptionsRow(entry)
+                            ScrollView(.vertical, showsIndicators: routeWeatherEntries.count > 6) {
+                                VStack(spacing: 8) {
+                                    ForEach(routeWeatherEntries) { entry in
+                                        routeWeatherOptionsRow(entry)
+                                    }
                                 }
                             }
+                            .frame(maxHeight: routeWeatherEntries.count > 6 ? 420 : nil)
                         }
                     }
 
@@ -1718,18 +1926,6 @@ public struct RouteComparisonView: View {
                         Text("Coverage varies by region. Reports are not guaranteed and are informational only.")
                             .font(.caption.weight(.medium))
                             .foregroundStyle(setupTertiaryText)
-
-                        if !enforcementAlerts.isEmpty {
-                            VStack(spacing: 8) {
-                                ForEach(enforcementAlerts) { alert in
-                                    mapOptionsDetailRow(
-                                        title: alert.title,
-                                        value: alert.distanceMiles.map { "\(String(format: "%.1f", $0)) mi away" } ?? "Reported nearby",
-                                        detail: enforcementAlertDetailText(for: alert)
-                                    )
-                                }
-                            }
-                        }
                     }
 
                     mapOptionsSection(title: "Voice Guidance", systemImage: liveDriveHUDVoiceState.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill") {
@@ -3260,7 +3456,7 @@ public struct RouteComparisonView: View {
                 .foregroundStyle(isPolishedLiveDriveSetup ? setupSecondaryText : Palette.cocoa)
 
             Menu {
-                ForEach(NavigationProvider.allCases) { provider in
+                ForEach(NavigationProvider.selectableCases) { provider in
                     Button {
                         preferredNavigationProviderBinding.wrappedValue = provider
                     } label: {
@@ -3833,7 +4029,7 @@ public struct RouteComparisonView: View {
         )
         applyStoredVoiceSettings()
         withAnimation(.snappy(duration: 0.28, extraBounce: 0)) {
-            tracker.startTrip(requiresBackgroundContinuation: preferredNavigationProvider != .askEveryTime)
+            tracker.startTrip(requiresBackgroundContinuation: true)
             selectedAppTab = .map
         }
 
@@ -3859,12 +4055,34 @@ public struct RouteComparisonView: View {
 
     private func endLiveDrive() {
         withAnimation(.snappy(duration: 0.24, extraBounce: 0)) {
+            let finalCoordinate = tracker.currentCoordinate
             liveDriveNavigationProviderPending = nil
             liveDriveNavigationHandoffMessage = nil
             isNavigationProviderChoicePresented = false
             tracker.endTrip()
             finalizeCompletedTrip()
-            selectedAppTab = .drive
+            liveDriveRouteContext = nil
+            guidanceEngine.reset()
+            routeWeatherRouteID = nil
+            routeWeatherEntries = []
+            routeWeatherMessage = "Forecast unavailable"
+            isRouteWeatherLoading = false
+            speedLimitDisplayText = "Unavailable"
+            speedLimitDetailText = "OpenStreetMap estimate"
+            tracker.updateSpeedLimitEstimate(nil)
+            guidanceRerouteMessage = nil
+            isGuidanceRerouting = false
+            enforcementAlerts = []
+            enforcementAlertsLastUpdatedAt = nil
+            lastEnforcementAlertLookupAt = nil
+            lastEnforcementAlertLookupCoordinate = nil
+            lastEnforcementAlertRouteContextID = nil
+            enforcementAlertStatusText = areEnforcementAlertsEnabled ? "Checking" : "Off"
+            selectedAppTab = .map
+
+            if areEnforcementAlertsEnabled, let finalCoordinate {
+                refreshEnforcementAlerts(near: finalCoordinate, force: true)
+            }
         }
     }
 
@@ -3887,6 +4105,8 @@ public struct RouteComparisonView: View {
             enforcementAlerts = []
             enforcementAlertsLastUpdatedAt = nil
             lastEnforcementAlertLookupAt = nil
+            lastEnforcementAlertLookupCoordinate = nil
+            lastEnforcementAlertRouteContextID = nil
             enforcementAlertStatusText = areEnforcementAlertsEnabled ? "Checking" : "Off"
             selectedAppTab = .drive
         }
@@ -3918,7 +4138,7 @@ public struct RouteComparisonView: View {
         switch provider {
         case .askEveryTime:
             liveDriveNavigationProviderPending = nil
-            isNavigationProviderChoicePresented = true
+            completeLiveDriveNavigationHandoff(using: .appleMaps)
         case .appleMaps, .googleMaps, .waze:
             liveDriveNavigationProviderPending = nil
             Task {
@@ -4223,6 +4443,7 @@ public struct RouteComparisonView: View {
         let routeDistanceMeters = route.distanceMiles * 1_609.344
         let expectedTravelSeconds = route.expectedTravelMinutes * 60
         let timeZone = route.destinationTimeZone ?? .autoupdatingCurrent
+        let checkpointCount = WeatherRouteProvider.recommendedCheckpointCount(forDistanceMiles: route.distanceMiles)
 
         Task {
             do {
@@ -4231,7 +4452,7 @@ public struct RouteComparisonView: View {
                     routeDistanceMeters: routeDistanceMeters,
                     startDate: Date(),
                     expectedTravelTimeSeconds: expectedTravelSeconds,
-                    maxCheckpointCount: 4
+                    maxCheckpointCount: checkpointCount
                 )
 
                 do {
@@ -4353,6 +4574,32 @@ public struct RouteComparisonView: View {
 
         if showsAircraftLayer, let coordinate = tracker.currentCoordinate {
             refreshAircraft(near: coordinate, force: true)
+        } else if showsAircraftLayer, let coordinate = passiveMapCoordinate {
+            refreshAircraft(near: coordinate, force: true)
+        }
+    }
+
+    private func migrateNavigationProviderPreferenceIfNeeded() {
+        guard NavigationProvider(rawValue: navigationProviderPreferenceRawValue) == .askEveryTime else { return }
+        navigationProviderPreferenceRawValue = NavigationProvider.appleMaps.rawValue
+    }
+
+    private func prepareInactiveMapIfNeeded(forceRefresh: Bool) {
+        guard liveDriveScreenState != .driving else { return }
+
+        currentLocationResolver.requestCurrentLocationIfNeeded()
+        refreshPassiveMapLayersIfPossible(force: forceRefresh)
+    }
+
+    private func refreshPassiveMapLayersIfPossible(force: Bool) {
+        guard liveDriveScreenState != .driving, let coordinate = passiveMapCoordinate else { return }
+
+        if showsAircraftLayer {
+            refreshAircraft(near: coordinate, force: force)
+        }
+
+        if areEnforcementAlertsEnabled {
+            refreshEnforcementAlerts(near: coordinate, force: force)
         }
     }
 
@@ -4437,35 +4684,45 @@ public struct RouteComparisonView: View {
     }
 
     private func handleAircraftRefreshTick() {
-        guard liveDriveScreenState == .driving, showsAircraftLayer else { return }
+        guard showsAircraftLayer,
+              liveDriveScreenState == .driving || selectedAppTab == .map else {
+            return
+        }
         let now = Date()
         pruneStaleAircraftIfNeeded(now: now)
 
-        guard let coordinate = tracker.currentCoordinate else { return }
+        guard let coordinate = passiveMapCoordinate else { return }
         refreshAircraft(near: coordinate, force: false)
     }
 
     private func refreshEnforcementAlertsIfNeeded(near coordinate: GuidanceCoordinate) {
         guard areEnforcementAlertsEnabled else { return }
-        let now = Date()
-        if let lastEnforcementAlertLookupAt,
-           now.timeIntervalSince(lastEnforcementAlertLookupAt) < enforcementAlertRefreshIntervalSeconds {
+        let visibilityContext = enforcementAlertVisibilityContext(near: coordinate)
+        guard shouldRefreshEnforcementAlerts(near: coordinate, context: visibilityContext, force: false) else {
             return
         }
-        refreshEnforcementAlerts(near: coordinate, force: false)
+        refreshEnforcementAlerts(near: coordinate, context: visibilityContext, force: false)
     }
 
     private func refreshEnforcementAlerts(near coordinate: GuidanceCoordinate, force: Bool) {
         guard areEnforcementAlertsEnabled else { return }
-        let now = Date()
-        if !force,
-           let lastEnforcementAlertLookupAt,
-           now.timeIntervalSince(lastEnforcementAlertLookupAt) < enforcementAlertRefreshIntervalSeconds {
+        let visibilityContext = enforcementAlertVisibilityContext(near: coordinate)
+        guard shouldRefreshEnforcementAlerts(near: coordinate, context: visibilityContext, force: force) else {
             return
         }
+        refreshEnforcementAlerts(near: coordinate, context: visibilityContext, force: force)
+    }
+
+    private func refreshEnforcementAlerts(
+        near coordinate: GuidanceCoordinate,
+        context visibilityContext: EnforcementAlertVisibilityContext,
+        force: Bool
+    ) {
+        let now = Date()
         lastEnforcementAlertLookupAt = now
+        lastEnforcementAlertLookupCoordinate = coordinate
+        lastEnforcementAlertRouteContextID = enforcementAlertRouteContextID(for: visibilityContext)
         enforcementAlertStatusText = "Checking"
-        let visibilityContext = enforcementAlertVisibilityContext(near: coordinate)
         let radiusMiles = visibilityContext.hasActiveRoute
             ? EnforcementAlertVisibilityPolicy.routeActiveDistanceCapMiles
             : EnforcementAlertVisibilityPolicy.noRouteDistanceCapMiles
@@ -4503,13 +4760,51 @@ public struct RouteComparisonView: View {
     }
 
     private func handleEnforcementAlertRefreshTick() {
-        guard liveDriveScreenState == .driving,
-              areEnforcementAlertsEnabled,
-              let coordinate = tracker.currentCoordinate else {
+        guard areEnforcementAlertsEnabled,
+              liveDriveScreenState == .driving || selectedAppTab == .map,
+              let coordinate = passiveMapCoordinate else {
             return
         }
 
         refreshEnforcementAlerts(near: coordinate, force: false)
+    }
+
+    private func shouldRefreshEnforcementAlerts(
+        near coordinate: GuidanceCoordinate,
+        context visibilityContext: EnforcementAlertVisibilityContext,
+        force: Bool
+    ) -> Bool {
+        guard !force else { return true }
+
+        let now = Date()
+        let routeContextID = enforcementAlertRouteContextID(for: visibilityContext)
+        if lastEnforcementAlertRouteContextID != routeContextID {
+            return true
+        }
+
+        guard let lastLookupAt = lastEnforcementAlertLookupAt else { return true }
+        let elapsed = now.timeIntervalSince(lastLookupAt)
+        if elapsed >= enforcementAlertMaximumRefreshIntervalSeconds {
+            return true
+        }
+
+        guard elapsed >= enforcementAlertRefreshIntervalSeconds else { return false }
+        guard let lastCoordinate = lastEnforcementAlertLookupCoordinate else { return true }
+
+        let movedMiles = coordinate.location.distance(from: lastCoordinate.location) / 1_609.344
+        let movementThreshold = visibilityContext.hasActiveRoute
+            ? routeActiveEnforcementRefreshMovementMiles
+            : noRouteEnforcementRefreshMovementMiles
+        return movedMiles >= movementThreshold
+    }
+
+    private func enforcementAlertRouteContextID(
+        for context: EnforcementAlertVisibilityContext
+    ) -> String {
+        guard context.hasActiveRoute else { return "no-route" }
+        return liveDriveHUDRoute.map { route in
+            "\(route.id.uuidString):\(route.routeCoordinates.count):\(String(format: "%.1f", route.distanceMiles))"
+        } ?? "route"
     }
 
     private func pruneStaleAircraftIfNeeded(now: Date, force: Bool = false) {

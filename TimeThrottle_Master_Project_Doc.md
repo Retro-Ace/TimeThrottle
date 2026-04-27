@@ -161,6 +161,7 @@ TimeThrottle does **not** currently claim:
 - v2.0 build 20: fixed real-device Scanner playback startup, cleaned WeatherKit signed-build unavailable UI, defaulted fresh installs to Daniel when available, added the OpenStreetMap Overpass Enforcement Alerts source path, and raised passive aircraft/enforcement marker visibility priority
 - v2.0 build 21: added Scanner audio-session fallback diagnostics, raised aircraft/enforcement map annotation reliability, and broadened conservative OpenStreetMap traffic-camera tag coverage
 - v2.0 build 22: capped Enforcement Alerts for performance, prioritized route-relevant and ahead-of-travel alerts within 3.5 miles, added a 25-alert nearby fallback within 3.0 miles when no route is active, and clarified capped-count wording
+- v2.0 build 23: keeps Map usable without an active route, clears old route overlays after End Trip, raises visible Enforcement Alerts to 50, removes the Enforcement list from Options, simplifies navigation handoff choices, and scales Route Forecast checkpoints by distance
 
 ## Repo / App Structure
 
@@ -187,7 +188,7 @@ TimeThrottle
 ## Current Release State
 
 - **Version:** 2.0
-- **Build:** 22
+- **Build:** 23
 
 ## Plain-English Summary
 

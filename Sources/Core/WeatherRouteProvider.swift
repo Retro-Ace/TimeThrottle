@@ -134,6 +134,21 @@ public final class WeatherRouteProvider: Sendable {
         self.forecastClient = forecastClient
     }
 
+    public static func recommendedCheckpointCount(forDistanceMiles distanceMiles: Double) -> Int {
+        switch distanceMiles {
+        case ..<100:
+            return 4
+        case ..<300:
+            return 5
+        case ..<700:
+            return 8
+        case ..<1_200:
+            return 10
+        default:
+            return 12
+        }
+    }
+
     public func checkpoints(
         for routeGeometry: [GuidanceCoordinate],
         routeDistanceMeters: Double,
@@ -151,7 +166,7 @@ public final class WeatherRouteProvider: Sendable {
             throw WeatherRouteProviderError.insufficientRouteGeometry
         }
 
-        let checkpointCount = min(max(maxCheckpointCount, 2), 8)
+        let checkpointCount = min(max(maxCheckpointCount, 2), 12)
         let targets = (0..<checkpointCount).map { index in
             totalDistance * (Double(index + 1) / Double(checkpointCount))
         }

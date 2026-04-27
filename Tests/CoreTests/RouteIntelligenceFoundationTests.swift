@@ -61,6 +61,30 @@ final class RouteIntelligenceFoundationTests: XCTestCase {
         XCTAssertEqual(checkpoints.last?.expectedArrivalDate.timeIntervalSince(startDate) ?? 0, 3_600, accuracy: 0.0001)
     }
 
+    func testWeatherRouteProviderScalesCheckpointCountByDistance() {
+        XCTAssertEqual(WeatherRouteProvider.recommendedCheckpointCount(forDistanceMiles: 50), 4)
+        XCTAssertEqual(WeatherRouteProvider.recommendedCheckpointCount(forDistanceMiles: 150), 5)
+        XCTAssertEqual(WeatherRouteProvider.recommendedCheckpointCount(forDistanceMiles: 500), 8)
+        XCTAssertEqual(WeatherRouteProvider.recommendedCheckpointCount(forDistanceMiles: 900), 10)
+        XCTAssertEqual(WeatherRouteProvider.recommendedCheckpointCount(forDistanceMiles: 1_500), 12)
+    }
+
+    func testWeatherRouteProviderAllowsTwelveCheckpointHardMax() throws {
+        let provider = WeatherRouteProvider()
+        let checkpoints = try provider.checkpoints(
+            for: [
+                GuidanceCoordinate(latitude: 41.0, longitude: -87.0),
+                GuidanceCoordinate(latitude: 42.0, longitude: -87.0)
+            ],
+            routeDistanceMeters: 160_000,
+            startDate: Date(timeIntervalSince1970: 1_000),
+            expectedTravelTimeSeconds: 7_200,
+            maxCheckpointCount: 20
+        )
+
+        XCTAssertEqual(checkpoints.count, 12)
+    }
+
     func testOSMSpeedLimitParsingSupportsMilesPerHourAndMetricValues() {
         XCTAssertEqual(OSMSpeedLimitProvider.parseMaxspeedMilesPerHour("65 mph"), 65)
         XCTAssertEqual(OSMSpeedLimitProvider.parseMaxspeedMilesPerHour("100"), 62)
@@ -317,12 +341,12 @@ final class RouteIntelligenceFoundationTests: XCTestCase {
         XCTAssertTrue(alerts.allSatisfy { $0.source == "OpenStreetMap Overpass" })
     }
 
-    func testEnforcementVisibilityCapsNoRouteAlertsToClosestTwentyFive() {
+    func testEnforcementVisibilityCapsNoRouteAlertsToClosestFifty() {
         let center = GuidanceCoordinate(latitude: 41.0, longitude: -87.0)
-        let alerts = (0..<40).map { index in
+        let alerts = (0..<80).map { index in
             enforcementAlert(
                 id: "nearby-\(String(format: "%02d", index))",
-                latitude: 41.0 + (Double(index) * 0.001),
+                latitude: 41.0 + (Double(index) * 0.0005),
                 longitude: -87.0,
                 confidence: Double(index) / 100
             )
@@ -335,7 +359,7 @@ final class RouteIntelligenceFoundationTests: XCTestCase {
 
         XCTAssertEqual(visibleAlerts.count, EnforcementAlertVisibilityPolicy.noRouteVisibleLimit)
         XCTAssertEqual(visibleAlerts.first?.id, "nearby-00")
-        XCTAssertEqual(visibleAlerts.last?.id, "nearby-24")
+        XCTAssertEqual(visibleAlerts.last?.id, "nearby-49")
         XCTAssertTrue(visibleAlerts.allSatisfy {
             ($0.distanceMiles ?? .greatestFiniteMagnitude) <= EnforcementAlertVisibilityPolicy.noRouteDistanceCapMiles
         })
@@ -344,13 +368,13 @@ final class RouteIntelligenceFoundationTests: XCTestCase {
                 visibleAlertCount: visibleAlerts.count,
                 hasActiveRoute: false
             ),
-            "Showing 25 alerts within 3.0 mi"
+            "Showing 50 camera/enforcement reports nearby"
         )
     }
 
-    func testEnforcementVisibilityPrioritizesAheadRouteAlertsAndCapsToThirtyFive() {
-        let routeGeometry = (0...90).map { index in
-            GuidanceCoordinate(latitude: 41.0 + (Double(index) * 0.001), longitude: -87.0)
+    func testEnforcementVisibilityPrioritizesAheadRouteAlertsAndCapsToFifty() {
+        let routeGeometry = (0...130).map { index in
+            GuidanceCoordinate(latitude: 41.0 + (Double(index) * 0.0005), longitude: -87.0)
         }
         let userCoordinate = routeGeometry[30]
         var alerts: [EnforcementAlert] = [
@@ -373,7 +397,7 @@ final class RouteIntelligenceFoundationTests: XCTestCase {
                 confidence: 1
             )
         ]
-        alerts.append(contentsOf: (0..<45).map { index in
+        alerts.append(contentsOf: (0..<75).map { index in
             let routeCoordinate = routeGeometry[32 + index]
             return enforcementAlert(
                 id: "ahead-filler-\(String(format: "%02d", index))",
@@ -403,7 +427,7 @@ final class RouteIntelligenceFoundationTests: XCTestCase {
                 visibleAlertCount: visibleAlerts.count,
                 hasActiveRoute: true
             ),
-            "Showing 35 alerts within 3.5 mi"
+            "Showing 50 route-relevant alerts within 3.5 mi"
         )
     }
 

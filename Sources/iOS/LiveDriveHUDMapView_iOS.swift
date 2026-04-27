@@ -255,6 +255,11 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
             mapView.removeAnnotations(nonUserAnnotations)
 
             guard let selectedRoute = selectedRoute(from: parent.routes, selectedRouteID: parent.selectedRouteID) else {
+                syncAircraft(on: mapView)
+                syncEnforcementAlerts(
+                    on: mapView,
+                    alerts: Array(parent.enforcementAlerts.prefix(EnforcementAlertVisibilityPolicy.routeActiveVisibleLimit))
+                )
                 return
             }
 
@@ -361,6 +366,8 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
                     }
                 } else if forceRecenter {
                     fitRouteContext(on: mapView)
+                } else if parent.routes.isEmpty && !hasAppliedInitialFollowRegion {
+                    applyFallbackRegion(on: mapView)
                 }
             } else if mapView.userTrackingMode != .none {
                 mapView.setUserTrackingMode(.none, animated: false)
@@ -378,6 +385,16 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
                 longitudinalMeters: 1_800
             )
             mapView.setRegion(region, animated: animated)
+            hasAppliedInitialFollowRegion = true
+        }
+
+        private func applyFallbackRegion(on mapView: MKMapView) {
+            let region = MKCoordinateRegion(
+                center: CLLocationCoordinate2D(latitude: 39.8283, longitude: -98.5795),
+                latitudinalMeters: 4_500_000,
+                longitudinalMeters: 4_500_000
+            )
+            mapView.setRegion(region, animated: false)
             hasAppliedInitialFollowRegion = true
         }
 

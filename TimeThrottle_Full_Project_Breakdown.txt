@@ -126,7 +126,7 @@ Live Drive finished-trip flow includes:
 - Top speed tracking and Trip History persistence
 - persisted local iOS voice selection, mute state, and speech speed
 - Apple Maps route lookup / route options / route preview / ETA baseline
-- external navigation handoff to Apple Maps / Google Maps / Waze / Ask Every Time
+- external navigation handoff to Apple Maps / Google Maps / Waze
 - Trip History
 - shareable finished-trip summaries
 - Scanner tab for public scanner listening
@@ -178,6 +178,7 @@ The app remains careful not to claim:
 - v2.0 build 20: fixed real-device Scanner playback startup, cleaned WeatherKit signed-build unavailable UI, defaulted fresh installs to Daniel when available, added the OpenStreetMap Overpass Enforcement Alerts source path, and raised passive aircraft/enforcement marker visibility priority
 - v2.0 build 21: added Scanner audio-session fallback diagnostics, made aircraft/enforcement map annotations more reliable, and broadened conservative OpenStreetMap traffic-camera tag coverage with marker/source counts
 - v2.0 build 22: capped Enforcement Alerts for performance, prioritized route-relevant and ahead-of-travel route alerts, used a nearby-only no-route fallback, and changed count wording to reflect capped visible alerts
+- v2.0 build 23: keeps Map available without an active route, clears ended-trip route overlays, raises visible Enforcement Alerts to 50, removes the Enforcement Options list, simplifies navigation handoff choices, and scales Route Forecast checkpoints by distance
 
 6. WHAT THE AGENTS DO
 
@@ -264,13 +265,13 @@ Important current files include:
 
 Current version:
 - Version: 2.0
-- Build: 22
+- Build: 23
 
 Current release story:
 TimeThrottle 2.0 adds Scanner as a separate public listening tab while preserving the Map-first Live Drive app structure.
 
 It:
-- keeps marketing version 2.0 and moves the build to 22
+- keeps marketing version 2.0 and moves the build to 23
 - keeps bottom navigation to Drive, Map, Trips, and Scanner
 - makes Map the primary active driving surface
 - keeps WeatherKit entitlement wiring and shows clean signed-build unavailable wording instead of raw WeatherDaemon diagnostics
