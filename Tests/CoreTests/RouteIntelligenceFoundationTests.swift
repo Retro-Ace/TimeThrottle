@@ -316,4 +316,109 @@ final class RouteIntelligenceFoundationTests: XCTestCase {
         XCTAssertEqual(alerts.first(where: { $0.id == "osm-way-103" })?.type, .other)
         XCTAssertTrue(alerts.allSatisfy { $0.source == "OpenStreetMap Overpass" })
     }
+
+    func testEnforcementVisibilityCapsNoRouteAlertsToClosestTwentyFive() {
+        let center = GuidanceCoordinate(latitude: 41.0, longitude: -87.0)
+        let alerts = (0..<40).map { index in
+            enforcementAlert(
+                id: "nearby-\(String(format: "%02d", index))",
+                latitude: 41.0 + (Double(index) * 0.001),
+                longitude: -87.0,
+                confidence: Double(index) / 100
+            )
+        }
+
+        let visibleAlerts = EnforcementAlertVisibilityPolicy.visibleAlerts(
+            from: alerts,
+            context: EnforcementAlertVisibilityContext(referenceCoordinate: center)
+        )
+
+        XCTAssertEqual(visibleAlerts.count, EnforcementAlertVisibilityPolicy.noRouteVisibleLimit)
+        XCTAssertEqual(visibleAlerts.first?.id, "nearby-00")
+        XCTAssertEqual(visibleAlerts.last?.id, "nearby-24")
+        XCTAssertTrue(visibleAlerts.allSatisfy {
+            ($0.distanceMiles ?? .greatestFiniteMagnitude) <= EnforcementAlertVisibilityPolicy.noRouteDistanceCapMiles
+        })
+        XCTAssertEqual(
+            EnforcementAlertVisibilityPolicy.statusText(
+                visibleAlertCount: visibleAlerts.count,
+                hasActiveRoute: false
+            ),
+            "Showing 25 alerts within 3.0 mi"
+        )
+    }
+
+    func testEnforcementVisibilityPrioritizesAheadRouteAlertsAndCapsToThirtyFive() {
+        let routeGeometry = (0...90).map { index in
+            GuidanceCoordinate(latitude: 41.0 + (Double(index) * 0.001), longitude: -87.0)
+        }
+        let userCoordinate = routeGeometry[30]
+        var alerts: [EnforcementAlert] = [
+            enforcementAlert(
+                id: "off-route-close",
+                latitude: routeGeometry[31].latitude,
+                longitude: -86.99,
+                confidence: 1
+            ),
+            enforcementAlert(
+                id: "behind-on-route",
+                latitude: routeGeometry[20].latitude,
+                longitude: routeGeometry[20].longitude,
+                confidence: 1
+            ),
+            enforcementAlert(
+                id: "ahead-main",
+                latitude: routeGeometry[31].latitude,
+                longitude: routeGeometry[31].longitude,
+                confidence: 1
+            )
+        ]
+        alerts.append(contentsOf: (0..<45).map { index in
+            let routeCoordinate = routeGeometry[32 + index]
+            return enforcementAlert(
+                id: "ahead-filler-\(String(format: "%02d", index))",
+                latitude: routeCoordinate.latitude,
+                longitude: routeCoordinate.longitude,
+                confidence: 0.5
+            )
+        })
+
+        let visibleAlerts = EnforcementAlertVisibilityPolicy.visibleAlerts(
+            from: alerts,
+            context: EnforcementAlertVisibilityContext(
+                referenceCoordinate: userCoordinate,
+                routeGeometry: routeGeometry
+            )
+        )
+
+        XCTAssertEqual(visibleAlerts.count, EnforcementAlertVisibilityPolicy.routeActiveVisibleLimit)
+        XCTAssertEqual(visibleAlerts.first?.id, "ahead-main")
+        XCTAssertFalse(visibleAlerts.map(\.id).contains("off-route-close"))
+        XCTAssertFalse(visibleAlerts.map(\.id).contains("behind-on-route"))
+        XCTAssertTrue(visibleAlerts.allSatisfy {
+            ($0.distanceMiles ?? .greatestFiniteMagnitude) <= EnforcementAlertVisibilityPolicy.routeActiveDistanceCapMiles
+        })
+        XCTAssertEqual(
+            EnforcementAlertVisibilityPolicy.statusText(
+                visibleAlertCount: visibleAlerts.count,
+                hasActiveRoute: true
+            ),
+            "Showing 35 alerts within 3.5 mi"
+        )
+    }
+
+    private func enforcementAlert(
+        id: String,
+        latitude: Double,
+        longitude: Double,
+        confidence: Double
+    ) -> EnforcementAlert {
+        EnforcementAlert(
+            id: id,
+            type: .speedCamera,
+            coordinate: GuidanceCoordinate(latitude: latitude, longitude: longitude),
+            source: "Test",
+            confidence: confidence
+        )
+    }
 }

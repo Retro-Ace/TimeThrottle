@@ -133,7 +133,7 @@ TimeThrottle does **not** currently claim:
 - certified road speed-limit accuracy
 - live traffic ownership
 - aviation safety or collision-avoidance alerts
-- guaranteed enforcement detection
+- certain enforcement detection
 - scanner audio recording
 - scanner-based route warnings or driving recommendations
 
@@ -160,6 +160,7 @@ TimeThrottle does **not** currently claim:
 - v2.0 build 19: added real-device WeatherKit entitlement wiring and diagnostics, fixed Scanner latest-call/playback loading states, defaulted passive Enforcement Alerts on for fresh installs, and added fresh ADS-B aircraft map markers
 - v2.0 build 20: fixed real-device Scanner playback startup, cleaned WeatherKit signed-build unavailable UI, defaulted fresh installs to Daniel when available, added the OpenStreetMap Overpass Enforcement Alerts source path, and raised passive aircraft/enforcement marker visibility priority
 - v2.0 build 21: added Scanner audio-session fallback diagnostics, raised aircraft/enforcement map annotation reliability, and broadened conservative OpenStreetMap traffic-camera tag coverage
+- v2.0 build 22: capped Enforcement Alerts for performance, prioritized route-relevant and ahead-of-travel alerts within 3.5 miles, added a 25-alert nearby fallback within 3.0 miles when no route is active, and clarified capped-count wording
 
 ## Repo / App Structure
 
@@ -186,7 +187,7 @@ TimeThrottle
 ## Current Release State
 
 - **Version:** 2.0
-- **Build:** 21
+- **Build:** 22
 
 ## Plain-English Summary
 

@@ -105,6 +105,199 @@ public struct LocalEnforcementAlertProvider: EnforcementAlertProvider {
     }
 }
 
+public struct EnforcementAlertVisibilityContext: Sendable {
+    public var referenceCoordinate: GuidanceCoordinate
+    public var routeGeometry: [GuidanceCoordinate]
+
+    public init(
+        referenceCoordinate: GuidanceCoordinate,
+        routeGeometry: [GuidanceCoordinate] = []
+    ) {
+        self.referenceCoordinate = referenceCoordinate
+        self.routeGeometry = routeGeometry
+    }
+
+    public var hasActiveRoute: Bool {
+        routeGeometry.count >= 2
+    }
+}
+
+public enum EnforcementAlertVisibilityPolicy {
+    public static let routeActiveVisibleLimit = 35
+    public static let routeActiveDistanceCapMiles = 3.5
+    public static let noRouteVisibleLimit = 25
+    public static let noRouteDistanceCapMiles = 3.0
+    public static let nearRouteThresholdMiles = 0.35
+
+    public static func visibleAlerts(
+        from alerts: [EnforcementAlert],
+        context: EnforcementAlertVisibilityContext
+    ) -> [EnforcementAlert] {
+        if context.hasActiveRoute {
+            return visibleRouteAlerts(from: alerts, context: context)
+        }
+
+        return visibleNearbyAlerts(from: alerts, referenceCoordinate: context.referenceCoordinate)
+    }
+
+    public static func statusText(
+        visibleAlertCount: Int,
+        hasActiveRoute: Bool
+    ) -> String {
+        guard visibleAlertCount > 0 else {
+            return "No configured camera/enforcement source returned alerts nearby"
+        }
+
+        let alertNoun = visibleAlertCount == 1 ? "alert" : "alerts"
+        if hasActiveRoute {
+            return "Showing \(visibleAlertCount) \(alertNoun) within \(routeActiveDistanceCapMiles) mi"
+        }
+
+        return "Showing \(visibleAlertCount) \(alertNoun) within \(noRouteDistanceCapMiles) mi"
+    }
+
+    private static func visibleRouteAlerts(
+        from alerts: [EnforcementAlert],
+        context: EnforcementAlertVisibilityContext
+    ) -> [EnforcementAlert] {
+        let userRoutePosition = nearestRoutePosition(
+            for: context.referenceCoordinate,
+            routeGeometry: context.routeGeometry
+        )
+
+        let rankedAlerts = alerts
+            .compactMap { alert -> RankedRouteAlert? in
+                guard !alert.isStale else { return nil }
+
+                var resolvedAlert = alert
+                let nearbyDistance = context.referenceCoordinate.location.distance(from: alert.coordinate.location) / 1_609.344
+                guard nearbyDistance <= routeActiveDistanceCapMiles else { return nil }
+
+                resolvedAlert.distanceMiles = nearbyDistance
+                let alertRoutePosition = nearestRoutePosition(
+                    for: alert.coordinate,
+                    routeGeometry: context.routeGeometry
+                )
+                let routeDistanceMiles = alertRoutePosition?.distanceMiles ?? .greatestFiniteMagnitude
+                let isNearRoute = routeDistanceMiles <= nearRouteThresholdMiles
+                let isAhead = isAlertAhead(
+                    alertRoutePosition: alertRoutePosition,
+                    userRoutePosition: userRoutePosition
+                )
+
+                return RankedRouteAlert(
+                    alert: resolvedAlert,
+                    isNearRoute: isNearRoute,
+                    isAhead: isAhead,
+                    distanceMiles: nearbyDistance,
+                    confidence: resolvedAlert.confidence ?? 0
+                )
+            }
+            .sorted { lhs, rhs in
+                if lhs.isNearRoute != rhs.isNearRoute {
+                    return lhs.isNearRoute && !rhs.isNearRoute
+                }
+
+                if lhs.isAhead != rhs.isAhead {
+                    return lhs.isAhead && !rhs.isAhead
+                }
+
+                if lhs.distanceMiles != rhs.distanceMiles {
+                    return lhs.distanceMiles < rhs.distanceMiles
+                }
+
+                if lhs.confidence != rhs.confidence {
+                    return lhs.confidence > rhs.confidence
+                }
+
+                return lhs.alert.id < rhs.alert.id
+            }
+
+        return Array(rankedAlerts.prefix(routeActiveVisibleLimit)).map(\.alert)
+    }
+
+    private static func visibleNearbyAlerts(
+        from alerts: [EnforcementAlert],
+        referenceCoordinate: GuidanceCoordinate
+    ) -> [EnforcementAlert] {
+        let rankedAlerts = alerts
+            .compactMap { alert -> RankedNearbyAlert? in
+                guard !alert.isStale else { return nil }
+
+                var resolvedAlert = alert
+                let nearbyDistance = referenceCoordinate.location.distance(from: alert.coordinate.location) / 1_609.344
+                guard nearbyDistance <= noRouteDistanceCapMiles else { return nil }
+
+                resolvedAlert.distanceMiles = nearbyDistance
+                return RankedNearbyAlert(
+                    alert: resolvedAlert,
+                    distanceMiles: nearbyDistance,
+                    confidence: resolvedAlert.confidence ?? 0
+                )
+            }
+            .sorted { lhs, rhs in
+                if lhs.distanceMiles != rhs.distanceMiles {
+                    return lhs.distanceMiles < rhs.distanceMiles
+                }
+
+                if lhs.confidence != rhs.confidence {
+                    return lhs.confidence > rhs.confidence
+                }
+
+                return lhs.alert.id < rhs.alert.id
+            }
+
+        return Array(rankedAlerts.prefix(noRouteVisibleLimit)).map(\.alert)
+    }
+
+    private static func isAlertAhead(
+        alertRoutePosition: RoutePosition?,
+        userRoutePosition: RoutePosition?
+    ) -> Bool {
+        guard let alertRoutePosition, let userRoutePosition else { return false }
+        return alertRoutePosition.index >= max(0, userRoutePosition.index - 1)
+    }
+
+    private static func nearestRoutePosition(
+        for coordinate: GuidanceCoordinate,
+        routeGeometry: [GuidanceCoordinate]
+    ) -> RoutePosition? {
+        guard !routeGeometry.isEmpty else { return nil }
+
+        var bestIndex = 0
+        var bestDistanceMiles = Double.greatestFiniteMagnitude
+
+        for (index, routeCoordinate) in routeGeometry.enumerated() {
+            let distanceMiles = coordinate.location.distance(from: routeCoordinate.location) / 1_609.344
+            if distanceMiles < bestDistanceMiles {
+                bestIndex = index
+                bestDistanceMiles = distanceMiles
+            }
+        }
+
+        return RoutePosition(index: bestIndex, distanceMiles: bestDistanceMiles)
+    }
+
+    private struct RankedRouteAlert {
+        var alert: EnforcementAlert
+        var isNearRoute: Bool
+        var isAhead: Bool
+        var distanceMiles: Double
+        var confidence: Double
+    }
+
+    private struct RankedNearbyAlert {
+        var alert: EnforcementAlert
+        var distanceMiles: Double
+        var confidence: Double
+    }
+
+    private struct RoutePosition {
+        var index: Int
+        var distanceMiles: Double
+    }
+}
+
 public actor OSMEnforcementAlertProvider: EnforcementAlertProvider {
     public static let defaultEndpoint = URL(string: "https://overpass-api.de/api/interpreter")!
 

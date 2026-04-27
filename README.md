@@ -28,12 +28,12 @@ TimeThrottle now adds in-app guidance and route intelligence on top of the Apple
 
 ## What's New in v2.0
 
-Build 21 is a real-device fix pass for Scanner playback and map markers:
-- Scanner playback uses the simplest iOS playback audio session, retries with the same basic setup if activation is rejected, and logs exact NSError details for diagnosis
-- Scanner latest calls, selected-row state, audio-session failures, and provider/player failures remain separate in UI and diagnostics
-- Aircraft and enforcement map markers now log source counts, annotation counts, and visible-in-viewport counts on device
-- Aircraft and enforcement annotations are registered and kept at high MapKit priority for more reliable visibility at normal driving zoom
-- Enforcement Alerts use a broader but conservative OpenStreetMap Overpass traffic-camera tag query and still show markers only when real tagged source data with coordinates is returned
+Build 22 is an Enforcement Alerts performance and capping pass:
+- Route-active Enforcement Alerts are capped at 35 visible alerts within 3.5 miles
+- Route-active results prioritize route-relevant and ahead-of-travel alerts before nearest-distance and confidence tie-breaks
+- No-route Enforcement Alerts use a nearby-only fallback capped at 25 alerts within 3.0 miles
+- Map markers and Options rows are driven by the capped visible alert list, not raw provider totals
+- Count wording now describes the capped alerts being shown instead of large raw source counts
 
 Use this block for GitHub releases, TestFlight notes, and App Store Connect:
 
@@ -166,7 +166,7 @@ For the full policy, see [privacy-policy.md](/Users/anthonylarosa/CODEX/TimeThro
 - **Deployment target:** iOS 17+
 - **Bundle ID:** `com.timethrottle.app`
 - **Current release:** v2.0
-- **Current build:** 21
+- **Current build:** 22
 - **Primary app target:** `TimeThrottle.xcodeproj`
 - **Primary shared UI:** `Sources/SharedUI/RouteComparisonView.swift`
 
@@ -178,7 +178,7 @@ For the full policy, see [privacy-policy.md](/Users/anthonylarosa/CODEX/TimeThro
 - `WeatherRouteProvider.swift` — route checkpoint sampling and WeatherKit forecast pipeline
 - `SpeedLimitProvider.swift` / `OSMSpeedLimitService.swift` / `OSMSpeedLimitProvider.swift` — speed-limit estimate protocol, current-road OpenStreetMap lookup, and local cache wrapper
 - `AircraftProvider.swift` / `OpenSkyAircraftProvider.swift` — optional passive Nearby Low Aircraft models and OpenSky implementation
-- `EnforcementAlertProvider.swift` — optional camera and enforcement report models plus OpenStreetMap Overpass provider/service path
+- `EnforcementAlertProvider.swift` — optional camera and enforcement report models, OpenStreetMap Overpass provider/service path, and capped route-aware visibility policy
 - `ScannerModels.swift` — public scanner system, call, talkgroup, nearby sorting, and geocode cache models
 - `OpenMHzScannerService.swift` — configurable OpenMHz-style scanner API client for systems, latest calls, and talkgroups
 - `TripHistoryStore.swift` — local persistence for completed Live Drive trips

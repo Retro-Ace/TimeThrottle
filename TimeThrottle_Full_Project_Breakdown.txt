@@ -150,7 +150,7 @@ The app remains careful not to claim:
 - certified speed-limit accuracy
 - live traffic intelligence it does not truly own
 - aviation safety or collision-avoidance alerts
-- guaranteed enforcement detection or legal enforcement guarantees
+- certain enforcement detection or legal guarantees
 - scanner recording
 - scanner-based driving recommendations
 
@@ -177,6 +177,7 @@ The app remains careful not to claim:
 - v2.0 build 19: added real-device WeatherKit entitlement wiring and diagnostics, fixed Scanner latest-call/playback loading states, defaulted passive Enforcement Alerts on for fresh installs, and added fresh ADS-B aircraft map markers
 - v2.0 build 20: fixed real-device Scanner playback startup, cleaned WeatherKit signed-build unavailable UI, defaulted fresh installs to Daniel when available, added the OpenStreetMap Overpass Enforcement Alerts source path, and raised passive aircraft/enforcement marker visibility priority
 - v2.0 build 21: added Scanner audio-session fallback diagnostics, made aircraft/enforcement map annotations more reliable, and broadened conservative OpenStreetMap traffic-camera tag coverage with marker/source counts
+- v2.0 build 22: capped Enforcement Alerts for performance, prioritized route-relevant and ahead-of-travel route alerts, used a nearby-only no-route fallback, and changed count wording to reflect capped visible alerts
 
 6. WHAT THE AGENTS DO
 
@@ -263,13 +264,13 @@ Important current files include:
 
 Current version:
 - Version: 2.0
-- Build: 21
+- Build: 22
 
 Current release story:
 TimeThrottle 2.0 adds Scanner as a separate public listening tab while preserving the Map-first Live Drive app structure.
 
 It:
-- keeps marketing version 2.0 and moves the build to 21
+- keeps marketing version 2.0 and moves the build to 22
 - keeps bottom navigation to Drive, Map, Trips, and Scanner
 - makes Map the primary active driving surface
 - keeps WeatherKit entitlement wiring and shows clean signed-build unavailable wording instead of raw WeatherDaemon diagnostics
@@ -296,7 +297,7 @@ It:
 - shows Speed Limit / Unavailable using cached OpenStreetMap estimates where confidence is sufficient
 - measures Time Above Speed Limit and Time Below Speed Limit only where speed-limit estimates are available
 - shows optional passive Nearby Low Aircraft using filtered OpenSky ADS-B data without safety-grade claims
-- avoids guaranteed enforcement or legal claims
+- avoids certainty or legal claims
 - keeps Apple Maps as the route lookup / ETA-baseline layer
 - keeps the Map follow and recenter behavior
 - keeps the finished-trip story focused on Time Above Speed Limit, Time Below Speed Limit, top speed, speed-limit coverage, and projected arrival versus Apple Maps ETA baseline

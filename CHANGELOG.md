@@ -4,6 +4,14 @@ All notable release-facing changes to **TimeThrottle** should be documented in t
 
 ## v2.0 - April 26, 2026
 
+### Build 22 Enforcement Alerts Performance / Capping Pass
+
+- Keeps marketing version at 2.0 and bumps the build to 22.
+- Caps rendered Enforcement Alerts so the Map marker layer receives no more than 35 route-active alerts and the no-route fallback receives no more than 25 nearby alerts.
+- Filters route-active Enforcement Alerts to 3.5 miles, prioritizing route-relevant and ahead-of-travel alerts before nearest-distance and confidence tie-breaks.
+- Uses a 3.0-mile nearby-only fallback when no route is active.
+- Replaces large raw source totals with capped user-facing wording such as the number of alerts actually being shown within the active distance cap.
+
 ### Build 21 Real-Device Fix Pass
 
 - Keeps marketing version at 2.0 and bumps the build to 21.

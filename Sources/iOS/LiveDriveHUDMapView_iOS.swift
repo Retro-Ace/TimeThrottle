@@ -200,7 +200,10 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
                 syncAircraft(on: mapView)
             }
 
-            let enforcementAlertSignature = parent.enforcementAlerts.map {
+            let renderedEnforcementAlerts = Array(
+                parent.enforcementAlerts.prefix(EnforcementAlertVisibilityPolicy.routeActiveVisibleLimit)
+            )
+            let enforcementAlertSignature = renderedEnforcementAlerts.map {
                 [
                     $0.id,
                     String($0.coordinate.latitude),
@@ -212,7 +215,7 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
             }.joined(separator: "|")
             if enforcementAlertSignature != lastEnforcementAlertSignature {
                 lastEnforcementAlertSignature = enforcementAlertSignature
-                syncEnforcementAlerts(on: mapView)
+                syncEnforcementAlerts(on: mapView, alerts: renderedEnforcementAlerts)
             }
 
             let shouldRecenter = lastRecenterToken != parent.recenterToken
@@ -276,7 +279,10 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
             mapView.addAnnotation(destinationAnnotation)
 
             syncAircraft(on: mapView)
-            syncEnforcementAlerts(on: mapView)
+            syncEnforcementAlerts(
+                on: mapView,
+                alerts: Array(parent.enforcementAlerts.prefix(EnforcementAlertVisibilityPolicy.routeActiveVisibleLimit))
+            )
         }
 
         private func syncAircraft(on mapView: MKMapView) {
@@ -298,11 +304,11 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
             )
         }
 
-        private func syncEnforcementAlerts(on mapView: MKMapView) {
+        private func syncEnforcementAlerts(on mapView: MKMapView, alerts: [EnforcementAlert]) {
             let alertAnnotations = mapView.annotations.compactMap { $0 as? EnforcementAlertMapAnnotation }
             mapView.removeAnnotations(alertAnnotations)
 
-            let annotations = parent.enforcementAlerts
+            let annotations = alerts
                 .filter { !$0.isStale && Self.isValidCoordinate($0.coordinate) }
                 .map { alert in
                     EnforcementAlertMapAnnotation(alert: alert)
@@ -311,7 +317,7 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
             mapView.addAnnotations(annotations)
             Self.logMarkerCounts(
                 layer: "enforcement",
-                passed: parent.enforcementAlerts.count,
+                passed: alerts.count,
                 annotations: annotations.count,
                 visible: visibleCount
             )

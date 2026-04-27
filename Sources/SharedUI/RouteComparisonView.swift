@@ -99,7 +99,6 @@ public struct RouteComparisonView: View {
     private let aircraftRefreshIntervalSeconds: TimeInterval = 25
     private let aircraftStaleTimeoutSeconds: TimeInterval = 90
     private let enforcementAlertRefreshIntervalSeconds: TimeInterval = 60
-    private let enforcementAlertSearchRadiusMiles: Double = 10
     private static let guidanceVoiceIdentifierStorageKey = "timethrottle.voice.selectedVoiceIdentifier"
     #if canImport(OSLog)
     private static let routeIntelligenceLogger = Logger(subsystem: "com.timethrottle.app", category: "RouteIntelligence")
@@ -579,7 +578,7 @@ public struct RouteComparisonView: View {
             }
         }
 
-        return "\(enforcementAlerts.count) alerts nearby"
+        return enforcementAlertStatusText
     }
 
     private var enforcementAlertOptionsStatusText: String {
@@ -624,7 +623,22 @@ public struct RouteComparisonView: View {
 
     private var mapEnforcementAlertMarkers: [EnforcementAlert] {
         guard areEnforcementAlertsEnabled else { return [] }
-        return enforcementAlerts.filter { !$0.isStale }
+        return Array(enforcementAlerts.filter { !$0.isStale }.prefix(EnforcementAlertVisibilityPolicy.routeActiveVisibleLimit))
+    }
+
+    private func enforcementAlertVisibilityContext(
+        near coordinate: GuidanceCoordinate
+    ) -> EnforcementAlertVisibilityContext {
+        let routeGeometry = liveDriveScreenState == .driving
+            ? liveDriveHUDRoute?.routeCoordinates.map {
+                GuidanceCoordinate(latitude: $0.latitude, longitude: $0.longitude)
+            } ?? []
+            : []
+
+        return EnforcementAlertVisibilityContext(
+            referenceCoordinate: coordinate,
+            routeGeometry: routeGeometry
+        )
     }
 
     private var preferredNavigationProvider: NavigationProvider {
@@ -1701,13 +1715,13 @@ public struct RouteComparisonView: View {
                                 .tint(Palette.success)
                         }
 
-                        Text("Coverage varies by region. Reports are not guaranteed and are not a legal enforcement guarantee.")
+                        Text("Coverage varies by region. Reports are not guaranteed and are informational only.")
                             .font(.caption.weight(.medium))
                             .foregroundStyle(setupTertiaryText)
 
                         if !enforcementAlerts.isEmpty {
                             VStack(spacing: 8) {
-                                ForEach(enforcementAlerts.prefix(5)) { alert in
+                                ForEach(enforcementAlerts) { alert in
                                     mapOptionsDetailRow(
                                         title: alert.title,
                                         value: alert.distanceMiles.map { "\(String(format: "%.1f", $0)) mi away" } ?? "Reported nearby",
@@ -4451,7 +4465,10 @@ public struct RouteComparisonView: View {
         }
         lastEnforcementAlertLookupAt = now
         enforcementAlertStatusText = "Checking"
-        let radiusMiles = enforcementAlertSearchRadiusMiles
+        let visibilityContext = enforcementAlertVisibilityContext(near: coordinate)
+        let radiusMiles = visibilityContext.hasActiveRoute
+            ? EnforcementAlertVisibilityPolicy.routeActiveDistanceCapMiles
+            : EnforcementAlertVisibilityPolicy.noRouteDistanceCapMiles
         Self.logRouteIntelligence(
             "Enforcement refresh started center=\(Self.roundedCoordinateText(coordinate)) radiusMiles=\(radiusMiles)"
         )
@@ -4459,16 +4476,21 @@ public struct RouteComparisonView: View {
         Task {
             do {
                 let alerts = try await enforcementAlertService.alerts(near: coordinate, radiusMiles: radiusMiles)
+                let visibleAlerts = EnforcementAlertVisibilityPolicy.visibleAlerts(
+                    from: alerts,
+                    context: visibilityContext
+                )
                 await MainActor.run {
-                    enforcementAlerts = alerts
+                    enforcementAlerts = visibleAlerts
                     enforcementAlertsLastUpdatedAt = Date()
-                    let markerCount = areEnforcementAlertsEnabled ? alerts.filter { !$0.isStale }.count : 0
+                    let markerCount = areEnforcementAlertsEnabled ? visibleAlerts.filter { !$0.isStale }.count : 0
                     Self.logRouteIntelligence(
-                        "Enforcement refresh returned alerts=\(alerts.count) mapMarkers=\(markerCount)"
+                        "Enforcement refresh returned rawAlerts=\(alerts.count) visibleAlerts=\(visibleAlerts.count) mapMarkers=\(markerCount)"
                     )
-                    enforcementAlertStatusText = alerts.isEmpty
-                        ? "No configured camera/enforcement source returned alerts nearby"
-                        : "\(alerts.count) alerts nearby"
+                    enforcementAlertStatusText = EnforcementAlertVisibilityPolicy.statusText(
+                        visibleAlertCount: visibleAlerts.count,
+                        hasActiveRoute: visibilityContext.hasActiveRoute
+                    )
                 }
             } catch {
                 Self.logRouteIntelligenceFailure("enforcement refresh", error: error)

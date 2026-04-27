@@ -62,13 +62,14 @@ Supports:
 
 ### Version / build
 - **Version:** 2.0
-- **Build:** 21
+- **Build:** 22
 
 - adds the Scanner tab as a separate listening-only feature
 - supports Nearby and Browse scanner systems
 - loads latest public scanner calls for a selected system
 - adds scanner selected/latest-call play / pause / next-call playback and background audio support
 - adds build 21 real-device fixes for Scanner audio-session fallback diagnostics, aircraft marker visibility, and OpenStreetMap Overpass-backed enforcement/camera source and marker diagnostics
+- adds build 22 Enforcement Alerts capping so route-active results are limited to 35 visible alerts within 3.5 miles and no-route results are limited to 25 nearby alerts within 3.0 miles
 - keeps route intelligence details in Map Options
 - keeps Live Drive tracking, Apple Maps ETA baseline, speed-limit analysis, route intelligence, Trip History, and external handoff intact
 
@@ -80,7 +81,7 @@ Do not imply:
 - certified speed-limit accuracy
 - live traffic ownership
 - aviation safety or collision-avoidance alerts
-- guaranteed enforcement detection
+- certain enforcement detection
 - scanner audio recording
 - scanner-based route warnings, incident prediction, or driving recommendations
 
@@ -187,7 +188,7 @@ TimeThrottle
 
 ## Release / Packaging Notes
 
-- current release target: **v2.0 / build 21**
+- current release target: **v2.0 / build 22**
 - simulator build path: `./dist-ios`
 - current simulator bundle output: `dist/iOSSimulator/TimeThrottle.app`
 
