@@ -64,7 +64,7 @@ public struct EnforcementAlertSearchRegion: Equatable, Sendable {
     public var center: GuidanceCoordinate
     public var radiusMiles: Double
 
-    public init(center: GuidanceCoordinate, radiusMiles: Double = 5) {
+    public init(center: GuidanceCoordinate, radiusMiles: Double = 3) {
         self.center = center
         self.radiusMiles = min(max(radiusMiles, 1), 20)
     }
@@ -123,11 +123,28 @@ public struct EnforcementAlertVisibilityContext: Sendable {
 }
 
 public enum EnforcementAlertVisibilityPolicy {
-    public static let routeActiveVisibleLimit = 50
-    public static let routeActiveDistanceCapMiles = 3.5
-    public static let noRouteVisibleLimit = 50
+    public static let routeActiveVisibleLimit = 30
+    public static let routeActiveDistanceCapMiles = 3.0
+    public static let noRouteVisibleLimit = 30
     public static let noRouteDistanceCapMiles = 3.0
     public static let nearRouteThresholdMiles = 0.35
+
+    public static func filteredAlerts(
+        from alerts: [EnforcementAlert],
+        redLightCameraAlertsEnabled: Bool,
+        enforcementReportAlertsEnabled: Bool
+    ) -> [EnforcementAlert] {
+        alerts.filter { alert in
+            switch alert.type {
+            case .speedCamera:
+                return true
+            case .redLightCamera:
+                return redLightCameraAlertsEnabled
+            case .policeReported, .other:
+                return enforcementReportAlertsEnabled
+            }
+        }
+    }
 
     public static func visibleAlerts(
         from alerts: [EnforcementAlert],
@@ -256,7 +273,7 @@ public enum EnforcementAlertVisibilityPolicy {
         userRoutePosition: RoutePosition?
     ) -> Bool {
         guard let alertRoutePosition, let userRoutePosition else { return false }
-        return alertRoutePosition.index >= max(0, userRoutePosition.index - 1)
+        return alertRoutePosition.index >= userRoutePosition.index
     }
 
     private static func nearestRoutePosition(
@@ -630,7 +647,7 @@ public actor EnforcementAlertService {
         self.provider = provider
     }
 
-    public func alerts(near coordinate: GuidanceCoordinate, radiusMiles: Double = 5) async throws -> [EnforcementAlert] {
+    public func alerts(near coordinate: GuidanceCoordinate, radiusMiles: Double = 3) async throws -> [EnforcementAlert] {
         try await provider.enforcementAlerts(
             in: EnforcementAlertSearchRegion(center: coordinate, radiusMiles: radiusMiles)
         )

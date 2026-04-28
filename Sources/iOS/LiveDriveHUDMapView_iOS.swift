@@ -14,6 +14,7 @@ struct LiveDriveHUDMapView: View {
     let selectedRouteID: UUID?
     var aircraft: [Aircraft] = []
     var enforcementAlerts: [EnforcementAlert] = []
+    var weatherCheckpoints: [RouteWeatherMapCheckpoint] = []
     var mapMode: LiveDriveMapMode = .standard
 
     @State private var isFollowingUser = true
@@ -26,6 +27,7 @@ struct LiveDriveHUDMapView: View {
                 selectedRouteID: selectedRouteID,
                 aircraft: aircraft,
                 enforcementAlerts: enforcementAlerts,
+                weatherCheckpoints: weatherCheckpoints,
                 mapMode: mapMode,
                 isFollowingUser: $isFollowingUser,
                 recenterToken: recenterToken
@@ -79,6 +81,7 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
     let selectedRouteID: UUID?
     let aircraft: [Aircraft]
     let enforcementAlerts: [EnforcementAlert]
+    let weatherCheckpoints: [RouteWeatherMapCheckpoint]
     let mapMode: LiveDriveMapMode
     @Binding var isFollowingUser: Bool
     let recenterToken: UUID
@@ -105,6 +108,10 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
             MKMarkerAnnotationView.self,
             forAnnotationViewWithReuseIdentifier: "HUDEnforcementAlertMarker"
         )
+        mapView.register(
+            MKMarkerAnnotationView.self,
+            forAnnotationViewWithReuseIdentifier: "HUDWeatherCheckpointMarker"
+        )
         mapView.userTrackingMode = .follow
         let followPanRecognizer = UIPanGestureRecognizer(
             target: context.coordinator,
@@ -128,6 +135,7 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
         private var lastRouteSignature = ""
         private var lastAircraftSignature = ""
         private var lastEnforcementAlertSignature = ""
+        private var lastWeatherCheckpointSignature = ""
         private var lastRecenterToken: UUID?
         private var hasAppliedInitialFollowRegion = false
         private var userInitiatedMapChange = false
@@ -218,6 +226,23 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
                 syncEnforcementAlerts(on: mapView, alerts: renderedEnforcementAlerts)
             }
 
+            let weatherCheckpointSignature = parent.weatherCheckpoints.map {
+                [
+                    $0.id.uuidString,
+                    String($0.coordinate.latitude),
+                    String($0.coordinate.longitude),
+                    $0.title,
+                    $0.arrivalText,
+                    $0.forecastText,
+                    $0.temperatureText ?? "",
+                    $0.systemImage
+                ].joined(separator: ":")
+            }.joined(separator: "|")
+            if weatherCheckpointSignature != lastWeatherCheckpointSignature {
+                lastWeatherCheckpointSignature = weatherCheckpointSignature
+                syncWeatherCheckpoints(on: mapView)
+            }
+
             let shouldRecenter = lastRecenterToken != parent.recenterToken
             if shouldRecenter {
                 lastRecenterToken = parent.recenterToken
@@ -260,6 +285,7 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
                     on: mapView,
                     alerts: Array(parent.enforcementAlerts.prefix(EnforcementAlertVisibilityPolicy.routeActiveVisibleLimit))
                 )
+                syncWeatherCheckpoints(on: mapView)
                 return
             }
 
@@ -288,6 +314,7 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
                 on: mapView,
                 alerts: Array(parent.enforcementAlerts.prefix(EnforcementAlertVisibilityPolicy.routeActiveVisibleLimit))
             )
+            syncWeatherCheckpoints(on: mapView)
         }
 
         private func syncAircraft(on mapView: MKMapView) {
@@ -323,6 +350,27 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
             Self.logMarkerCounts(
                 layer: "enforcement",
                 passed: alerts.count,
+                annotations: annotations.count,
+                visible: visibleCount
+            )
+        }
+
+        private func syncWeatherCheckpoints(on mapView: MKMapView) {
+            let weatherAnnotations = mapView.annotations.compactMap { $0 as? WeatherCheckpointMapAnnotation }
+            mapView.removeAnnotations(weatherAnnotations)
+
+            guard selectedRoute(from: parent.routes, selectedRouteID: parent.selectedRouteID) != nil else { return }
+
+            let annotations = parent.weatherCheckpoints
+                .filter { Self.isValidCoordinate($0.coordinate) }
+                .map { checkpoint in
+                    WeatherCheckpointMapAnnotation(checkpoint: checkpoint)
+                }
+            let visibleCount = Self.visibleAnnotationCount(annotations, on: mapView)
+            mapView.addAnnotations(annotations)
+            Self.logMarkerCounts(
+                layer: "weather",
+                passed: parent.weatherCheckpoints.count,
                 annotations: annotations.count,
                 visible: visibleCount
             )
@@ -475,6 +523,26 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
                 return view
             }
 
+            if let weatherAnnotation = annotation as? WeatherCheckpointMapAnnotation {
+                let identifier = "HUDWeatherCheckpointMarker"
+                let view = mapView.dequeueReusableAnnotationView(withIdentifier: identifier) as? MKMarkerAnnotationView
+                    ?? MKMarkerAnnotationView(annotation: annotation, reuseIdentifier: identifier)
+
+                view.annotation = weatherAnnotation
+                view.canShowCallout = true
+                view.isHidden = false
+                view.alpha = 0.96
+                view.displayPriority = .defaultHigh
+                view.zPriority = .defaultSelected
+                view.selectedZPriority = .max
+                view.collisionMode = .circle
+                view.markerTintColor = .systemTeal
+                view.glyphTintColor = .white
+                view.glyphImage = UIImage(systemName: weatherAnnotation.glyphName)
+                view.detailCalloutAccessoryView = WeatherCheckpointMapAnnotation.detailLabel(for: weatherAnnotation)
+                return view
+            }
+
             let identifier = "HUDRouteMarker"
             let view = mapView.dequeueReusableAnnotationView(withIdentifier: identifier) as? MKMarkerAnnotationView
                 ?? MKMarkerAnnotationView(annotation: annotation, reuseIdentifier: identifier)
@@ -532,6 +600,43 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
                 parent.isFollowingUser = true
             }
         }
+    }
+}
+
+private final class WeatherCheckpointMapAnnotation: NSObject, MKAnnotation {
+    let checkpoint: RouteWeatherMapCheckpoint
+    let coordinate: CLLocationCoordinate2D
+    let title: String?
+    let subtitle: String?
+
+    init(checkpoint: RouteWeatherMapCheckpoint) {
+        self.checkpoint = checkpoint
+        self.coordinate = checkpoint.coordinate.clLocationCoordinate
+        self.title = checkpoint.title
+
+        let detailParts = [
+            checkpoint.arrivalText.isEmpty ? nil : checkpoint.arrivalText,
+            checkpoint.temperatureText,
+            checkpoint.forecastText.isEmpty ? nil : checkpoint.forecastText
+        ].compactMap { $0 }
+        self.subtitle = detailParts.joined(separator: " • ")
+    }
+
+    var glyphName: String {
+        checkpoint.systemImage
+    }
+
+    static func detailLabel(for annotation: WeatherCheckpointMapAnnotation) -> UILabel {
+        let label = UILabel()
+        label.numberOfLines = 0
+        label.font = .preferredFont(forTextStyle: .caption1)
+        label.textColor = .secondaryLabel
+        label.text = [
+            annotation.checkpoint.arrivalText.isEmpty ? nil : "Expected \(annotation.checkpoint.arrivalText)",
+            annotation.checkpoint.temperatureText.map { "Temperature \($0)" },
+            annotation.checkpoint.forecastText.isEmpty ? nil : annotation.checkpoint.forecastText
+        ].compactMap { $0 }.joined(separator: "\n")
+        return label
     }
 }
 

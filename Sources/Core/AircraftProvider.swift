@@ -139,3 +139,93 @@ public struct AircraftLayerState: Equatable, Sendable {
         self.isStale = isStale
     }
 }
+
+public enum AircraftPositionProjection {
+    public static func projectedAircraft(
+        from aircraft: [Aircraft],
+        reference: GuidanceCoordinate? = nil,
+        now: Date = Date(),
+        staleTimeoutSeconds: TimeInterval = 90
+    ) -> [Aircraft] {
+        aircraft.compactMap { aircraft in
+            projectedAircraft(
+                aircraft,
+                reference: reference,
+                now: now,
+                staleTimeoutSeconds: staleTimeoutSeconds
+            )
+        }
+    }
+
+    public static func projectedAircraft(
+        _ aircraft: Aircraft,
+        reference: GuidanceCoordinate? = nil,
+        now: Date = Date(),
+        staleTimeoutSeconds: TimeInterval = 90
+    ) -> Aircraft? {
+        let anchorDate = aircraft.timePositionDate ?? aircraft.lastPositionDate ?? aircraft.lastContactDate
+        let elapsedSeconds = max(anchorDate.map { now.timeIntervalSince($0) } ?? aircraft.dataAgeSeconds ?? 0, 0)
+        guard elapsedSeconds <= staleTimeoutSeconds else { return nil }
+
+        var resolvedAircraft = aircraft
+        if elapsedSeconds > 0,
+           let headingDegrees = aircraft.headingDegrees,
+           let speedMetersPerSecond = speedMetersPerSecond(for: aircraft),
+           speedMetersPerSecond > 0 {
+            resolvedAircraft.coordinate = projectedCoordinate(
+                from: aircraft.coordinate,
+                headingDegrees: headingDegrees,
+                distanceMeters: speedMetersPerSecond * elapsedSeconds
+            )
+        }
+
+        if let reference {
+            let distanceMeters = reference.location.distance(from: resolvedAircraft.coordinate.location)
+            resolvedAircraft.distanceMeters = distanceMeters
+            resolvedAircraft.distanceMiles = distanceMeters / 1_609.344
+        }
+        resolvedAircraft.dataAgeSeconds = max(elapsedSeconds, aircraft.dataAgeSeconds ?? 0)
+        resolvedAircraft.isStale = false
+        return resolvedAircraft
+    }
+
+    private static func speedMetersPerSecond(for aircraft: Aircraft) -> Double? {
+        if let groundSpeedMPH = aircraft.groundSpeedMPH {
+            return groundSpeedMPH / 2.23693629
+        }
+
+        if let groundSpeedKnots = aircraft.groundSpeedKnots {
+            return groundSpeedKnots / 1.94384449
+        }
+
+        return nil
+    }
+
+    private static func projectedCoordinate(
+        from coordinate: GuidanceCoordinate,
+        headingDegrees: Double,
+        distanceMeters: Double
+    ) -> GuidanceCoordinate {
+        let earthRadiusMeters = 6_371_000.0
+        let angularDistance = distanceMeters / earthRadiusMeters
+        let bearing = headingDegrees * .pi / 180
+        let startLatitude = coordinate.latitude * .pi / 180
+        let startLongitude = coordinate.longitude * .pi / 180
+
+        let projectedLatitude = asin(
+            sin(startLatitude) * cos(angularDistance) +
+                cos(startLatitude) * sin(angularDistance) * cos(bearing)
+        )
+        let projectedLongitude = startLongitude + atan2(
+            sin(bearing) * sin(angularDistance) * cos(startLatitude),
+            cos(angularDistance) - sin(startLatitude) * sin(projectedLatitude)
+        )
+        let normalizedLongitude = (projectedLongitude * 180 / .pi + 540)
+            .truncatingRemainder(dividingBy: 360) - 180
+
+        return GuidanceCoordinate(
+            latitude: projectedLatitude * 180 / .pi,
+            longitude: normalizedLongitude
+        )
+    }
+}

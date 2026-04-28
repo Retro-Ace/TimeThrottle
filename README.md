@@ -28,22 +28,24 @@ TimeThrottle now adds in-app guidance and route intelligence on top of the Apple
 
 ## What's New in v2.0
 
-Build 24 adds True Live Scanner support:
-- Scanner detail now has a Live Feed card above Latest Calls
-- Live Feed uses only approved direct stream URLs from bundled configuration
-- Latest Calls replay remains separate from continuous live stream playback
-- Empty live-stream config works cleanly and shows an unavailable state
-- Scanner remains independent from Live Drive, route warnings, route intelligence, and driving recommendations
+Build 25 tightens Map, Alerts, ADS-B, and Live Drive UI behavior:
+- Camera and enforcement markers are capped at 30 visible reports within 3.0 miles
+- Route-active alerts use route-first ranking, then nearby fallback reports
+- Enforcement refresh now runs independently from aircraft refresh
+- ADS-B aircraft markers project between conservative provider updates and clear when stale
+- Optional camera and nearby-low-aircraft voice cues default on and respect global voice mute
+- Map Options, active Live Drive, setup, and trip-result surfaces are tighter and less cluttered
 
 Use this block for GitHub releases, TestFlight notes, and App Store Connect:
 
 > **TimeThrottle 2.0**
 >
-> - Adds a fourth Scanner tab for informational public scanner listening
-> - Adds Nearby and Browse scanner system discovery using an OpenMHz-style public scanner client
-> - Shows latest public scanner calls for a selected system
-> - Adds Latest Calls replay and optional configured Live Feed playback with background audio support when the user starts playback
-> - Keeps Scanner independent from Live Drive, route intelligence, and driving calculations
+> - Keeps Drive / Map / Trips / Scanner navigation with Scanner independent from Live Drive
+> - Refines Map camera/enforcement markers to a 30-report visible cap within 3.0 miles
+> - Adds route-first camera/enforcement ranking with nearby fallback reports
+> - Adds projected ADS-B aircraft marker updates between conservative provider refreshes
+> - Adds optional camera-report and nearby-low-aircraft spoken cues that respect global voice mute
+> - Tightens Map Options, Live Drive setup, active-drive, and result spacing
 
 ## Core Product
 
@@ -64,6 +66,7 @@ It supports:
 - OpenStreetMap speed limit estimates where available
 - optional nearby low aircraft display
 - optional passive enforcement alerts when a configured source is available
+- optional spoken camera-report and nearby-low-aircraft cues that respect global voice mute
 - Trip History for completed drives
 - shareable finished-trip summaries
 - optional navigation handoff to Apple Maps, Google Maps, or Waze
@@ -90,7 +93,7 @@ Scanner uses an OpenMHz-style API client with a configurable base URL for Latest
 The Map tab is the primary active driving view built from real TimeThrottle trip state.
 
 It shows:
-- a full-width live map with route polyline, current location, aircraft markers, enforcement alert markers when available, and recenter control
+- a full-width live map with route polyline, current location, route weather checkpoint markers, aircraft markers, enforcement alert markers when available, and recenter control
 - next maneuver and distance based on Apple Maps route steps
 - a compact floating weather chip when route forecast data is available
 - a compact nearest-aircraft bar when the aircraft layer is enabled and data exists
@@ -106,8 +109,8 @@ It shows:
 
 The Map Options sheet holds:
 - route weather status and forecast checkpoints
-- optional Nearby Low Aircraft status and details
-- optional passive Enforcement Alerts when configured
+- optional Nearby Low Aircraft status, details, and audio cue control
+- optional passive Enforcement Alerts, red-light camera filtering, enforcement-report filtering, and camera audio cue control when configured
 - local voice guidance settings
 - speed-limit source and confidence details
 - Time Above Speed Limit
@@ -168,7 +171,7 @@ For the full policy, see [privacy-policy.md](/Users/anthonylarosa/CODEX/TimeThro
 - **Deployment target:** iOS 17+
 - **Bundle ID:** `com.timethrottle.app`
 - **Current release:** v2.0
-- **Current build:** 23
+- **Current build:** 25
 - **Primary app target:** `TimeThrottle.xcodeproj`
 - **Primary shared UI:** `Sources/SharedUI/RouteComparisonView.swift`
 
@@ -179,8 +182,8 @@ For the full policy, see [privacy-policy.md](/Users/anthonylarosa/CODEX/TimeThro
 - `VoiceGuidanceSettings.swift` — local iOS system voice settings, Daniel fresh-install default resolution, and English fallback selection
 - `WeatherRouteProvider.swift` — distance-scaled route checkpoint sampling and WeatherKit forecast pipeline
 - `SpeedLimitProvider.swift` / `OSMSpeedLimitService.swift` / `OSMSpeedLimitProvider.swift` — speed-limit estimate protocol, current-road OpenStreetMap lookup, and local cache wrapper
-- `AircraftProvider.swift` / `OpenSkyAircraftProvider.swift` — optional passive Nearby Low Aircraft models and OpenSky implementation
-- `EnforcementAlertProvider.swift` — optional camera and enforcement report models, OpenStreetMap Overpass provider/service path, and capped route-aware visibility policy
+- `AircraftProvider.swift` / `OpenSkyAircraftProvider.swift` — optional passive Nearby Low Aircraft models, approximate position projection, and OpenSky implementation
+- `EnforcementAlertProvider.swift` — optional camera and enforcement report models, OpenStreetMap Overpass provider/service path, filtering toggles, and capped route-aware visibility policy
 - `ScannerModels.swift` — public scanner system, call, talkgroup, nearby sorting, and geocode cache models
 - `OpenMHzScannerService.swift` — configurable OpenMHz-style scanner API client for systems, latest calls, and talkgroups
 - `ScannerLiveStreamCatalog.swift` — approved direct live-stream config models, validation, and selected-system resolver
@@ -189,7 +192,7 @@ For the full policy, see [privacy-policy.md](/Users/anthonylarosa/CODEX/TimeThro
 - `PaceAnalysisMath.swift` — shared speed-limit comparison helper
 - `RouteModels.swift` — shared route, lookup, autocomplete, and navigation-provider models
 - `LiveDriveHUDView.swift` — legacy compact driving-view component retained internally while Map is the primary driving HUD
-- `LiveDriveHUDMapView_iOS.swift` — Map follow, route polyline, user location, aircraft markers, enforcement alert markers, and recenter behavior
+- `LiveDriveHUDMapView_iOS.swift` — Map follow, route polyline, route weather checkpoint markers, user location, aircraft markers, enforcement alert markers, and recenter behavior
 - `NavigationHandoffService.swift` — Apple Maps / Google Maps / Waze handoff behavior
 - `ScannerViewModel.swift` — Scanner tab systems, Nearby/Browse, selected system, Live Feed availability, latest calls, and player state
 - `ScannerTabView.swift` — Scanner tab UI, system lists, selected-system Live Feed card, latest calls, and player controls

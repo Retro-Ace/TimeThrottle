@@ -4,6 +4,16 @@ All notable release-facing changes to **TimeThrottle** should be documented in t
 
 ## v2.0 - April 26, 2026
 
+### Build 25 Map, Alerts, and Live Drive Cleanup
+
+- Keeps marketing version at 2.0 and bumps the build to 25.
+- Sets active-route and no-route camera/enforcement visibility to a 30-alert cap within 3.0 miles, with route-first ranking and nearby fallback reports.
+- Splits Enforcement Alerts refresh from aircraft refresh, checking eligibility every 10 seconds and forcing a conservative refresh after 90 seconds.
+- Adds lightweight projected ADS-B aircraft marker positions between conservative provider updates, while keeping stale aircraft cleanup intact.
+- Adds optional spoken camera-report and nearby-low-aircraft cues that default on, avoid repeated chatter, and respect the global voice mute setting.
+- Cleans Map Options with a Done button, Map Mode near the top, compact route weather scrolling, and separate red-light camera / enforcement-report toggles.
+- Tightens Live Drive active, setup, and trip-result layouts without changing Apple Maps ETA baseline, Trip History, Scanner, route weather, aircraft, or enforcement data sources.
+
 ### Build 24 True Live Scanner Support
 
 - Keeps marketing version at 2.0 and bumps the build to 24.
@@ -68,18 +78,20 @@ Use this block for GitHub releases, TestFlight notes, or App Store Connect:
 
 > **TimeThrottle 2.0**
 >
-> - Adds a Scanner tab for informational public scanner listening
-> - Adds Nearby and Browse scanner system discovery
-> - Adds an OpenMHz-style public scanner client for systems, latest calls, and talkgroups
-> - Adds separate Latest Calls replay and optional configured Live Feed playback with background audio support
-> - Updates location, privacy, and release docs for Scanner
-> - Keeps Live Drive, Map driving HUD, Drive, Trips, and route intelligence unchanged
+> - Refines Map camera/enforcement markers to 30 visible reports within 3.0 miles
+> - Adds route-first camera/enforcement ranking with nearby fallback reports
+> - Adds independent enforcement refresh as the drive progresses
+> - Projects passive ADS-B aircraft markers between conservative provider updates
+> - Adds optional camera-report and nearby-low-aircraft spoken cues that respect global voice mute
+> - Cleans Map Options, active Live Drive, setup, and result spacing while keeping Scanner independent
 
 ### Release Notes
 
 - Bottom navigation is now Drive / Map / Trips / Scanner.
 - Scanner is independent from Live Drive and does not affect driving calculations, route intelligence, or trip results.
 - Scanner supports public scanner systems, optional configured Live Feed playback, latest calls, simple play / pause / next-call controls, and graceful unavailable states.
+- Camera/enforcement and aircraft layers remain passive and informational; coverage varies by source and region.
+- Map Options keeps route intelligence details, alert filters, and audio cue controls out of the always-visible map.
 - The scanner service uses a configurable OpenMHz-style base URL so provider configuration can change later.
 - TimeThrottle does not scrape Broadcastify, record scanner audio, or support user-uploaded scanner feeds.
 - Scanner coverage varies by system and provider; no push alerts or incident prediction are included in v2.0.
