@@ -11,11 +11,9 @@ How much time did speed really buy you?
 > Start here if you are new to this repo.
 >
 > - This repo is the standalone TimeThrottle codebase only.
-> - Read this file first for the product and repo overview.
-> - Read `AGENTS.md` for working rules.
-> - Read `TimeThrottle_Developer_Handoff.md` for the quickest handoff/status summary.
-> - Read `TimeThrottle_Master_Project_Doc.md` for a fuller current-state reference.
-> - Read `TimeThrottle_Full_Project_Breakdown.txt` last if you need the longest plain-text breakdown.
+> - Read this file for the product overview, current release, privacy summary, and build notes.
+> - Read `CHANGELOG.md` for release history.
+> - Read `privacy-policy.md` for the public privacy policy.
 
 **TimeThrottle** is an iPhone Live Drive pace-analysis app.
 
@@ -162,7 +160,7 @@ TimeThrottle starts tracking first, then opens the selected navigation app if ba
 - The selected local iOS guidance voice, mute state, and speech speed are stored locally on-device
 - Sharing only happens when the user explicitly uses the iOS share sheet
 
-For the full policy, see [privacy-policy.md](/Users/anthonylarosa/CODEX/TimeThrottle/privacy-policy.md).
+For the full policy, see [privacy-policy.md](privacy-policy.md).
 
 ## Tech Overview
 
