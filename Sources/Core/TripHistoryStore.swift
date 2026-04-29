@@ -26,6 +26,10 @@ public struct CompletedTripRecord: Identifiable, Codable, Equatable, Sendable {
         return speedLimitMeasuredMinutes / total
     }
 
+    public var hasRouteBaseline: Bool {
+        baselineRouteETAMinutes > 0 && baselineRouteDistanceMiles > 0
+    }
+
     public init(
         id: UUID = UUID(),
         completedAt: Date = Date(),

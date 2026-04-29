@@ -73,7 +73,7 @@ Supports:
 - adds build 22 Enforcement Alerts capping so route-active results are limited to 35 visible alerts within 3.5 miles and no-route results are limited to 25 nearby alerts within 3.0 miles
 - adds build 23 Map always-on behavior, route clearing after End Trip, 50 visible Enforcement Alerts, lightweight Enforcement Options, Apple Maps / Google Maps / Waze picker cleanup, and distance-scaled Route Forecast checkpoints
 - adds build 24 True Live Scanner support with a Live Feed card, approved direct stream URL config, separate live/replay playback modes, no Broadcastify scraping, and no scanner recording
-- adds build 25 Map, Alerts, and Live Drive cleanup with 30 visible camera/enforcement reports within 3.0 miles, independent enforcement refresh, projected ADS-B marker updates, optional camera/aircraft spoken cues, Map Options cleanup, and tighter setup/active/result screens
+- adds build 25 Cannonball-style Menu, route-free Log Trips, heading-follow Map behavior, shorter ADS-B spoken cues, direct simulator-build fallback documentation, and tighter setup/active/result screens
 - keeps route intelligence details in Map Options
 - keeps Live Drive tracking, Apple Maps ETA baseline, speed-limit analysis, route intelligence, Trip History, and external handoff intact
 
@@ -197,6 +197,9 @@ TimeThrottle
 - current release target: **v2.0 / build 25**
 - simulator build path: `./dist-ios`
 - current simulator bundle output: `dist/iOSSimulator/TimeThrottle.app`
+- simulator packaging should use the direct simulator-build path by default; do not wait for repeated `xcodebuild` timeouts
+- the `xcodebuild` timeout at clang discovery is a known local machine-state issue, not automatically an app-code failure
+- if `./dist-ios` uses the direct fallback path, that is expected on this Mac; force the old xcodebuild-first path only with `TIMETHROTTLE_FORCE_XCODEBUILD=1 ./dist-ios`
 
 ## Important “Do Not Break” List
 
@@ -213,4 +216,4 @@ Protect:
 ## Final Plain-English Summary
 
 TimeThrottle is now a Live Drive-first pace-analysis app with bottom navigation. It uses Apple Maps for route lookup and ETA baseline planning, tracks real trips, stores Trip History locally, supports optional external navigation handoff, and focuses driving results on Time Above Speed Limit, Time Below Speed Limit, and projected arrival versus Apple Maps ETA baseline.
-TimeThrottle 2.0 keeps speed-limit analysis tied to available OpenStreetMap estimates, keeps optional OpenStreetMap Overpass-backed Enforcement Alerts capped and carefully worded, keeps optional nearby-low-aircraft cues informational, keeps Standard / Satellite map mode, uses Drive / Map / Trips / Scanner with Scanner as a separate public listening tab with optional configured Live Feed playback and Latest Calls replay, and keeps Map route-intelligence details in Options without adding unsupported navigation, enforcement, weather, speed-limit, scanner, aviation-safety, or police-avoidance claims.
+TimeThrottle 2.0 keeps speed-limit analysis tied to available OpenStreetMap estimates, keeps optional OpenStreetMap Overpass-backed Enforcement Alerts capped and carefully worded, keeps optional nearby-low-aircraft cues informational, keeps Standard / Satellite map mode, uses Drive / Map / Trips / Scanner with Scanner as a separate public listening tab with optional configured Live Feed playback and Latest Calls replay, and keeps route-intelligence details in Menu without adding unsupported navigation, enforcement, weather, speed-limit, scanner, aviation-safety, or police-avoidance claims.

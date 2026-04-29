@@ -74,6 +74,9 @@ Scope: Plain-English explanation of repo-specific working rules and workflow for
 - `CHANGELOG.md` is the release-facing change log.
 - `scripts/build_ios_sim.sh` is the clearest documented build helper on disk.
 - `dist-ios` appears to be the root-level launch point for simulator packaging.
+- For simulator packaging, prefer the direct simulator-build path. Do not wait for repeated `xcodebuild` timeouts.
+- The `xcodebuild` timeout at clang discovery is a known local machine-state issue on this Mac, not automatically an app-code failure.
+- If `./dist-ios` uses the direct fallback path, that is expected here. Use `TIMETHROTTLE_FORCE_XCODEBUILD=1 ./dist-ios` only when intentionally forcing the old xcodebuild-first path.
 - `build/` contains archive and App Store export artifacts.
 - `dist/` contains simulator app output and an `xcodebuild` log.
 - `SCREENSHOTS/` appears to preserve UI screenshots for review or handoff context.

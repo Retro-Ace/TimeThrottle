@@ -116,7 +116,9 @@ private struct TripHistoryRow: View {
             HStack(spacing: 8) {
                 StatPill(title: "Above Limit", value: speedLimitMetricString(trip.timeSavedBySpeeding, measuredMinutes: trip.speedLimitMeasuredMinutes), foreground: Palette.success, background: tripHistoryPanelMuted, compact: true, titleColor: tripHistorySecondaryText, borderColor: tripHistoryBorder)
                 StatPill(title: "Below Limit", value: speedLimitMetricString(trip.timeLostBelowTargetPace, measuredMinutes: trip.speedLimitMeasuredMinutes), foreground: Palette.danger, background: tripHistoryPanelMuted, compact: true, titleColor: tripHistorySecondaryText, borderColor: tripHistoryBorder)
-                StatPill(title: "Vs ETA", value: netString(trip.netTimeGain), foreground: trip.netTimeGain >= 0 ? Palette.success : Palette.danger, background: tripHistoryPanelMuted, compact: true, titleColor: tripHistorySecondaryText, borderColor: tripHistoryBorder)
+                if trip.hasRouteBaseline {
+                    StatPill(title: "Vs ETA", value: netString(trip.netTimeGain), foreground: trip.netTimeGain >= 0 ? Palette.success : Palette.danger, background: tripHistoryPanelMuted, compact: true, titleColor: tripHistorySecondaryText, borderColor: tripHistoryBorder)
+                }
             }
 
             HStack(spacing: 8) {
@@ -187,7 +189,9 @@ private struct TripHistoryDetailView: View {
                         ) {
                             SummaryCard(title: "Time Above Speed Limit", value: speedLimitMetricString(trip.timeSavedBySpeeding, measuredMinutes: trip.speedLimitMeasuredMinutes), tint: Palette.success, compact: true, titleColor: tripHistorySecondaryText, backgroundColor: tripHistoryPanelMuted, borderColor: tripHistoryBorder, shadowColor: tripHistoryShadow.opacity(0.65))
                             SummaryCard(title: "Time Below Speed Limit", value: speedLimitMetricString(trip.timeLostBelowTargetPace, measuredMinutes: trip.speedLimitMeasuredMinutes), tint: Palette.danger, compact: true, titleColor: tripHistorySecondaryText, backgroundColor: tripHistoryPanelMuted, borderColor: tripHistoryBorder, shadowColor: tripHistoryShadow.opacity(0.65))
-                            SummaryCard(title: "Overall vs Apple ETA", value: netString(trip.netTimeGain), tint: trip.netTimeGain >= 0 ? Palette.success : Palette.danger, isProminent: true, compact: true, titleColor: tripHistorySecondaryText, backgroundColor: tripHistoryPanelMuted, borderColor: trip.netTimeGain >= 0 ? Palette.success.opacity(0.32) : Palette.danger.opacity(0.28), shadowColor: tripHistoryShadow.opacity(0.65))
+                            if trip.hasRouteBaseline {
+                                SummaryCard(title: "Overall vs Apple ETA", value: netString(trip.netTimeGain), tint: trip.netTimeGain >= 0 ? Palette.success : Palette.danger, isProminent: true, compact: true, titleColor: tripHistorySecondaryText, backgroundColor: tripHistoryPanelMuted, borderColor: trip.netTimeGain >= 0 ? Palette.success.opacity(0.32) : Palette.danger.opacity(0.28), shadowColor: tripHistoryShadow.opacity(0.65))
+                            }
                             SummaryCard(title: "Elapsed drive time", value: durationString(trip.elapsedDriveMinutes), tint: tripHistoryPrimaryText, compact: true, titleColor: tripHistorySecondaryText, backgroundColor: tripHistoryPanelMuted, borderColor: tripHistoryBorder, shadowColor: tripHistoryShadow.opacity(0.65))
                             SummaryCard(title: "Distance driven", value: "\(milesString(trip.distanceDrivenMiles)) mi", tint: tripHistoryPrimaryText, compact: true, titleColor: tripHistorySecondaryText, backgroundColor: tripHistoryPanelMuted, borderColor: tripHistoryBorder, shadowColor: tripHistoryShadow.opacity(0.65))
                             SummaryCard(title: "Average trip speed", value: "\(speedString(trip.averageTripSpeed)) mph", tint: tripHistoryPrimaryText, compact: true, titleColor: tripHistorySecondaryText, backgroundColor: tripHistoryPanelMuted, borderColor: tripHistoryBorder, shadowColor: tripHistoryShadow.opacity(0.65))
@@ -195,7 +199,7 @@ private struct TripHistoryDetailView: View {
                             SummaryCard(title: "Speed-limit coverage", value: speedLimitCoverageString(for: trip), tint: tripHistoryPrimaryText, compact: true, titleColor: tripHistorySecondaryText, backgroundColor: tripHistoryPanelMuted, borderColor: tripHistoryBorder, shadowColor: tripHistoryShadow.opacity(0.65))
                         }
 
-                        Text("Overall vs Apple ETA compares the whole trip to Apple Maps. Time Above Speed Limit and Time Below Speed Limit are measured against available OpenStreetMap speed-limit estimates.")
+                        Text(trip.hasRouteBaseline ? "Overall vs Apple ETA compares the whole trip to Apple Maps. Time Above Speed Limit and Time Below Speed Limit are measured against available OpenStreetMap speed-limit estimates." : "Free Drive trips save distance, elapsed time, speed, and speed-limit time above/below where available. No Apple Maps ETA comparison is created without a route.")
                             .font(.footnote.weight(.medium))
                             .foregroundStyle(tripHistorySecondaryText)
                     }

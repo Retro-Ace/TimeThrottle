@@ -182,7 +182,7 @@ The app remains careful not to claim:
 - v2.0 build 22: capped Enforcement Alerts for performance, prioritized route-relevant and ahead-of-travel route alerts, used a nearby-only no-route fallback, and changed count wording to reflect capped visible alerts
 - v2.0 build 23: keeps Map available without an active route, clears ended-trip route overlays, raises visible Enforcement Alerts to 50, removes the Enforcement Options list, simplifies navigation handoff choices, and scales Route Forecast checkpoints by distance
 - v2.0 build 24: adds True Live Scanner support with a Live Feed card, approved direct stream URL config, separate live/replay playback modes, no Broadcastify scraping, and no scanner recording
-- v2.0 build 25: tightens Map alerts and Live Drive UI, caps camera/enforcement reports at 30 within 3.0 miles, adds route-first fallback ranking and independent enforcement refresh, projects ADS-B aircraft markers between conservative updates, adds optional camera/aircraft spoken cues, and cleans Map Options plus setup/active/result spacing
+- v2.0 build 25: adds a Cannonball-style Menu, route-free Log Trips from the Map dock, heading-follow map behavior, a shorter ADS-B aircraft spoken cue, direct simulator-build fallback workflow documentation, and tighter setup/active/result spacing
 
 6. WHAT THE AGENTS DO
 
@@ -277,6 +277,7 @@ TimeThrottle 2.0 adds Scanner as a separate public listening tab while preservin
 
 It:
 - keeps marketing version 2.0 and moves the build to 25
+- defaults simulator packaging to the direct simulator-build path; use TIMETHROTTLE_FORCE_XCODEBUILD=1 ./dist-ios only to force the old xcodebuild-first path
 - keeps bottom navigation to Drive, Map, Trips, and Scanner
 - makes Map the primary active driving surface
 - keeps WeatherKit entitlement wiring and shows clean signed-build unavailable wording instead of raw WeatherDaemon diagnostics

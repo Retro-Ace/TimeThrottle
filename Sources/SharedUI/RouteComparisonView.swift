@@ -195,6 +195,7 @@ public struct RouteComparisonView: View {
     @AppStorage("timethrottle.voice.speechRate") private var storedGuidanceSpeechRate = Double(VoiceGuidanceSettings.defaultSpeechRate)
     @AppStorage("timethrottle.voice.isMuted") private var isVoiceGuidanceMuted = false
     @AppStorage("timethrottle.mapMode") private var mapModeRawValue = LiveDriveMapMode.standard.rawValue
+    @AppStorage("timethrottle.keepScreenAwake") private var keepScreenAwake = false
     @AppStorage("timethrottle.enforcementAlertsEnabled") private var areEnforcementAlertsEnabled = true
     @AppStorage("timethrottle.redLightCameraAlertsEnabled") private var areRedLightCameraAlertsEnabled = true
     @AppStorage("timethrottle.enforcementReportAlertsEnabled") private var areEnforcementReportAlertsEnabled = true
@@ -216,6 +217,7 @@ public struct RouteComparisonView: View {
     @State private var lastEnforcementAlertRouteContextID: String?
     @State private var enforcementAlertsLastUpdatedAt: Date?
     @State private var spokenCameraAlertThresholds: [String: Set<Int>] = [:]
+    @State private var isRouteFreeLoggingMode = false
     @State private var isMapOptionsPresented = false
     @State private var isVoiceSelectionPresented = false
     @State private var selectedAppTab: LiveDriveAppTab = .drive
@@ -257,14 +259,14 @@ public struct RouteComparisonView: View {
 
     private var heroHeight: CGFloat {
         if isMobileLayout {
-            return liveDriveScreenState == .setup ? 118 : 160
+            return liveDriveScreenState == .setup ? 92 : 160
         }
 
         return 260
     }
 
     private var heroLogoHeight: CGFloat {
-        isMobileLayout ? 80 : 84
+        isMobileLayout ? 72 : 84
     }
 
     private var heroSubtitleFont: Font {
@@ -519,10 +521,18 @@ public struct RouteComparisonView: View {
     }
 
     private var liveDriveRouteLabel: String {
-        liveDriveRouteContext?.routeLabel ?? liveDriveCurrentRouteLabel
+        if isRouteFreeLoggingMode {
+            return "Free Drive"
+        }
+
+        return liveDriveRouteContext?.routeLabel ?? liveDriveCurrentRouteLabel
     }
 
     private var liveDriveHUDRoute: RouteEstimate? {
+        liveDriveCapturedRoute ?? liveDriveSetupRoute
+    }
+
+    private var routeWeatherOptionsRoute: RouteEstimate? {
         liveDriveCapturedRoute ?? liveDriveSetupRoute
     }
 
@@ -628,6 +638,18 @@ public struct RouteComparisonView: View {
         return routeWeatherEntries.contains(where: { $0.temperatureText?.isEmpty == false })
             ? "\(routeWeatherEntries.count) planned checkpoints"
             : nil
+    }
+
+    private var routeWeatherOptionsDescription: String {
+        if isRouteWeatherLoading {
+            return "Loading route forecast..."
+        }
+
+        if isRouteWeatherVisible {
+            return "Forecasts are matched to expected arrival times."
+        }
+
+        return "Show forecast checkpoints for the selected route."
     }
 
     private var enforcementHUDText: String? {
@@ -796,6 +818,16 @@ public struct RouteComparisonView: View {
         )
     }
 
+    private var keepScreenAwakeBinding: Binding<Bool> {
+        Binding(
+            get: { keepScreenAwake },
+            set: {
+                keepScreenAwake = $0
+                updateIdleTimer()
+            }
+        )
+    }
+
     private var liveDriveSetupRouteOptions: [RouteEstimate] {
         activeRouteOptions
     }
@@ -813,6 +845,10 @@ public struct RouteComparisonView: View {
     }
 
     private var liveDriveBaselineETAMinutes: Double {
+        if isRouteFreeLoggingMode {
+            return 0
+        }
+
         if let liveDriveRouteContext, liveDriveRouteContext.baselineRouteETAMinutes > 0 {
             return liveDriveRouteContext.baselineRouteETAMinutes
         }
@@ -825,6 +861,10 @@ public struct RouteComparisonView: View {
     }
 
     private var liveDriveBaselineDistanceMiles: Double {
+        if isRouteFreeLoggingMode {
+            return 0
+        }
+
         if let liveDriveRouteContext, liveDriveRouteContext.baselineRouteDistanceMiles > 0 {
             return liveDriveRouteContext.baselineRouteDistanceMiles
         }
@@ -892,9 +932,9 @@ public struct RouteComparisonView: View {
     private var liveDrivePermissionMessage: String? {
         switch tracker.permissionState {
         case .denied:
-            return "Turn on Location Access in Settings to use Live Drive."
+            return "Turn on Location Access in Settings to measure speed and distance."
         case .restricted:
-            return "This device restricts Location Access, so Live Drive cannot measure speed or distance."
+            return "This device restricts Location Access, so TimeThrottle cannot measure speed or distance."
         case .authorizedAlways, .authorizedWhenInUse, .notDetermined:
             return nil
         }
@@ -914,9 +954,9 @@ public struct RouteComparisonView: View {
         case .authorizedAlways, .denied, .restricted:
             return nil
         case .authorizedWhenInUse:
-            return "Allow Always Location to keep Live Drive active while another navigation app is open."
+            return "Allow Always Location to keep tracking active while another navigation app is open."
         case .notDetermined:
-            return "External navigation needs Always Location so Live Drive can keep tracking in the background."
+            return "External navigation needs Always Location so tracking can continue in the background."
         }
     }
 
@@ -934,7 +974,7 @@ public struct RouteComparisonView: View {
     }
 
     private var liveDriveOverallResultTitle: String {
-        "Overall vs Apple ETA"
+        isRouteFreeLoggingMode ? "Trip metrics" : "Overall vs Apple ETA"
     }
 
     private var liveDriveGainSummaryText: String {
@@ -1039,11 +1079,11 @@ public struct RouteComparisonView: View {
     private var liveDriveControlsSubtitle: String {
         switch liveDriveScreenState {
         case .setup:
-            return "Capture the route baseline and start Live Drive."
+            return "Capture the route baseline and start tracking."
         case .driving:
             return tracker.isPaused
                 ? "Resume the same trip or end it without losing the finished result."
-                : "Live Drive is tracking against the Apple Maps ETA baseline."
+                : "Tracking against the Apple Maps ETA baseline."
         case .tripComplete:
             return "Your finished trip stays here until you start a new one."
         }
@@ -1362,9 +1402,16 @@ public struct RouteComparisonView: View {
     }
 
     private func handleTrackingStateChanged(_ isTracking: Bool) {
+        updateIdleTimer()
         if isTracking {
             processLiveDriveNavigationHandoffIfNeeded()
         }
+    }
+
+    private func updateIdleTimer() {
+        #if os(iOS)
+        UIApplication.shared.isIdleTimerDisabled = keepScreenAwake && (tracker.isTracking || tracker.isPaused)
+        #endif
     }
 
     private func handleDistanceTraveledChanged(_ newDistance: Double) {
@@ -1501,10 +1548,34 @@ public struct RouteComparisonView: View {
         ZStack {
             if let route = fullRouteMapRoute {
                 fullRouteMapContent(route: route)
+            } else if liveDriveScreenState == .driving {
+                routeFreeMapContent
             } else {
                 inactiveMapContent
             }
         }
+    }
+
+    private var routeFreeMapContent: some View {
+        ZStack(alignment: .top) {
+            inactiveMapLayer
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .ignoresSafeArea(edges: .top)
+
+            VStack(spacing: 0) {
+                freeDriveStatusOverlay
+                    .padding(.horizontal, 14)
+                    .padding(.top, 10)
+
+                Spacer(minLength: 0)
+
+                routeFreeMapBottomDock
+                    .padding(.horizontal, 14)
+                    .padding(.bottom, 12)
+            }
+        }
+        .background(setupBackgroundTop.ignoresSafeArea())
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var inactiveMapContent: some View {
@@ -1542,7 +1613,8 @@ public struct RouteComparisonView: View {
     }
 
     private var inactiveMapBottomOverlay: some View {
-        HStack(alignment: .center, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .center, spacing: 12) {
             Image(systemName: inactiveMapStatusSystemImage)
                 .font(.subheadline.weight(.bold))
                 .foregroundStyle(inactiveMapStatusTint)
@@ -1565,23 +1637,114 @@ public struct RouteComparisonView: View {
             Button {
                 isMapOptionsPresented = true
             } label: {
-                Image(systemName: "slider.horizontal.3")
-                    .font(.caption.weight(.bold))
+                Label("Menu", systemImage: "line.3.horizontal")
+                    .font(.subheadline.weight(.bold))
                     .foregroundStyle(setupPrimaryText)
-                    .frame(width: 38, height: 38)
-                    .background(setupSurfaceMuted, in: Circle())
-                    .overlay {
-                        Circle()
-                            .stroke(setupPanelBorder, lineWidth: 1)
-                    }
-                    .accessibilityLabel("Map options")
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(setupSurfaceMuted, in: Capsule())
+                    .accessibilityLabel("Open menu")
             }
             .buttonStyle(.plain)
+            }
+
+            Button {
+                startRouteFreeLogging()
+            } label: {
+                Label("Log Trips", systemImage: "record.circle")
+                    .font(.headline.weight(.bold))
+                    .foregroundStyle(Color.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(Palette.success, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .disabled(tracker.permissionState == .denied || tracker.permissionState == .restricted)
+            .opacity((tracker.permissionState == .denied || tracker.permissionState == .restricted) ? 0.55 : 1)
         }
         .padding(12)
         .background(setupSurface.opacity(0.94), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .stroke(setupPanelBorder, lineWidth: 1)
+        }
+        .shadow(color: setupShadowColor, radius: 22, y: 10)
+    }
+
+    private var freeDriveStatusOverlay: some View {
+        HStack(spacing: 12) {
+            Image(systemName: tracker.isPaused ? "pause.fill" : "record.circle")
+                .font(.headline.weight(.bold))
+                .foregroundStyle(tracker.isPaused ? Color.orange : Palette.success)
+                .frame(width: 38, height: 38)
+                .background(setupSurfaceMuted, in: Circle())
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(tracker.isPaused ? "Free Drive paused" : "Logging Free Drive")
+                    .font(.headline.weight(.bold))
+                    .foregroundStyle(setupPrimaryText)
+
+                Text("\(Self.milesString(tracker.distanceTraveled)) mi • \(Self.durationString(tracker.tripDuration))")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(setupSecondaryText)
+            }
+
+            Spacer(minLength: 8)
+        }
+        .padding(12)
+        .background(setupSurface.opacity(0.88), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .stroke(setupPanelBorder, lineWidth: 1)
+        }
+    }
+
+    private var routeFreeMapBottomDock: some View {
+        HStack(spacing: 10) {
+            Button {
+                isMapOptionsPresented = true
+            } label: {
+                Label("Menu", systemImage: "line.3.horizontal")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(setupPrimaryText)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(setupSurfaceMuted, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                if tracker.isPaused {
+                    resumeLiveDrive()
+                } else {
+                    pauseLiveDrive()
+                }
+            } label: {
+                Label(tracker.isPaused ? "Resume" : "Pause", systemImage: tracker.isPaused ? "play.fill" : "pause.fill")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(Color.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background((tracker.isPaused ? Palette.success : Color.orange), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            }
+            .buttonStyle(.plain)
+
+            Button(role: .destructive) {
+                endLiveDrive()
+            } label: {
+                Label("Stop", systemImage: "stop.fill")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(Color.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(Palette.danger, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(8)
+        .background(setupSurface.opacity(0.94), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .stroke(setupPanelBorder, lineWidth: 1)
         }
         .shadow(color: setupShadowColor, radius: 22, y: 10)
@@ -1607,11 +1770,11 @@ public struct RouteComparisonView: View {
         case .restricted:
             return "Location access is restricted, so nearby passive layers may be unavailable."
         case .notDetermined:
-            return "Allow location access to show your position. Start a Live Drive to add route guidance and trip tracking."
+            return "Allow location access to show your position. Start a drive to add route guidance and trip tracking."
         case .authorizedAlways, .authorizedWhenInUse:
-            return "Start a Live Drive to add route guidance and trip tracking."
+            return "Start a drive to add route guidance and trip tracking."
         @unknown default:
-            return "Start a Live Drive to add route guidance and trip tracking."
+            return "Start a drive to add route guidance and trip tracking."
         }
     }
 
@@ -2026,17 +2189,17 @@ public struct RouteComparisonView: View {
                 Button {
                     isMapOptionsPresented = true
                 } label: {
-                    Label("Options", systemImage: "slider.horizontal.3")
+                    Label("Menu", systemImage: "line.3.horizontal")
                         .font(.caption.weight(.bold))
                         .foregroundStyle(setupPrimaryText)
-                        .labelStyle(.iconOnly)
-                        .frame(width: 38, height: 38)
-                        .background(setupSurfaceMuted, in: Circle())
+                        .padding(.horizontal, 12)
+                        .frame(height: 38)
+                        .background(setupSurfaceMuted, in: Capsule())
                         .overlay {
-                            Circle()
+                            Capsule()
                                 .stroke(setupPanelBorder, lineWidth: 1)
                         }
-                        .accessibilityLabel("Map options")
+                        .accessibilityLabel("Open menu")
                 }
                 .buttonStyle(.plain)
             }
@@ -2064,16 +2227,9 @@ public struct RouteComparisonView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack(alignment: .center) {
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text("Map Options")
-                                .font(.title3.weight(.bold))
-                                .foregroundStyle(setupPrimaryText)
-
-                            Text("Route intelligence details stay here so the map stays clean.")
-                                .font(.subheadline.weight(.medium))
-                                .foregroundStyle(setupSecondaryText)
-                                .lineLimit(2)
-                        }
+                        Text("Menu")
+                            .font(.title3.weight(.bold))
+                            .foregroundStyle(setupPrimaryText)
 
                         Spacer(minLength: 12)
 
@@ -2088,7 +2244,37 @@ public struct RouteComparisonView: View {
                         .buttonStyle(.plain)
                     }
 
-                    mapOptionsSection(title: "Map Mode", systemImage: "map") {
+                    menuStatusCard
+
+                    mapOptionsSection(title: "Actions", systemImage: "clock.arrow.circlepath", accent: Color(red: 0.25, green: 0.55, blue: 1.00)) {
+                        Button {
+                            isMapOptionsPresented = false
+                            selectedAppTab = .trips
+                        } label: {
+                            menuActionRow(
+                                title: "Drive History",
+                                subtitle: "Review completed trips and shared results.",
+                                systemImage: "clock.arrow.circlepath",
+                                tint: Color.blue
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        Button {
+                            isMapOptionsPresented = false
+                            selectedAppTab = .scanner
+                        } label: {
+                            menuActionRow(
+                                title: "Public Scanner Listening",
+                                subtitle: "Open the separate Scanner tab.",
+                                systemImage: "radio.fill",
+                                tint: Palette.success
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    mapOptionsSection(title: "Driving Display", systemImage: "map", accent: Color(red: 0.20, green: 0.78, blue: 0.42)) {
                         Picker("Map Mode", selection: selectedMapModeBinding) {
                             ForEach(LiveDriveMapMode.allCases) { mode in
                                 Text(mode.rawValue)
@@ -2096,18 +2282,55 @@ public struct RouteComparisonView: View {
                             }
                         }
                         .pickerStyle(.segmented)
+
+                        Toggle("Keep Screen Awake", isOn: keepScreenAwakeBinding)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(setupPrimaryText)
+                            .tint(Color.yellow)
                     }
 
-                    mapOptionsSection(title: "Weather", systemImage: "cloud.sun.fill") {
-                        Text("Route Forecast")
-                            .font(.headline.weight(.semibold))
-                            .foregroundStyle(setupPrimaryText)
+                    mapOptionsSection(title: "Settings", systemImage: "cloud.sun.fill", accent: Color(red: 1.00, green: 0.62, blue: 0.16)) {
+                        HStack(alignment: .top, spacing: 10) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Route Forecast")
+                                    .font(.headline.weight(.semibold))
+                                    .foregroundStyle(setupPrimaryText)
 
-                        Text(isRouteWeatherLoading ? "Loading route forecast..." : "Forecasts are matched to expected arrival times.")
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(setupSecondaryText)
+                                Text(routeWeatherOptionsDescription)
+                                    .font(.subheadline.weight(.medium))
+                                    .foregroundStyle(setupSecondaryText)
+                                    .lineLimit(2)
+                            }
 
-                        if routeWeatherEntries.isEmpty {
+                            Spacer(minLength: 8)
+
+                            if routeWeatherOptionsRoute != nil {
+                                Button(action: toggleRouteWeatherFromOptions) {
+                                    Text(isRouteWeatherVisible ? "Hide" : "Show")
+                                        .font(.caption.weight(.bold))
+                                        .foregroundStyle(setupPrimaryText)
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 7)
+                                        .background(setupSurfaceMuted, in: Capsule())
+                                        .overlay {
+                                            Capsule().stroke(setupPanelBorder, lineWidth: 1)
+                                        }
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+
+                        if routeWeatherOptionsRoute == nil {
+                            Text("Choose a route to load route forecast checkpoints.")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(setupSecondaryText)
+                                .padding(.top, 2)
+                        } else if !isRouteWeatherVisible {
+                            Text("Hidden")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(setupSecondaryText)
+                                .padding(.top, 2)
+                        } else if routeWeatherEntries.isEmpty {
                             Text(routeWeatherMessage.isEmpty ? "Forecast unavailable" : routeWeatherMessage)
                                 .font(.subheadline.weight(.semibold))
                                 .foregroundStyle(setupSecondaryText)
@@ -2124,7 +2347,7 @@ public struct RouteComparisonView: View {
                         }
                     }
 
-                    mapOptionsSection(title: "Aircraft", systemImage: "airplane") {
+                    mapOptionsSection(title: "Alerts", systemImage: "airplane", accent: Color(red: 0.82, green: 0.20, blue: 0.95)) {
                         HStack(spacing: 10) {
                             VStack(alignment: .leading, spacing: 3) {
                                 Text("Nearby Low Aircraft")
@@ -2156,7 +2379,7 @@ public struct RouteComparisonView: View {
                         Toggle("Aircraft audio cues", isOn: $isAircraftAlertAudioEnabled)
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(setupPrimaryText)
-                            .tint(Palette.success)
+                            .tint(Color(red: 0.82, green: 0.20, blue: 0.95))
 
                         if !aircraftLayer.aircraft.isEmpty {
                             VStack(spacing: 8) {
@@ -2171,7 +2394,7 @@ public struct RouteComparisonView: View {
                         }
                     }
 
-                    mapOptionsSection(title: "Enforcement Alerts", systemImage: "camera.viewfinder") {
+                    mapOptionsSection(title: "Camera Alerts", systemImage: "camera.viewfinder", accent: Color(red: 1.00, green: 0.57, blue: 0.18)) {
                         HStack(spacing: 10) {
                             VStack(alignment: .leading, spacing: 3) {
                                 Text("Camera and enforcement reports")
@@ -2187,27 +2410,27 @@ public struct RouteComparisonView: View {
 
                             Toggle("", isOn: $areEnforcementAlertsEnabled)
                                 .labelsHidden()
-                                .tint(Palette.success)
+                                .tint(Color(red: 1.00, green: 0.57, blue: 0.18))
                         }
 
                         Toggle("Red-light cameras", isOn: $areRedLightCameraAlertsEnabled)
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(setupPrimaryText)
-                            .tint(Palette.success)
+                            .tint(Color(red: 1.00, green: 0.57, blue: 0.18))
                             .disabled(!areEnforcementAlertsEnabled)
                             .opacity(areEnforcementAlertsEnabled ? 1 : 0.55)
 
                         Toggle("Enforcement reports", isOn: $areEnforcementReportAlertsEnabled)
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(setupPrimaryText)
-                            .tint(Palette.success)
+                            .tint(Color(red: 1.00, green: 0.57, blue: 0.18))
                             .disabled(!areEnforcementAlertsEnabled)
                             .opacity(areEnforcementAlertsEnabled ? 1 : 0.55)
 
                         Toggle("Camera audio cues", isOn: $isCameraAlertAudioEnabled)
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(setupPrimaryText)
-                            .tint(Palette.success)
+                            .tint(Color(red: 1.00, green: 0.57, blue: 0.18))
                             .disabled(!areEnforcementAlertsEnabled)
                             .opacity(areEnforcementAlertsEnabled ? 1 : 0.55)
 
@@ -2216,7 +2439,7 @@ public struct RouteComparisonView: View {
                             .foregroundStyle(setupTertiaryText)
                     }
 
-                    mapOptionsSection(title: "Voice Guidance", systemImage: liveDriveHUDVoiceState.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill") {
+                    mapOptionsSection(title: "Audio", systemImage: liveDriveHUDVoiceState.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill", accent: Color(red: 0.12, green: 0.60, blue: 1.00)) {
                         HStack(spacing: 10) {
                             mapOptionsDetailRow(
                                 title: "Voice",
@@ -2284,7 +2507,7 @@ public struct RouteComparisonView: View {
                         }
                     }
 
-                    mapOptionsSection(title: "Speed Limit", systemImage: "speedometer") {
+                    mapOptionsSection(title: "Trip Data", systemImage: "speedometer", accent: Color(red: 0.36, green: 0.76, blue: 0.86)) {
                         mapOptionsDetailRow(
                             title: "Speed Limit",
                             value: speedLimitDisplayText,
@@ -2292,7 +2515,7 @@ public struct RouteComparisonView: View {
                         )
                     }
 
-                    mapOptionsSection(title: "Pace", systemImage: "timer") {
+                    mapOptionsSection(title: "Pace", systemImage: "timer", accent: Palette.success) {
                         HStack(spacing: 10) {
                             mapOptionsDetailRow(
                                 title: "Time Above Speed Limit",
@@ -2325,23 +2548,122 @@ public struct RouteComparisonView: View {
         }
     }
 
-    private func mapOptionsSection<Content: View>(
-        title: String,
-        systemImage: String,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Label(title, systemImage: systemImage)
-                .font(.headline.weight(.bold))
-                .foregroundStyle(setupPrimaryText)
+    private var menuStatusCard: some View {
+        HStack(spacing: 12) {
+            Image(systemName: liveDriveScreenState == .driving ? "car.fill" : "car")
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(liveDriveScreenState == .driving ? Palette.success : setupSecondaryText)
+                .frame(width: 38, height: 38)
+                .background(setupSurfaceMuted, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
 
-            content()
+            VStack(alignment: .leading, spacing: 3) {
+                Text(menuStatusTitle)
+                    .font(.headline.weight(.bold))
+                    .foregroundStyle(setupPrimaryText)
+
+                Text(menuStatusDetail)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(setupSecondaryText)
+                    .lineLimit(2)
+            }
+
+            Spacer(minLength: 8)
         }
         .padding(14)
         .background(setupSurface.opacity(0.98), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 22, style: .continuous)
                 .stroke(setupPanelBorder, lineWidth: 1)
+        }
+    }
+
+    private var menuStatusTitle: String {
+        switch liveDriveScreenState {
+        case .driving:
+            return tracker.isPaused ? "Paused" : (isRouteFreeLoggingMode ? "Logging Free Drive" : "Driving")
+        case .tripComplete:
+            return "Trip complete"
+        case .setup:
+            return "Not driving"
+        }
+    }
+
+    private var menuStatusDetail: String {
+        switch liveDriveScreenState {
+        case .driving:
+            return "\(Self.milesString(tracker.distanceTraveled)) mi • \(Self.durationString(tracker.tripDuration))"
+        case .tripComplete:
+            return liveDriveFinishedTrip?.displayRouteTitle ?? "Finished trip ready."
+        case .setup:
+            return speedLimitDisplayText == "Unavailable" ? "Map and passive layers are ready." : "Speed Limit estimate \(speedLimitDisplayText)"
+        }
+    }
+
+    private func menuActionRow(title: String, subtitle: String, systemImage: String, tint: Color) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: systemImage)
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(tint)
+                .frame(width: 34, height: 34)
+                .background(tint.opacity(0.15), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(setupPrimaryText)
+
+                Text(subtitle)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(setupSecondaryText)
+            }
+
+            Spacer(minLength: 8)
+
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(setupTertiaryText)
+        }
+        .padding(10)
+        .background(setupSurfaceMuted, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    private func mapOptionsSection<Content: View>(
+        title: String,
+        systemImage: String,
+        accent: Color = Palette.success,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundStyle(accent)
+                    .frame(width: 34, height: 34)
+                    .background(accent.opacity(0.16), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+
+                Text(title)
+                    .font(.headline.weight(.bold))
+                    .foregroundStyle(setupPrimaryText)
+            }
+
+            content()
+        }
+        .padding(14)
+        .background(
+            LinearGradient(
+                colors: [
+                    accent.opacity(0.09),
+                    setupSurface.opacity(0.98),
+                    setupSurface.opacity(0.98)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 22, style: .continuous)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .stroke(accent.opacity(0.22), lineWidth: 1)
         }
     }
 
@@ -2782,10 +3104,7 @@ public struct RouteComparisonView: View {
         VStack(spacing: 14) {
             logoLockup
 
-            HStack(spacing: 12) {
-                tripHistoryShortcutButton
-                platformBadge
-            }
+            platformBadge
         }
         .padding(.top, 28)
         .padding(.bottom, 22)
@@ -2797,26 +3116,17 @@ public struct RouteComparisonView: View {
     }
 
     private var mobileHeaderSection: some View {
-        VStack(spacing: liveDriveScreenState == .setup ? 6 : 12) {
+        VStack(spacing: liveDriveScreenState == .setup ? 0 : 12) {
             logoLockup
                 .frame(maxWidth: .infinity, alignment: .center)
-
-            VStack(spacing: 2) {
-                Text("Live Drive")
-                    .font(.headline.weight(.semibold))
-                    .foregroundStyle(Color.white.opacity(0.82))
-            }
-            .frame(maxWidth: .infinity)
-            .opacity(liveDriveScreenState == .setup ? 1 : 0)
-            .frame(height: liveDriveScreenState == .setup ? nil : 0)
 
             if liveDriveScreenState != .setup {
                 liveDriveHeaderStatus
             }
         }
         .padding(.horizontal, Layout.screenPadding)
-        .padding(.top, liveDriveScreenState == .setup ? 28 : 38)
-        .padding(.bottom, liveDriveScreenState == .setup ? 10 : 18)
+        .padding(.top, liveDriveScreenState == .setup ? 18 : 38)
+        .padding(.bottom, liveDriveScreenState == .setup ? 4 : 18)
         .safeAreaPadding(.top, 34)
         .frame(maxWidth: .infinity, minHeight: heroHeight, alignment: .bottom)
         .background {
@@ -2899,12 +3209,8 @@ public struct RouteComparisonView: View {
     }
 
     private var appleMapsRouteInputs: some View {
-        VStack(alignment: .leading, spacing: isPolishedLiveDriveSetup ? 8 : 12) {
+        VStack(alignment: .leading, spacing: isPolishedLiveDriveSetup ? 6 : 12) {
             currentLocationOriginField
-
-            Text("To")
-                .font(inputLabelFont)
-                .foregroundStyle(isPolishedLiveDriveSetup ? setupSecondaryText : Palette.cocoa)
 
             routeAddressInputField(
                 text: $toAddressText,
@@ -3209,24 +3515,14 @@ public struct RouteComparisonView: View {
 
     private var liveDriveSetupSection: some View {
         SectionCard(
+            padding: isPolishedLiveDriveSetup ? 12 : Layout.sectionPadding,
             background: isPolishedLiveDriveSetup ? setupSurface : Palette.panel,
             border: isPolishedLiveDriveSetup ? setupPanelBorder : Palette.surfaceBorder,
             shadowColor: isPolishedLiveDriveSetup ? setupShadowColor : .black.opacity(0.05),
             shadowRadius: isPolishedLiveDriveSetup ? 28 : 18,
             shadowYOffset: isPolishedLiveDriveSetup ? 12 : 8
         ) {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .top, spacing: 12) {
-                    mobileSectionHeader(
-                        title: "Live drive setup",
-                        subtitle: ""
-                    )
-
-                    Spacer(minLength: 12)
-
-                    tripHistoryShortcutButton
-                }
-
+            VStack(alignment: .leading, spacing: 7) {
                 InsetPanel(
                     background: isPolishedLiveDriveSetup ? setupSurfaceRaised : Palette.panel,
                     border: isPolishedLiveDriveSetup ? setupPanelBorder : Palette.surfaceBorder,
@@ -3267,7 +3563,7 @@ public struct RouteComparisonView: View {
 
                         if let liveDrivePermissionMessage {
                             liveDriveStatusBanner(
-                                title: "Live Drive needs location access",
+                                title: "Location access needed",
                                 message: liveDrivePermissionMessage,
                                 showsSettingsAction: liveDriveShowsSettingsAction
                             )
@@ -3311,7 +3607,9 @@ public struct RouteComparisonView: View {
             liveDriveActivePanelSection
         } else if liveDriveScreenState == .tripComplete {
             VStack(alignment: .leading, spacing: Layout.sectionSpacing) {
-                liveDriveComparisonSection
+                if liveDriveFinishedTrip?.hasRouteBaseline != false {
+                    liveDriveComparisonSection
+                }
                 liveDriveRouteContextSection
                 liveDriveTripSummarySection
                 liveDriveSafetySection
@@ -3357,19 +3655,21 @@ public struct RouteComparisonView: View {
                     routeMapPanel(routes: liveDriveCapturedRouteOptions, selectedRoute: route)
                 }
 
-                timeComparisonRows(
-                    baselineTitle: "Apple Maps ETA",
-                    baselineMinutes: liveDriveBaselineETAMinutes,
-                    comparisonTitle: "Live projected time",
-                    comparisonMinutes: liveDriveProjectedTravelMinutes,
-                    comparisonTint: liveDriveProjectedTravelTint,
-                    comparisonLabel: liveDriveProjectedTravelLabel,
-                    scaleMinutes: liveDriveComparisonScaleMinutes
-                )
+                if !isRouteFreeLoggingMode {
+                    timeComparisonRows(
+                        baselineTitle: "Apple Maps ETA",
+                        baselineMinutes: liveDriveBaselineETAMinutes,
+                        comparisonTitle: "Live projected time",
+                        comparisonMinutes: liveDriveProjectedTravelMinutes,
+                        comparisonTint: liveDriveProjectedTravelTint,
+                        comparisonLabel: liveDriveProjectedTravelLabel,
+                        scaleMinutes: liveDriveComparisonScaleMinutes
+                    )
+                }
 
                 liveDriveActiveProgressGrid
 
-                if liveDriveProjectedTravelMinutes > 0 {
+                if !isRouteFreeLoggingMode, liveDriveProjectedTravelMinutes > 0 {
                     mobileHelperCard("Expected arrival at your current pace: \(liveDriveExpectedArrivalText)")
                 }
 
@@ -3522,12 +3822,14 @@ public struct RouteComparisonView: View {
                         isNarrative: true
                     )
 
-                    liveDriveSummaryBlock(
-                        title: liveDriveOverallResultTitle,
-                        value: liveDriveVerdict,
-                        tint: liveDriveVerdictTint,
-                        isNarrative: true
-                    )
+                    if !isRouteFreeLoggingMode {
+                        liveDriveSummaryBlock(
+                            title: liveDriveOverallResultTitle,
+                            value: liveDriveVerdict,
+                            tint: liveDriveVerdictTint,
+                            isNarrative: true
+                        )
+                    }
                 }
             }
         }
@@ -3571,18 +3873,20 @@ public struct RouteComparisonView: View {
                                     .foregroundStyle(usesDarkLiveDriveTheme ? setupSecondaryText : Palette.cocoa)
                             }
 
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text(liveDriveOverallResultTitle)
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(usesDarkLiveDriveTheme ? setupSecondaryText : Palette.cocoa)
+                            if completedTrip.hasRouteBaseline {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("Overall vs Apple ETA")
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(usesDarkLiveDriveTheme ? setupSecondaryText : Palette.cocoa)
 
-                                Text(Self.netString(completedTrip.netTimeGain))
-                                    .font(.system(size: 34, weight: .bold, design: .rounded))
-                                    .foregroundStyle(completedTrip.netTimeGain >= 0 ? Palette.success : Palette.danger)
+                                    Text(Self.netString(completedTrip.netTimeGain))
+                                        .font(.system(size: 34, weight: .bold, design: .rounded))
+                                        .foregroundStyle(completedTrip.netTimeGain >= 0 ? Palette.success : Palette.danger)
 
-                                Text(liveDriveVerdict(for: completedTrip.netTimeGain))
-                                    .font(panelDescriptionFont)
-                                    .foregroundStyle(usesDarkLiveDriveTheme ? setupSecondaryText : Palette.cocoa)
+                                    Text(liveDriveVerdict(for: completedTrip.netTimeGain))
+                                        .font(panelDescriptionFont)
+                                        .foregroundStyle(usesDarkLiveDriveTheme ? setupSecondaryText : Palette.cocoa)
+                                }
                             }
 
                             LazyVGrid(
@@ -3844,24 +4148,6 @@ public struct RouteComparisonView: View {
         }
     }
 
-    private var tripHistoryShortcutButton: some View {
-        Button {
-            selectedAppTab = .trips
-        } label: {
-            Label("Trips", systemImage: "clock.arrow.circlepath")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(isPolishedLiveDriveSetup ? setupPrimaryText : Palette.ink)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background((isPolishedLiveDriveSetup ? setupSurfaceMuted : Palette.successBackground), in: Capsule())
-                .overlay {
-                    Capsule()
-                        .stroke(isPolishedLiveDriveSetup ? setupPanelBorder : .clear, lineWidth: isPolishedLiveDriveSetup ? 1 : 0)
-                }
-        }
-        .buttonStyle(.plain)
-    }
-
     private var liveDriveLegalityNote: some View {
         Text("Always obey traffic laws and road conditions.")
             .font(.footnote.weight(.medium))
@@ -3961,10 +4247,9 @@ public struct RouteComparisonView: View {
     private func routePreviewSection(routes: [RouteEstimate], selectedRoute: RouteEstimate) -> some View {
         Group {
             if isMobileLayout {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 7) {
                     routeOptionsPanel(routes: routes, selectedRoute: selectedRoute)
                     routeMapPanel(routes: routes, selectedRoute: selectedRoute)
-                    routeWeatherPanel(for: selectedRoute)
                 }
             } else {
                 HStack(alignment: .top, spacing: Layout.innerSpacing) {
@@ -3972,13 +4257,12 @@ public struct RouteComparisonView: View {
                         .frame(width: Layout.sidePanelWidth, alignment: .leading)
                     VStack(alignment: .leading, spacing: 10) {
                         routeMapPanel(routes: routes, selectedRoute: selectedRoute)
-                        routeWeatherPanel(for: selectedRoute)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
         }
-        .padding(isMobileLayout ? 10 : 14)
+        .padding(isMobileLayout ? 8 : 14)
         .background((usesDarkLiveDriveTheme ? setupSurfaceRaised : Palette.panel), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -3988,15 +4272,10 @@ public struct RouteComparisonView: View {
     }
 
     private func routeOptionsPanel(routes: [RouteEstimate], selectedRoute: RouteEstimate) -> some View {
-        VStack(alignment: .leading, spacing: isMobileLayout ? 8 : 10) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Route options")
-                    .font(panelHeaderFont)
-                    .foregroundStyle(usesDarkLiveDriveTheme ? setupPrimaryText : Palette.ink)
-                Text("Pick the Apple Maps route to use as the baseline.")
-                    .font(panelDescriptionFont)
-                    .foregroundStyle(usesDarkLiveDriveTheme ? setupSecondaryText : Palette.cocoa)
-            }
+        VStack(alignment: .leading, spacing: isMobileLayout ? 7 : 10) {
+            Text("Route options")
+                .font(panelHeaderFont)
+                .foregroundStyle(usesDarkLiveDriveTheme ? setupPrimaryText : Palette.ink)
 
             VStack(spacing: isMobileLayout ? 6 : 8) {
                 ForEach(Array(routes.enumerated()), id: \.element.id) { index, route in
@@ -4007,7 +4286,7 @@ public struct RouteComparisonView: View {
     }
 
     private func routeMapPanel(routes: [RouteEstimate], selectedRoute: RouteEstimate) -> some View {
-        VStack(alignment: .leading, spacing: isMobileLayout ? 8 : 10) {
+        VStack(alignment: .leading, spacing: isMobileLayout ? 7 : 10) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Route preview")
                     .font(panelHeaderFont)
@@ -4018,7 +4297,7 @@ public struct RouteComparisonView: View {
             }
 
             mapPreview(routes, selectedRoute.id)
-                .frame(minHeight: isMobileLayout ? 210 : 280, maxHeight: isMobileLayout ? 232 : 348)
+                .frame(minHeight: isMobileLayout ? 190 : 280, maxHeight: isMobileLayout ? 214 : 348)
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 .background((usesDarkLiveDriveTheme ? setupSurfaceMuted : Palette.panel), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                 .overlay {
@@ -4043,119 +4322,6 @@ public struct RouteComparisonView: View {
                 }
             }
         }
-    }
-
-    private func routeWeatherPanel(for route: RouteEstimate) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .center, spacing: 8) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Route Forecast")
-                        .font(panelHeaderFont)
-                        .foregroundStyle(usesDarkLiveDriveTheme ? setupPrimaryText : Palette.ink)
-
-                    Text("Forecasts are matched to expected arrival times.")
-                        .font(panelDescriptionFont)
-                        .foregroundStyle(usesDarkLiveDriveTheme ? setupSecondaryText : Palette.cocoa)
-                        .lineLimit(2)
-                }
-
-                Spacer(minLength: 8)
-
-                Button {
-                    isRouteWeatherVisible.toggle()
-                    if isRouteWeatherVisible,
-                       routeWeatherRouteID != route.id || routeWeatherEntries.isEmpty {
-                        refreshRouteWeather(for: route)
-                    }
-                } label: {
-                    Text(isRouteWeatherVisible ? "Hide" : "Show")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(isRouteWeatherVisible ? setupPrimaryText : setupSecondaryText)
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 6)
-                        .background(setupSurfaceMuted, in: Capsule())
-                        .overlay {
-                            Capsule().stroke(setupPanelBorder, lineWidth: 1)
-                        }
-                }
-                .buttonStyle(.plain)
-            }
-
-            if isRouteWeatherVisible {
-                if isRouteWeatherLoading && routeWeatherRouteID == route.id {
-                    HStack(spacing: 8) {
-                        ProgressView()
-                            .tint(setupSecondaryText)
-                        Text("Loading route forecast...")
-                            .font(panelDescriptionFont)
-                            .foregroundStyle(setupSecondaryText)
-                    }
-                } else if routeWeatherRouteID == route.id, !routeWeatherEntries.isEmpty {
-                    VStack(spacing: 6) {
-                        ForEach(routeWeatherEntries.prefix(4)) { entry in
-                            routeWeatherRow(entry)
-                        }
-                    }
-                } else {
-                    Text(routeWeatherMessage)
-                        .font(panelDescriptionFont)
-                        .foregroundStyle(setupSecondaryText)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(10)
-                        .background(setupSurfaceMuted, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                }
-            }
-        }
-        .padding(10)
-        .background(setupSurface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(setupPanelBorder, lineWidth: 1)
-        }
-    }
-
-    private func routeWeatherRow(_ entry: RouteWeatherDisplayEntry) -> some View {
-        HStack(alignment: .top, spacing: 8) {
-            Image(systemName: entry.alertText == nil ? "cloud.sun.fill" : "exclamationmark.triangle.fill")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(entry.alertText == nil ? setupSecondaryText : Palette.danger)
-                .frame(width: 20)
-
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Text(entry.title)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(setupPrimaryText)
-                        .lineLimit(1)
-
-                    Text(entry.arrivalText)
-                        .font(.caption2.weight(.medium))
-                        .foregroundStyle(setupTertiaryText)
-                        .lineLimit(1)
-                }
-
-                Text(entry.forecastText)
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(setupSecondaryText)
-                    .lineLimit(2)
-
-                Text(entry.detailText)
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(setupTertiaryText)
-                    .lineLimit(1)
-
-                if let alertText = entry.alertText {
-                    Text(alertText)
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(Palette.danger)
-                        .lineLimit(1)
-                }
-            }
-
-            Spacer(minLength: 4)
-        }
-        .padding(9)
-        .background(setupSurfaceMuted, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     private func routeOptionCard(route: RouteEstimate, index: Int, isSelected: Bool) -> some View {
@@ -4185,6 +4351,30 @@ public struct RouteComparisonView: View {
     }
 
     private func makeCompletedTripRecord() -> CompletedTripRecord? {
+        if isRouteFreeLoggingMode || liveDriveRouteContext == nil {
+            let averageTripSpeed = tracker.tripDuration > 0
+                ? tracker.distanceTraveled / (tracker.tripDuration / 60)
+                : tracker.analysisResult.averageTripSpeed
+
+            return CompletedTripRecord(
+                completedAt: Date(),
+                sourceName: "Current Location",
+                destinationName: "No destination",
+                routeLabel: "Free Drive",
+                baselineRouteETAMinutes: 0,
+                baselineRouteDistanceMiles: 0,
+                distanceDrivenMiles: tracker.distanceTraveled,
+                elapsedDriveMinutes: tracker.tripDuration,
+                averageTripSpeed: averageTripSpeed,
+                topSpeedMPH: tracker.topSpeed > 0 ? tracker.topSpeed : nil,
+                timeSavedBySpeeding: tracker.tripSummary.timeSavedBySpeeding,
+                timeLostBelowTargetPace: tracker.tripSummary.timeLostBelowTargetPace,
+                netTimeGain: 0,
+                speedLimitMeasuredMinutes: tracker.analysisResult.speedLimitMeasuredMinutes,
+                speedLimitUnavailableMinutes: tracker.analysisResult.speedLimitUnavailableMinutes
+            )
+        }
+
         guard let routeContext = liveDriveRouteContext else { return nil }
 
         let selectedRoute = routeContext.selectedRoute
@@ -4214,7 +4404,23 @@ public struct RouteComparisonView: View {
     }
 
     private func finishedTripShareText(for completedTrip: CompletedTripRecord) -> String {
-        """
+        if !completedTrip.hasRouteBaseline {
+            return """
+            TimeThrottle trip result
+            \(completedTrip.displayRouteTitle)
+            Completed: \(completedTrip.completedAt.formatted(date: .abbreviated, time: .shortened))
+            Trip type: Free Drive
+            Time Above Speed Limit: \(Self.speedLimitMetricString(completedTrip.timeSavedBySpeeding, measuredMinutes: completedTrip.speedLimitMeasuredMinutes))
+            Time Below Speed Limit: \(Self.speedLimitMetricString(completedTrip.timeLostBelowTargetPace, measuredMinutes: completedTrip.speedLimitMeasuredMinutes))
+            Speed-limit coverage: \(Self.speedLimitCoverageString(for: completedTrip))
+            Distance driven: \(Self.milesString(completedTrip.distanceDrivenMiles)) mi
+            Elapsed drive time: \(Self.durationString(completedTrip.elapsedDriveMinutes))
+            Average trip speed: \(Self.speedString(completedTrip.averageTripSpeed)) mph
+            Top speed: \(Self.topSpeedString(completedTrip.topSpeedMPH))
+            """
+        }
+
+        return """
         TimeThrottle trip result
         \(completedTrip.displayRouteTitle)
         Completed: \(completedTrip.completedAt.formatted(date: .abbreviated, time: .shortened))
@@ -4231,6 +4437,10 @@ public struct RouteComparisonView: View {
     }
 
     private func finishedTripMetricExplanation(for completedTrip: CompletedTripRecord) -> String {
+        guard completedTrip.hasRouteBaseline else {
+            return "Free Drive trips save distance, elapsed time, speed, and speed-limit time above/below where available. No Apple Maps ETA comparison is created without a route."
+        }
+
         let baselineETA = Self.durationString(completedTrip.baselineRouteETAMinutes)
         return "Overall vs Apple ETA compares the whole trip to Apple Maps' baseline ETA of \(baselineETA). Time Above Speed Limit and Time Below Speed Limit are measured against available OpenStreetMap speed-limit estimates. Speed-limit analysis only includes route segments where an estimate was available."
     }
@@ -4339,6 +4549,7 @@ public struct RouteComparisonView: View {
     private func startLiveDrive() {
         guard let configuration = liveDriveConfigurationForStart,
               let selectedRoute = liveDriveSetupRoute else { return }
+        isRouteFreeLoggingMode = false
         liveDriveFinishedTrip = nil
         liveDriveRouteContext = LiveDriveRouteContext(
             routes: liveDriveSetupRouteOptions,
@@ -4353,6 +4564,7 @@ public struct RouteComparisonView: View {
         speedLimitDisplayText = "Unavailable"
         speedLimitDetailText = "OpenStreetMap estimate"
         tracker.updateSpeedLimitEstimate(nil)
+        isRouteWeatherVisible = false
         guidanceRerouteMessage = nil
         aircraftStatusText = showsAircraftLayer ? "Checking" : "Off"
         enforcementAlerts = []
@@ -4379,6 +4591,38 @@ public struct RouteComparisonView: View {
             if areEnforcementAlertsEnabled, let coordinate = tracker.currentCoordinate {
                 refreshEnforcementAlerts(near: coordinate, force: true)
             }
+        }
+    }
+
+    private func startRouteFreeLogging() {
+        liveDriveFinishedTrip = nil
+        liveDriveRouteContext = nil
+        liveDriveNavigationProviderPending = nil
+        liveDriveNavigationHandoffMessage = nil
+        isNavigationProviderChoicePresented = false
+        isRouteFreeLoggingMode = true
+        tracker.configuration = LiveDriveConfiguration()
+        speedLimitDisplayText = "Unavailable"
+        speedLimitDetailText = "OpenStreetMap estimate"
+        tracker.updateSpeedLimitEstimate(nil)
+        isRouteWeatherVisible = false
+        guidanceEngine.reset()
+        guidanceRerouteMessage = nil
+        aircraftStatusText = showsAircraftLayer ? "Checking" : "Off"
+        enforcementAlerts = []
+        enforcementAlertsLastUpdatedAt = nil
+        enforcementAlertStatusText = areEnforcementAlertsEnabled ? "Checking" : "Off"
+        spokenCameraAlertThresholds = [:]
+        spokenAircraftAlertHistory = [:]
+        applyStoredVoiceSettings()
+
+        withAnimation(.snappy(duration: 0.28, extraBounce: 0)) {
+            tracker.startTrip(requiresBackgroundContinuation: true)
+            selectedAppTab = .map
+        }
+
+        if areEnforcementAlertsEnabled, let coordinate = tracker.currentCoordinate ?? passiveMapCoordinate {
+            refreshEnforcementAlerts(near: coordinate, force: true)
         }
     }
 
@@ -4434,6 +4678,7 @@ public struct RouteComparisonView: View {
             liveDriveNavigationProviderPending = nil
             liveDriveNavigationHandoffMessage = nil
             liveDriveFinishedTrip = nil
+            isRouteFreeLoggingMode = false
             isNavigationProviderChoicePresented = false
             tracker.resetTrip()
             guidanceEngine.reset()
@@ -4585,10 +4830,10 @@ public struct RouteComparisonView: View {
             routeTitle: completedTrip.displayRouteTitle,
             routeMeta: completedTrip.routeLabel,
             completedAtText: completedTrip.completedAt.formatted(date: .abbreviated, time: .shortened),
-            overallResultTitle: liveDriveOverallResultTitle,
-            overallResultValue: Self.netString(completedTrip.netTimeGain),
-            overallResultTint: completedTrip.netTimeGain >= 0 ? Palette.success : Palette.danger,
-            overallResultDetail: liveDriveVerdict(for: completedTrip.netTimeGain),
+            overallResultTitle: completedTrip.hasRouteBaseline ? "Overall vs Apple ETA" : "Free Drive",
+            overallResultValue: completedTrip.hasRouteBaseline ? Self.netString(completedTrip.netTimeGain) : "\(Self.milesString(completedTrip.distanceDrivenMiles)) mi",
+            overallResultTint: completedTrip.hasRouteBaseline ? (completedTrip.netTimeGain >= 0 ? Palette.success : Palette.danger) : Palette.success,
+            overallResultDetail: completedTrip.hasRouteBaseline ? liveDriveVerdict(for: completedTrip.netTimeGain) : "No Apple Maps ETA comparison for route-free logging.",
             metrics: [
                 ShareCardMetric(title: "Time Above Speed Limit", value: Self.speedLimitMetricString(completedTrip.timeSavedBySpeeding, measuredMinutes: completedTrip.speedLimitMeasuredMinutes), tint: Palette.success),
                 ShareCardMetric(title: "Time Below Speed Limit", value: Self.speedLimitMetricString(completedTrip.timeLostBelowTargetPace, measuredMinutes: completedTrip.speedLimitMeasuredMinutes), tint: Palette.danger),
@@ -4854,6 +5099,22 @@ public struct RouteComparisonView: View {
                 }
             }
         }
+    }
+
+    private func toggleRouteWeatherFromOptions() {
+        guard let route = routeWeatherOptionsRoute else { return }
+
+        if isRouteWeatherVisible {
+            isRouteWeatherVisible = false
+            routeWeatherRouteID = nil
+            routeWeatherEntries = []
+            routeWeatherMessage = "Forecast hidden"
+            isRouteWeatherLoading = false
+            return
+        }
+
+        isRouteWeatherVisible = true
+        refreshRouteWeather(for: route)
     }
 
     private func toggleVoiceGuidanceMute() {
@@ -5289,16 +5550,7 @@ public struct RouteComparisonView: View {
     }
 
     private func aircraftSpeechPrompt(for aircraft: Aircraft) -> String {
-        let callsign = aircraft.callsign.trimmingCharacters(in: .whitespacesAndNewlines)
-        let parts = [
-            "Nearby low aircraft",
-            callsign.isEmpty ? nil : callsign,
-            aircraft.distanceMiles.map { "\(String(format: "%.1f", $0)) miles" },
-            aircraft.altitudeFeet.map { "\(Int($0.rounded())) feet" },
-            "informational only"
-        ].compactMap { $0 }
-
-        return parts.joined(separator: ", ") + "."
+        AircraftSpeechCueFormatter.spokenCue(for: aircraft)
     }
 
     private static func logRouteIntelligence(_ message: String) {
@@ -5355,7 +5607,7 @@ public struct RouteComparisonView: View {
 
         let sourcePlace = ResolvedRoutePlace(
             title: "Current Location",
-            subtitle: "Live Drive position",
+            subtitle: "Drive position",
             query: "Current Location",
             coordinate: RouteCoordinate(latitude: coordinate.latitude, longitude: coordinate.longitude),
             isCurrentLocation: true

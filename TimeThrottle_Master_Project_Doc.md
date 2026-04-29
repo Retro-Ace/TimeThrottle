@@ -165,7 +165,7 @@ TimeThrottle does **not** currently claim:
 - v2.0 build 22: capped Enforcement Alerts for performance, prioritized route-relevant and ahead-of-travel alerts within 3.5 miles, added a 25-alert nearby fallback within 3.0 miles when no route is active, and clarified capped-count wording
 - v2.0 build 23: keeps Map usable without an active route, clears old route overlays after End Trip, raises visible Enforcement Alerts to 50, removes the Enforcement list from Options, simplifies navigation handoff choices, and scales Route Forecast checkpoints by distance
 - v2.0 build 24: adds True Live Scanner support with a Live Feed card, approved direct stream URL config, separate live/replay playback modes, no Broadcastify scraping, and no scanner recording
-- v2.0 build 25: tightens Map alerts and Live Drive UI, caps camera/enforcement reports at 30 within 3.0 miles, adds independent enforcement refresh, projects ADS-B aircraft markers between conservative updates, adds optional camera/aircraft spoken cues, and cleans Map Options, setup, active-drive, and result spacing
+- v2.0 build 25: adds a Cannonball-style Menu, route-free Log Trips from the Map dock, heading-follow map behavior, a shorter ADS-B aircraft spoken cue, direct simulator-build fallback workflow documentation, and tighter setup/active/result spacing
 
 ## Repo / App Structure
 

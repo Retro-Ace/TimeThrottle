@@ -69,6 +69,39 @@ final class RouteIntelligenceFoundationTests: XCTestCase {
         XCTAssertEqual(WeatherRouteProvider.recommendedCheckpointCount(forDistanceMiles: 1_500), 12)
     }
 
+    func testAircraftSpeechCueFormatterUsesShortCopyAndGroupedAltitude() {
+        let aircraft = Aircraft(
+            id: "abc",
+            callsign: " N123AB ",
+            coordinate: GuidanceCoordinate(latitude: 41.0, longitude: -87.0),
+            altitudeFeet: 3_200,
+            distanceMiles: 1.42,
+            isLowNearbyAircraft: true
+        )
+
+        XCTAssertEqual(
+            AircraftSpeechCueFormatter.spokenCue(for: aircraft),
+            "Low aircraft nearby, N123AB, 1.4 miles, 3,200 feet."
+        )
+    }
+
+    func testAircraftSpeechCueFormatterSkipsMissingOptionalParts() {
+        let coordinate = GuidanceCoordinate(latitude: 41.0, longitude: -87.0)
+
+        XCTAssertEqual(
+            AircraftSpeechCueFormatter.spokenCue(for: Aircraft(id: "no-call", callsign: " ", coordinate: coordinate, altitudeFeet: 3_200, distanceMiles: 1.42)),
+            "Low aircraft nearby, 1.4 miles, 3,200 feet."
+        )
+        XCTAssertEqual(
+            AircraftSpeechCueFormatter.spokenCue(for: Aircraft(id: "no-distance", callsign: "N123AB", coordinate: coordinate, altitudeFeet: 3_200)),
+            "Low aircraft nearby, N123AB, 3,200 feet."
+        )
+        XCTAssertEqual(
+            AircraftSpeechCueFormatter.spokenCue(for: Aircraft(id: "no-altitude", callsign: "N123AB", coordinate: coordinate, distanceMiles: 1.42)),
+            "Low aircraft nearby, N123AB, 1.4 miles."
+        )
+    }
+
     func testWeatherRouteProviderAllowsTwelveCheckpointHardMax() throws {
         let provider = WeatherRouteProvider()
         let checkpoints = try provider.checkpoints(

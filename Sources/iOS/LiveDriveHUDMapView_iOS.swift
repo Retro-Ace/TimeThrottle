@@ -97,7 +97,7 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
         mapView.showsCompass = false
         mapView.showsScale = false
         mapView.showsUserLocation = true
-        mapView.isRotateEnabled = false
+        mapView.isRotateEnabled = true
         mapView.isPitchEnabled = false
         mapView.pointOfInterestFilter = .excludingAll
         mapView.register(
@@ -112,7 +112,7 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
             MKMarkerAnnotationView.self,
             forAnnotationViewWithReuseIdentifier: "HUDWeatherCheckpointMarker"
         )
-        mapView.userTrackingMode = .follow
+        mapView.userTrackingMode = .followWithHeading
         let followPanRecognizer = UIPanGestureRecognizer(
             target: context.coordinator,
             action: #selector(Coordinator.handleUserPan(_:))
@@ -199,6 +199,8 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
                     String($0.altitudeFeet ?? -1),
                     String($0.groundSpeedMPH ?? -1),
                     String($0.headingDegrees ?? -1),
+                    String($0.distanceMiles ?? -1),
+                    String($0.isLowNearbyAircraft),
                     String($0.lastPositionDate?.timeIntervalSince1970 ?? 0),
                     String($0.isStale)
                 ].joined(separator: ":")
@@ -318,20 +320,32 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
         }
 
         private func syncAircraft(on mapView: MKMapView) {
-            let aircraftAnnotations = mapView.annotations.compactMap { $0 as? AircraftMapAnnotation }
-            mapView.removeAnnotations(aircraftAnnotations)
+            let existingAircraftAnnotations = mapView.annotations.compactMap { $0 as? AircraftMapAnnotation }
+            mapView.removeAnnotations(existingAircraftAnnotations)
 
             let annotations = parent.aircraft
                 .filter { !$0.isStale && Self.isValidCoordinate($0.coordinate) }
-                .map { aircraft in
-                    AircraftMapAnnotation(aircraft: aircraft)
+            let nearestLowAircraftID = annotations
+                .filter { $0.isLowNearbyAircraft }
+                .sorted {
+                    ($0.distanceMiles ?? .greatestFiniteMagnitude) < ($1.distanceMiles ?? .greatestFiniteMagnitude)
                 }
-            let visibleCount = Self.visibleAnnotationCount(annotations, on: mapView)
-            mapView.addAnnotations(annotations)
+                .first?
+                .id
+
+            let aircraftAnnotations = annotations
+                .map { aircraft in
+                    AircraftMapAnnotation(
+                        aircraft: aircraft,
+                        isNearestLowAircraft: aircraft.id == nearestLowAircraftID
+                    )
+                }
+            let visibleCount = Self.visibleAnnotationCount(aircraftAnnotations, on: mapView)
+            mapView.addAnnotations(aircraftAnnotations)
             Self.logMarkerCounts(
                 layer: "aircraft",
                 passed: parent.aircraft.count,
-                annotations: annotations.count,
+                annotations: aircraftAnnotations.count,
                 visible: visibleCount
             )
         }
@@ -409,8 +423,8 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
                         applyDrivingRegion(on: mapView, coordinate: coordinate, animated: forceRecenter)
                     }
 
-                    if mapView.userTrackingMode != .follow {
-                        mapView.setUserTrackingMode(.follow, animated: forceRecenter)
+                    if mapView.userTrackingMode != .followWithHeading {
+                        mapView.setUserTrackingMode(.followWithHeading, animated: forceRecenter)
                     }
                 } else if forceRecenter {
                     fitRouteContext(on: mapView)
@@ -562,8 +576,8 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
                 applyDrivingRegion(on: mapView, coordinate: coordinate, animated: false)
             }
 
-            if mapView.userTrackingMode != .follow {
-                mapView.setUserTrackingMode(.follow, animated: false)
+            if mapView.userTrackingMode != .followWithHeading {
+                mapView.setUserTrackingMode(.followWithHeading, animated: false)
             }
         }
 
@@ -690,13 +704,13 @@ private final class EnforcementAlertMapAnnotation: NSObject, MKAnnotation {
 private final class AircraftAnnotationView: MKAnnotationView {
     static let reuseIdentifier = "HUDAircraftMarker"
 
-    private let backgroundView = UIView(frame: CGRect(x: 0, y: 0, width: 30, height: 30))
-    private let imageView = UIImageView(image: UIImage(systemName: "airplane"))
+    private let ringView = UIView(frame: CGRect(x: 0, y: 0, width: 34, height: 34))
+    private let imageView = UIImageView()
 
     override init(annotation: MKAnnotation?, reuseIdentifier: String?) {
         super.init(annotation: annotation, reuseIdentifier: reuseIdentifier)
-        frame = CGRect(x: 0, y: 0, width: 30, height: 30)
-        centerOffset = CGPoint(x: 0, y: -15)
+        frame = CGRect(x: 0, y: 0, width: 34, height: 34)
+        centerOffset = .zero
         canShowCallout = true
         isEnabled = true
         isHidden = false
@@ -704,25 +718,23 @@ private final class AircraftAnnotationView: MKAnnotationView {
         displayPriority = .required
         zPriority = .max
         selectedZPriority = .max
-        collisionMode = .none
+        collisionMode = .circle
         layer.zPosition = 1_000
 
-        backgroundView.isUserInteractionEnabled = false
-        backgroundView.backgroundColor = UIColor.systemTeal.withAlphaComponent(0.88)
-        backgroundView.layer.cornerRadius = 15
-        backgroundView.layer.borderColor = UIColor.white.withAlphaComponent(0.75).cgColor
-        backgroundView.layer.borderWidth = 1
-        backgroundView.layer.shadowColor = UIColor.black.cgColor
-        backgroundView.layer.shadowOpacity = 0.22
-        backgroundView.layer.shadowRadius = 6
-        backgroundView.layer.shadowOffset = CGSize(width: 0, height: 3)
-        addSubview(backgroundView)
+        ringView.isUserInteractionEnabled = false
+        ringView.layer.cornerRadius = bounds.width / 2
+        ringView.layer.borderWidth = 2
+        ringView.layer.masksToBounds = true
+        ringView.layer.shadowColor = UIColor.black.cgColor
+        ringView.layer.shadowOpacity = 0.22
+        ringView.layer.shadowRadius = 6
+        ringView.layer.shadowOffset = CGSize(width: 0, height: 3)
+        addSubview(ringView)
 
         imageView.isUserInteractionEnabled = false
-        imageView.tintColor = .white
         imageView.contentMode = .scaleAspectFit
-        imageView.frame = CGRect(x: 7, y: 7, width: 16, height: 16)
-        backgroundView.addSubview(imageView)
+        imageView.frame = bounds.insetBy(dx: 7, dy: 7)
+        addSubview(imageView)
     }
 
     @available(*, unavailable)
@@ -737,24 +749,44 @@ private final class AircraftAnnotationView: MKAnnotationView {
         displayPriority = .required
         zPriority = .max
         selectedZPriority = .max
-        collisionMode = .none
+        collisionMode = .circle
         layer.zPosition = 1_000
+
+        let symbolConfig = UIImage.SymbolConfiguration(
+            pointSize: annotation.isNearestLowAircraft ? 19 : 16,
+            weight: .bold
+        )
+        imageView.image = UIImage(systemName: "airplane", withConfiguration: symbolConfig)?
+            .withTintColor(.white, renderingMode: .alwaysOriginal)
+
         if let heading = annotation.aircraft.headingDegrees {
-            imageView.transform = CGAffineTransform(rotationAngle: heading * .pi / 180)
+            imageView.transform = CGAffineTransform(rotationAngle: (heading - 90) * .pi / 180)
         } else {
             imageView.transform = .identity
         }
+
+        ringView.backgroundColor = annotation.isNearestLowAircraft
+            ? UIColor.systemPurple.withAlphaComponent(0.92)
+            : UIColor.black.withAlphaComponent(0.72)
+        ringView.layer.borderColor = annotation.isNearestLowAircraft
+            ? UIColor.white.withAlphaComponent(0.88).cgColor
+            : UIColor.systemPurple.withAlphaComponent(0.86).cgColor
+        ringView.transform = annotation.isNearestLowAircraft
+            ? CGAffineTransform(scaleX: 1.18, y: 1.18)
+            : .identity
     }
 }
 
 private final class AircraftMapAnnotation: NSObject, MKAnnotation {
     let aircraft: Aircraft
+    let isNearestLowAircraft: Bool
     let coordinate: CLLocationCoordinate2D
     let title: String?
     let subtitle: String?
 
-    init(aircraft: Aircraft) {
+    init(aircraft: Aircraft, isNearestLowAircraft: Bool) {
         self.aircraft = aircraft
+        self.isNearestLowAircraft = isNearestLowAircraft
         self.coordinate = aircraft.coordinate.clLocationCoordinate
         self.title = aircraft.callsign
 

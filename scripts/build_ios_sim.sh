@@ -17,6 +17,7 @@ PROJECT_FILE="$ROOT_DIR/TimeThrottle.xcodeproj/project.pbxproj"
 SDK_PATH="$(xcrun --sdk iphonesimulator --show-sdk-path)"
 TARGET_TRIPLE="${IOS_SIMULATOR_TARGET_TRIPLE:-arm64-apple-ios17.0-simulator}"
 XCODEBUILD_TIMEOUT_SECONDS="${XCODEBUILD_TIMEOUT_SECONDS:-90}"
+TIMETHROTTLE_FORCE_XCODEBUILD="${TIMETHROTTLE_FORCE_XCODEBUILD:-0}"
 XCODEBUILD_LOG="$IOS_DIST_DIR/xcodebuild.log"
 SWIFT_MODULE_CACHE_PATH="${SWIFT_MODULE_CACHE_PATH:-/tmp/timethrottle-swift-module-cache}"
 CLANG_MODULE_CACHE_PATH="${CLANG_MODULE_CACHE_PATH:-/tmp/timethrottle-clang-module-cache}"
@@ -113,7 +114,10 @@ build_with_swiftc_fallback() {
     fi
 }
 
-if build_with_xcodebuild; then
+if [[ "$TIMETHROTTLE_FORCE_XCODEBUILD" != "1" ]]; then
+    echo "Using direct simulator build path. Set TIMETHROTTLE_FORCE_XCODEBUILD=1 to try xcodebuild first." >&2
+    build_with_swiftc_fallback
+elif build_with_xcodebuild; then
     if [[ ! -d "$PRODUCT_APP" ]]; then
         echo "Could not find built simulator app for $APP_NAME at $PRODUCT_APP" >&2
         exit 1

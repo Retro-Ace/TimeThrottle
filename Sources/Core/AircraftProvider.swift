@@ -117,6 +117,31 @@ public struct Aircraft: Identifiable, Equatable, Sendable {
     }
 }
 
+public enum AircraftSpeechCueFormatter {
+    public static func spokenCue(for aircraft: Aircraft) -> String {
+        let callsign = aircraft.callsign.trimmingCharacters(in: .whitespacesAndNewlines)
+        let parts = [
+            "Low aircraft nearby",
+            callsign.isEmpty ? nil : callsign,
+            aircraft.distanceMiles.map { "\(String(format: "%.1f", $0)) miles" },
+            aircraft.altitudeFeet.map { "\(Self.groupedFeet($0)) feet" }
+        ].compactMap { $0 }
+
+        return parts.joined(separator: ", ") + "."
+    }
+
+    private static func groupedFeet(_ altitudeFeet: Double) -> String {
+        let formatter = NumberFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.numberStyle = .decimal
+        formatter.usesGroupingSeparator = true
+        formatter.groupingSeparator = ","
+        formatter.groupingSize = 3
+        formatter.maximumFractionDigits = 0
+        return formatter.string(from: NSNumber(value: Int(altitudeFeet.rounded()))) ?? "\(Int(altitudeFeet.rounded()))"
+    }
+}
+
 public protocol AircraftProvider: Sendable {
     func nearbyAircraft(in region: AircraftSearchRegion) async throws -> [Aircraft]
 }

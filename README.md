@@ -28,24 +28,23 @@ TimeThrottle now adds in-app guidance and route intelligence on top of the Apple
 
 ## What's New in v2.0
 
-Build 25 tightens Map, Alerts, ADS-B, and Live Drive UI behavior:
-- Camera and enforcement markers are capped at 30 visible reports within 3.0 miles
-- Route-active alerts use route-first ranking, then nearby fallback reports
-- Enforcement refresh now runs independently from aircraft refresh
-- ADS-B aircraft markers project between conservative provider updates and clear when stale
-- Optional camera and nearby-low-aircraft voice cues default on and respect global voice mute
-- Map Options, active Live Drive, setup, and trip-result surfaces are tighter and less cluttered
+Build 25 adds Cannonball-style Menu and route-free Log Trips cleanup:
+- Menu replaces Map Options while keeping route weather, alerts, audio, display, pace, Trip History, and Scanner routing available
+- Log Trips lets the Map tab track and save a Free Drive without a destination or Apple Maps ETA comparison
+- Map follow now uses heading-up behavior, with manual pan exit and recenter restore
+- ADS-B aircraft voice cues use shorter copy while on-screen disclaimers remain unchanged
+- Simulator packaging defaults to the direct simulator-build path; use `TIMETHROTTLE_FORCE_XCODEBUILD=1 ./dist-ios` only to force the old xcodebuild-first path
 
 Use this block for GitHub releases, TestFlight notes, and App Store Connect:
 
 > **TimeThrottle 2.0**
 >
 > - Keeps Drive / Map / Trips / Scanner navigation with Scanner independent from Live Drive
-> - Refines Map camera/enforcement markers to a 30-report visible cap within 3.0 miles
-> - Adds route-first camera/enforcement ranking with nearby fallback reports
-> - Adds projected ADS-B aircraft marker updates between conservative provider refreshes
-> - Adds optional camera-report and nearby-low-aircraft spoken cues that respect global voice mute
-> - Tightens Map Options, Live Drive setup, active-drive, and result spacing
+> - Adds a cleaner Menu sheet for map, alerts, audio, display, trip data, and settings
+> - Adds route-free Log Trips for destination-free drive tracking
+> - Updates Map follow to heading-up behavior
+> - Shortens ADS-B aircraft spoken cues while keeping aircraft disclaimers on screen
+> - Keeps Scanner independent and preserves Apple Maps ETA baseline mode
 
 ## Core Product
 
