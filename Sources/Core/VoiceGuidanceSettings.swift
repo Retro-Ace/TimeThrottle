@@ -12,7 +12,7 @@ public struct VoiceGuidanceSettings: Codable, Equatable, Sendable {
     public init(
         selectedVoiceIdentifier: String? = VoiceGuidanceVoiceCatalog.preferredDefaultVoiceIdentifier(),
         speechRate: Float = Self.defaultSpeechRate,
-        volume: Float = 0.92,
+        volume: Float = Self.defaultVolume,
         isMuted: Bool = false
     ) {
         self.selectedVoiceIdentifier = selectedVoiceIdentifier
@@ -22,6 +22,7 @@ public struct VoiceGuidanceSettings: Codable, Equatable, Sendable {
     }
 
     public static let defaultSpeechRate: Float = 0.46
+    public static let defaultVolume: Float = 0.92
 }
 
 public struct VoiceGuidanceVoiceOption: Identifiable, Codable, Equatable, Sendable {

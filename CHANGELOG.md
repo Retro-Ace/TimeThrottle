@@ -4,6 +4,16 @@ All notable release-facing changes to **TimeThrottle** should be documented in t
 
 ## v2.0 - April 26, 2026
 
+### Build 27 Apple Maps-Style Entry Polish
+
+- Keeps marketing version at 2.0 and bumps the build to 27.
+- Replaces the large idle Choose Route button with a `Where to?` search-style map entry while keeping Log Trip and Menu visible.
+- Opens route setup from `Where to?` with the destination field focused, then expands the bottom panel for typed destinations, route options, route preview, and Start Drive.
+- Adds Done and grabber drag-down dismissal for Trip Complete so the saved result can return to the idle map without starting a new trip.
+- Uses the TimeThrottle logo-only mark in generated shared trip images while keeping the main idle map free of a large app logo.
+- Shows Current Weather by default, keeps Hide/Show persistent, and leaves WeatherKit/provider behavior unchanged.
+- Preserves the map-first shell, Apple Maps ETA baseline, route-free Log Trip, Trip History, Scanner, weather, aircraft, camera/enforcement, audio, and navigation handoff behavior.
+
 ### Build 26 Map-First Shell and No Bottom Tabs
 
 - Keeps marketing version at 2.0 and bumps the build to 26.
@@ -90,14 +100,20 @@ Use this block for GitHub releases, TestFlight notes, or App Store Connect:
 > **TimeThrottle 2.0**
 >
 > - Opens directly to a full-screen map with no bottom tab bar
-> - Moves route setup into an Apple Maps-style bottom panel
+> - Uses a `Where to?` map entry that opens focused route setup
+> - Expands route setup for route options and Start Drive
 > - Adds route-free Log Trip for destination-free drive tracking
+> - Shows Current Weather by default with a Hide preference
 > - Opens Trip History and Scanner from Menu sheets
 > - Keeps Scanner independent and preserves Apple Maps ETA baseline mode
 
 ### Release Notes
 
-- The app now uses one map-first shell instead of bottom tabs.
+- The app now uses one map-first shell instead of bottom tabs, with a `Where to?` destination entry on the idle map.
+- Route setup focuses the destination field and expands for route results so route options and Start Drive are easier to reach.
+- Trip Complete can dismiss back to the idle map with Done while saved trips remain in Trip History.
+- Shared trip images include the TimeThrottle logo-only mark.
+- Current Weather shows by default and can be hidden from Menu.
 - Scanner is independent from Live Drive and does not affect driving calculations, route intelligence, or trip results.
 - Scanner supports public scanner systems, optional configured Live Feed playback, latest calls, simple play / pause / next-call controls, and graceful unavailable states.
 - Camera/enforcement and aircraft layers remain passive and informational; coverage varies by source and region.

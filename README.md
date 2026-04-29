@@ -26,10 +26,14 @@ TimeThrottle now adds in-app guidance and route intelligence on top of the Apple
 
 ## What's New in v2.0
 
-Build 26 moves TimeThrottle to a map-first shell:
+Build 27 polishes TimeThrottle's map-first shell:
 - the app opens directly to the full-screen map with no former four-tab navigation bar
-- route setup now lives in an Apple Maps-style bottom panel over the map
-- idle map actions are Choose Route, Log Trip, and Menu
+- the idle route entry is now a `Where to?` search-style field instead of a large Choose Route button
+- tapping `Where to?` opens route setup and focuses the destination field
+- route setup stays compact when empty and expands for typing, route options, route preview, and Start Drive
+- Trip Complete can be dismissed back to the idle map with Done
+- shared trip images include the TimeThrottle logo-only mark
+- Current Weather is shown by default and can be hidden from Menu
 - Trip History and Scanner open from Menu sheets while Scanner stays independent from Live Drive
 - the TimeThrottle logo now belongs to the iOS launch screen instead of the in-app first screen
 
@@ -38,8 +42,10 @@ Use this block for GitHub releases, TestFlight notes, and App Store Connect:
 > **TimeThrottle 2.0**
 >
 > - Opens directly to a full-screen map with no bottom tab bar
-> - Moves route setup into an Apple Maps-style bottom panel
+> - Uses a `Where to?` map entry that opens focused route setup
+> - Expands route setup for route options and Start Drive
 > - Adds route-free Log Trip for destination-free drive tracking
+> - Shows Current Weather by default with a Hide preference
 > - Opens Trip History and Scanner from Menu sheets
 > - Keeps Scanner independent and preserves Apple Maps ETA baseline mode
 

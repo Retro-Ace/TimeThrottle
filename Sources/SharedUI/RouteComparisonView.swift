@@ -177,6 +177,7 @@ public struct RouteComparisonView: View {
     @State private var hoveredRouteID: UUID?
     @State private var routeErrorMessage: String?
     @State private var isCalculatingRoute = false
+    @State private var shouldFocusDestinationOnRoutePanelOpen = false
     @State private var routeLookupGeneration = 0
     @State private var didRunCaptureBootstrap = false
     @State private var shareSheetItems: [Any] = []
@@ -190,7 +191,7 @@ public struct RouteComparisonView: View {
     @State private var routeWeatherEntries: [RouteWeatherDisplayEntry] = []
     @State private var routeWeatherMessage = "Forecast unavailable"
     @State private var isRouteWeatherLoading = false
-    @State private var isRouteWeatherVisible = false
+    @AppStorage("timethrottle.weatherVisible") private var isRouteWeatherVisible = true
     @State private var currentWeatherEntry: RouteWeatherDisplayEntry?
     @State private var currentWeatherMessage = "Weather unavailable"
     @State private var isCurrentWeatherLoading = false
@@ -547,6 +548,49 @@ public struct RouteComparisonView: View {
     private var routeWeatherOptionsRoute: RouteEstimate? {
         guard !isRouteFreeLoggingMode else { return nil }
         return liveDriveCapturedRoute ?? liveDriveSetupRoute
+    }
+
+    private var routeSetupHasDestinationInput: Bool {
+        !toAddressText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var routeSetupHasSearchActivity: Bool {
+        routeSetupHasDestinationInput ||
+        !toSuggestions.isEmpty ||
+        isCalculatingRoute ||
+        shouldShowRouteStatus
+    }
+
+    private var routeSetupHasLoadedResults: Bool {
+        !activeRouteOptions.isEmpty || liveDriveSetupRoute != nil
+    }
+
+    private var routeSetupPanelMaximumHeight: CGFloat {
+        if routeSetupHasLoadedResults {
+            return 780
+        }
+
+        if routeSetupHasSearchActivity {
+            return 620
+        }
+
+        return 380
+    }
+
+    private var routeSetupScrollMaximumHeight: CGFloat {
+        if routeSetupHasLoadedResults {
+            return 690
+        }
+
+        if routeSetupHasSearchActivity {
+            return 530
+        }
+
+        return 300
+    }
+
+    private var shouldShowRouteStartControls: Bool {
+        routeSetupHasSearchActivity || routeSetupHasLoadedResults
     }
 
     private var liveDriveHUDRouteTitle: String {
@@ -1651,67 +1695,62 @@ public struct RouteComparisonView: View {
 
     private var idleMapBottomPanel: some View {
         mapFirstPanel {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .center, spacing: 12) {
-                    Image(systemName: inactiveMapStatusSystemImage)
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(inactiveMapStatusTint)
-                        .frame(width: 34, height: 34)
-                        .background(setupSurfaceMuted, in: Circle())
+                    Button {
+                        openRouteSetupPanel(focusDestination: true)
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "magnifyingglass")
+                                .font(.headline.weight(.bold))
+                                .foregroundStyle(Palette.success)
+                                .frame(width: 28, height: 28)
+                                .background(setupSelectionFill, in: Circle())
 
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(inactiveMapStatusTitle)
-                            .font(.headline.weight(.bold))
-                            .foregroundStyle(setupPrimaryText)
+                            Text("Where to?")
+                                .font(.headline.weight(.bold))
+                                .foregroundStyle(setupPrimaryText)
 
-                        Text(inactiveMapStatusMessage)
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(setupSecondaryText)
-                            .lineLimit(2)
+                            Spacer(minLength: 8)
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 12)
+                        .frame(maxWidth: .infinity)
+                        .background(setupSurfaceMuted, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                .stroke(setupPanelBorder, lineWidth: 1)
+                        }
                     }
-
-                    Spacer(minLength: 8)
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Where to?")
 
                     mapMenuIconButton
                 }
 
-                HStack(spacing: 10) {
-                    Button {
-                        openRouteSetupPanel()
-                    } label: {
-                        Label("Choose Route", systemImage: "arrow.triangle.turn.up.right.diamond.fill")
-                            .font(.headline.weight(.bold))
-                            .foregroundStyle(Color.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
-                            .background(Palette.success, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    }
-                    .buttonStyle(.plain)
-
-                    Button {
-                        startRouteFreeLogging()
-                    } label: {
-                        Label("Log Trip", systemImage: "record.circle")
-                            .font(.headline.weight(.bold))
-                            .foregroundStyle(setupPrimaryText)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
-                            .background(setupSurfaceMuted, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                            .overlay {
-                                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    .stroke(setupPanelBorder, lineWidth: 1)
-                            }
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(tracker.permissionState == .denied || tracker.permissionState == .restricted)
-                    .opacity((tracker.permissionState == .denied || tracker.permissionState == .restricted) ? 0.55 : 1)
+                Button {
+                    startRouteFreeLogging()
+                } label: {
+                    Label("Log Trip", systemImage: "record.circle")
+                        .font(.headline.weight(.bold))
+                        .foregroundStyle(setupPrimaryText)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(setupSurfaceMuted, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .stroke(setupPanelBorder, lineWidth: 1)
+                        }
                 }
+                .buttonStyle(.plain)
+                .disabled(tracker.permissionState == .denied || tracker.permissionState == .restricted)
+                .opacity((tracker.permissionState == .denied || tracker.permissionState == .restricted) ? 0.55 : 1)
             }
         }
     }
 
     private var routeSetupMapPanel: some View {
-        mapFirstPanel(maxHeight: 650) {
+        mapFirstPanel(maxHeight: routeSetupPanelMaximumHeight) {
             VStack(alignment: .leading, spacing: 12) {
                 mapPanelGrabber
 
@@ -1721,7 +1760,7 @@ public struct RouteComparisonView: View {
                             .font(.title3.weight(.bold))
                             .foregroundStyle(setupPrimaryText)
 
-                        Text("Pick a destination and keep the map in view.")
+                        Text(routeSetupHasLoadedResults ? "Pick a route and start driving." : "Enter a destination.")
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(setupSecondaryText)
                     }
@@ -1731,7 +1770,7 @@ public struct RouteComparisonView: View {
                     mapMenuIconButton
 
                     Button("Done") {
-                        isRouteSetupPanelPresented = false
+                        closeRouteSetupPanel()
                     }
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(setupPrimaryText)
@@ -1741,11 +1780,11 @@ public struct RouteComparisonView: View {
                     .buttonStyle(.plain)
                 }
 
-                ScrollView(.vertical, showsIndicators: true) {
+                ScrollView(.vertical, showsIndicators: routeSetupHasSearchActivity || routeSetupHasLoadedResults) {
                     liveDriveSetupSection
                         .padding(.bottom, 2)
                 }
-                .frame(maxHeight: 560)
+                .frame(maxHeight: routeSetupScrollMaximumHeight)
             }
         }
     }
@@ -1753,7 +1792,7 @@ public struct RouteComparisonView: View {
     private var tripCompleteMapPanel: some View {
         mapFirstPanel(maxHeight: 650) {
             VStack(alignment: .leading, spacing: 12) {
-                mapPanelGrabber
+                tripCompletePanelGrabber
 
                 HStack(spacing: 10) {
                     VStack(alignment: .leading, spacing: 3) {
@@ -1769,6 +1808,16 @@ public struct RouteComparisonView: View {
                     Spacer(minLength: 8)
 
                     mapMenuIconButton
+
+                    Button("Done") {
+                        dismissTripCompletePanel()
+                    }
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(setupPrimaryText)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 9)
+                    .background(setupSurfaceMuted, in: Capsule())
+                    .buttonStyle(.plain)
                 }
 
                 ScrollView(.vertical, showsIndicators: true) {
@@ -1781,6 +1830,22 @@ public struct RouteComparisonView: View {
                 .frame(maxHeight: 560)
             }
         }
+    }
+
+    private var tripCompletePanelGrabber: some View {
+        mapPanelGrabber
+            .contentShape(Rectangle())
+            .gesture(tripCompleteDismissDragGesture)
+            .accessibilityLabel("Dismiss trip result")
+    }
+
+    private var tripCompleteDismissDragGesture: some Gesture {
+        DragGesture(minimumDistance: 20)
+            .onEnded { value in
+                if value.translation.height > 60 {
+                    dismissTripCompletePanel()
+                }
+            }
     }
 
     private var tripCompleteMapActions: some View {
@@ -4054,53 +4119,55 @@ public struct RouteComparisonView: View {
                     routePreviewSection(routes: liveDriveSetupRouteOptions, selectedRoute: route)
                 }
 
-                InsetPanel(
-                    background: isPolishedLiveDriveSetup ? setupSurfaceRaised : Palette.panel,
-                    border: isPolishedLiveDriveSetup ? setupPanelBorder : Palette.surfaceBorder,
-                    shadowColor: isPolishedLiveDriveSetup ? setupShadowColor.opacity(0.75) : .black.opacity(0.04),
-                    shadowRadius: isPolishedLiveDriveSetup ? 18 : 12,
-                    shadowYOffset: isPolishedLiveDriveSetup ? 8 : 6
-                ) {
-                    VStack(alignment: .leading, spacing: 10) {
-                        liveDriveNavigationProviderSection
+                if shouldShowRouteStartControls {
+                    InsetPanel(
+                        background: isPolishedLiveDriveSetup ? setupSurfaceRaised : Palette.panel,
+                        border: isPolishedLiveDriveSetup ? setupPanelBorder : Palette.surfaceBorder,
+                        shadowColor: isPolishedLiveDriveSetup ? setupShadowColor.opacity(0.75) : .black.opacity(0.04),
+                        shadowRadius: isPolishedLiveDriveSetup ? 18 : 12,
+                        shadowYOffset: isPolishedLiveDriveSetup ? 8 : 6
+                    ) {
+                        VStack(alignment: .leading, spacing: 10) {
+                            liveDriveNavigationProviderSection
 
-                        if let liveDriveNavigationHandoffMessage {
-                            liveDriveHelperNote(liveDriveNavigationHandoffMessage)
+                            if let liveDriveNavigationHandoffMessage {
+                                liveDriveHelperNote(liveDriveNavigationHandoffMessage)
+                            }
+
+                            if let liveDriveBackgroundContinuityMessage {
+                                liveDriveHelperNote(
+                                    liveDriveBackgroundContinuityMessage,
+                                    showsSettingsAction: liveDriveShowsBackgroundContinuitySettingsAction,
+                                    actionTitle: "Always Location"
+                                )
+                            }
+
+                            if let liveDrivePermissionMessage {
+                                liveDriveStatusBanner(
+                                    title: "Location access needed",
+                                    message: liveDrivePermissionMessage,
+                                    showsSettingsAction: liveDriveShowsSettingsAction
+                                )
+                            }
+
+                            Button {
+                                startLiveDrive()
+                            } label: {
+                                Label("Start Drive", systemImage: "location.fill")
+                                    .font(.headline)
+                                    .foregroundStyle(Color.white)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.horizontal, 18)
+                                    .padding(.vertical, 13)
+                                    .background(Palette.success, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                    .shadow(color: Palette.success.opacity(isPolishedLiveDriveSetup ? 0.28 : 0.20), radius: 6, y: 3)
+                            }
+                            .buttonStyle(.plain)
+                            .opacity(isStartLiveDriveDisabled ? 0.55 : 1)
+                            .disabled(isStartLiveDriveDisabled)
+
+                            liveDriveLegalityNote
                         }
-
-                        if let liveDriveBackgroundContinuityMessage {
-                            liveDriveHelperNote(
-                                liveDriveBackgroundContinuityMessage,
-                                showsSettingsAction: liveDriveShowsBackgroundContinuitySettingsAction,
-                                actionTitle: "Always Location"
-                            )
-                        }
-
-                        if let liveDrivePermissionMessage {
-                            liveDriveStatusBanner(
-                                title: "Location access needed",
-                                message: liveDrivePermissionMessage,
-                                showsSettingsAction: liveDriveShowsSettingsAction
-                            )
-                        }
-
-                        Button {
-                            startLiveDrive()
-                        } label: {
-                            Label("Start Drive", systemImage: "location.fill")
-                                .font(.headline)
-                                .foregroundStyle(Color.white)
-                                .frame(maxWidth: .infinity)
-                                .padding(.horizontal, 18)
-                                .padding(.vertical, 13)
-                                .background(Palette.success, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                                .shadow(color: Palette.success.opacity(isPolishedLiveDriveSetup ? 0.28 : 0.20), radius: 6, y: 3)
-                        }
-                        .buttonStyle(.plain)
-                        .opacity(isStartLiveDriveDisabled ? 0.55 : 1)
-                        .disabled(isStartLiveDriveDisabled)
-
-                        liveDriveLegalityNote
                     }
                 }
             }
@@ -5059,12 +5126,34 @@ public struct RouteComparisonView: View {
         return formatter.string(from: Date())
     }
 
-    private func openRouteSetupPanel() {
+    private func openRouteSetupPanel(focusDestination: Bool = false) {
+        shouldFocusDestinationOnRoutePanelOpen = focusDestination
         withAnimation(.snappy(duration: 0.24, extraBounce: 0)) {
             isRouteSetupPanelPresented = true
         }
         currentLocationResolver.requestCurrentLocationIfNeeded()
         refreshPassiveMapLayersIfPossible(force: false)
+
+        if focusDestination {
+            focusDestinationAddressFieldSoon()
+        }
+    }
+
+    private func closeRouteSetupPanel() {
+        shouldFocusDestinationOnRoutePanelOpen = false
+        focusedRouteAddressField = nil
+        withAnimation(.snappy(duration: 0.24, extraBounce: 0)) {
+            isRouteSetupPanelPresented = false
+        }
+    }
+
+    private func focusDestinationAddressFieldSoon() {
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 140_000_000)
+            guard isRouteSetupPanelPresented, shouldFocusDestinationOnRoutePanelOpen else { return }
+            focusedRouteAddressField = .to
+            shouldFocusDestinationOnRoutePanelOpen = false
+        }
     }
 
     private func presentTripHistorySheet() {
@@ -5217,7 +5306,6 @@ public struct RouteComparisonView: View {
         speedLimitDisplayText = "Unavailable"
         speedLimitDetailText = "OpenStreetMap estimate"
         tracker.updateSpeedLimitEstimate(nil)
-        isRouteWeatherVisible = false
         guidanceRerouteMessage = nil
         aircraftStatusText = showsAircraftLayer ? "Checking" : "Off"
         enforcementAlerts = []
@@ -5241,6 +5329,9 @@ public struct RouteComparisonView: View {
 
         if tracker.isTracking {
             processLiveDriveNavigationHandoffIfNeeded()
+            if isRouteWeatherVisible {
+                refreshRouteWeather(for: selectedRoute)
+            }
             if areEnforcementAlertsEnabled, let coordinate = tracker.currentCoordinate {
                 refreshEnforcementAlerts(near: coordinate, force: true)
             }
@@ -5330,31 +5421,44 @@ public struct RouteComparisonView: View {
 
     private func startNewLiveDrive() {
         withAnimation(.snappy(duration: 0.24, extraBounce: 0)) {
-            liveDriveRouteContext = nil
-            liveDriveNavigationProviderPending = nil
-            liveDriveNavigationHandoffMessage = nil
-            liveDriveFinishedTrip = nil
-            isRouteFreeLoggingMode = false
-            isNavigationProviderChoicePresented = false
-            tracker.resetTrip()
-            guidanceEngine.reset()
-            speedLimitDisplayText = "Unavailable"
-            speedLimitDetailText = "OpenStreetMap estimate"
-            tracker.updateSpeedLimitEstimate(nil)
-            guidanceRerouteMessage = nil
-            isGuidanceRerouting = false
-            aircraftLayer = AircraftLayerState(isVisible: showsAircraftLayer)
-            aircraftStatusText = showsAircraftLayer ? "Checking" : "Off"
-            enforcementAlerts = []
-            enforcementAlertsLastUpdatedAt = nil
-            lastEnforcementAlertLookupAt = nil
-            lastEnforcementAlertLookupCoordinate = nil
-            lastEnforcementAlertRouteContextID = nil
-            enforcementAlertStatusText = areEnforcementAlertsEnabled ? "Checking" : "Off"
-            spokenCameraAlertThresholds = [:]
-            spokenAircraftAlertHistory = [:]
-            isRouteSetupPanelPresented = true
+            resetFinishedTripState(openRouteSetup: true)
         }
+        focusDestinationAddressFieldSoon()
+    }
+
+    private func dismissTripCompletePanel() {
+        withAnimation(.snappy(duration: 0.24, extraBounce: 0)) {
+            resetFinishedTripState(openRouteSetup: false)
+        }
+        refreshPassiveMapLayersIfPossible(force: false)
+    }
+
+    private func resetFinishedTripState(openRouteSetup: Bool) {
+        liveDriveRouteContext = nil
+        liveDriveNavigationProviderPending = nil
+        liveDriveNavigationHandoffMessage = nil
+        liveDriveFinishedTrip = nil
+        isRouteFreeLoggingMode = false
+        isNavigationProviderChoicePresented = false
+        tracker.resetTrip()
+        guidanceEngine.reset()
+        speedLimitDisplayText = "Unavailable"
+        speedLimitDetailText = "OpenStreetMap estimate"
+        tracker.updateSpeedLimitEstimate(nil)
+        guidanceRerouteMessage = nil
+        isGuidanceRerouting = false
+        aircraftLayer = AircraftLayerState(isVisible: showsAircraftLayer)
+        aircraftStatusText = showsAircraftLayer ? "Checking" : "Off"
+        enforcementAlerts = []
+        enforcementAlertsLastUpdatedAt = nil
+        lastEnforcementAlertLookupAt = nil
+        lastEnforcementAlertLookupCoordinate = nil
+        lastEnforcementAlertRouteContextID = nil
+        enforcementAlertStatusText = areEnforcementAlertsEnabled ? "Checking" : "Off"
+        spokenCameraAlertThresholds = [:]
+        spokenAircraftAlertHistory = [:]
+        shouldFocusDestinationOnRoutePanelOpen = openRouteSetup
+        isRouteSetupPanelPresented = openRouteSetup
     }
 
     private func resetCurrentTripCounters() {
@@ -5502,7 +5606,7 @@ public struct RouteComparisonView: View {
         let shareCardHeight: CGFloat = 720
 
         let shareCard = FinishedTripShareCardView(
-            brandLogo: brandLogo,
+            brandLogo: resultBrandLogo,
             routeTitle: completedTrip.displayRouteTitle,
             routeMeta: completedTrip.routeLabel,
             completedAtText: completedTrip.completedAt.formatted(date: .abbreviated, time: .shortened),
@@ -6609,9 +6713,9 @@ public struct RouteComparisonView: View {
             case .insufficientRouteGeometry:
                 return "Route weather needs a route with enough geometry to sample checkpoints."
             case .weatherKitNotConfigured:
-                return "WeatherKit is not configured for this build. Confirm the WeatherKit capability and signed entitlement before installing on a real device."
+                return "Forecast unavailable for this build."
             case .forecastUnavailable:
-                return "WeatherKit did not return forecast data for this route."
+                return "Forecast unavailable for this route."
             case .weatherKitRequestFailed(let reason):
                 return Self.cleanWeatherUnavailableMessage(reason)
             }
@@ -6619,7 +6723,7 @@ public struct RouteComparisonView: View {
 
         let description = error.localizedDescription.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !description.isEmpty else {
-            return "WeatherKit did not return forecast data for this route."
+            return "Forecast unavailable for this route."
         }
 
         return Self.cleanWeatherUnavailableMessage(description)
@@ -6635,14 +6739,14 @@ public struct RouteComparisonView: View {
             normalized.contains("entitlement") ||
             normalized.contains("not authorized") ||
             normalized.contains("authorization") {
-            return "WeatherKit is not available for this signed build. Check the WeatherKit capability and provisioning profile."
+            return "Forecast unavailable for this signed build."
         }
 
         if normalized.contains("weatherkit") {
-            return text
+            return "Forecast unavailable. Try again later."
         }
 
-        return "WeatherKit request failed. Check WeatherKit capability, provisioning profile, and network availability."
+        return "Forecast unavailable. Try again later."
     }
 
     private static func labeledWeatherEntries(
