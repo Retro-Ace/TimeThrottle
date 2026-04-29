@@ -4,6 +4,14 @@ All notable release-facing changes to **TimeThrottle** should be documented in t
 
 ## v2.0 - April 26, 2026
 
+### Build 28 Inline Apple Maps-Style Route Entry
+
+- Keeps marketing version at 2.0 and bumps the build to 28.
+- Makes the idle `Where to?` control the actual destination field instead of a button that opens a separate route-entry surface.
+- Expands autocomplete, Current Location, route options, Navigation App, and Start Drive inside the same continuous bottom panel.
+- Moves route preview to the full-screen map behind the panel and removes the embedded route-preview thumbnail from the route-entry panel.
+- Preserves Log Trip, Menu, Scanner, Trip History, routed Live Drive, Apple Maps ETA baseline, weather, aircraft, camera/enforcement, audio, and navigation handoff behavior.
+
 ### Build 27 Apple Maps-Style Entry Polish
 
 - Keeps marketing version at 2.0 and bumps the build to 27.
@@ -100,8 +108,9 @@ Use this block for GitHub releases, TestFlight notes, or App Store Connect:
 > **TimeThrottle 2.0**
 >
 > - Opens directly to a full-screen map with no bottom tab bar
-> - Uses a `Where to?` map entry that opens focused route setup
-> - Expands route setup for route options and Start Drive
+> - Uses an inline `Where to?` destination field on the map
+> - Expands autocomplete and route results in the same bottom panel
+> - Shows route preview on the full-screen map behind the controls
 > - Adds route-free Log Trip for destination-free drive tracking
 > - Shows Current Weather by default with a Hide preference
 > - Opens Trip History and Scanner from Menu sheets
@@ -109,8 +118,9 @@ Use this block for GitHub releases, TestFlight notes, or App Store Connect:
 
 ### Release Notes
 
-- The app now uses one map-first shell instead of bottom tabs, with a `Where to?` destination entry on the idle map.
-- Route setup focuses the destination field and expands for route results so route options and Start Drive are easier to reach.
+- The app now uses one map-first shell instead of bottom tabs, with an inline `Where to?` destination field on the idle map.
+- Autocomplete and route results expand in the same bottom panel so route options and Start Drive are easier to reach.
+- Route preview appears on the full-screen map instead of an embedded route thumbnail.
 - Trip Complete can dismiss back to the idle map with Done while saved trips remain in Trip History.
 - Shared trip images include the TimeThrottle logo-only mark.
 - Current Weather shows by default and can be hidden from Menu.

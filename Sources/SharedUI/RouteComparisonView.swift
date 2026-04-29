@@ -565,28 +565,35 @@ public struct RouteComparisonView: View {
         !activeRouteOptions.isEmpty || liveDriveSetupRoute != nil
     }
 
-    private var routeSetupPanelMaximumHeight: CGFloat {
-        if routeSetupHasLoadedResults {
-            return 780
-        }
-
-        if routeSetupHasSearchActivity {
-            return 620
-        }
-
-        return 380
+    private var isInlineRouteEntryExpanded: Bool {
+        isRouteSetupPanelPresented ||
+        focusedRouteAddressField == .to ||
+        routeSetupHasSearchActivity ||
+        routeSetupHasLoadedResults
     }
 
-    private var routeSetupScrollMaximumHeight: CGFloat {
+    private var routeSetupPanelMaximumHeight: CGFloat {
         if routeSetupHasLoadedResults {
             return 690
         }
 
         if routeSetupHasSearchActivity {
-            return 530
+            return 470
         }
 
-        return 300
+        return 164
+    }
+
+    private var routeSetupScrollMaximumHeight: CGFloat {
+        if routeSetupHasLoadedResults {
+            return 592
+        }
+
+        if routeSetupHasSearchActivity {
+            return 372
+        }
+
+        return 76
     }
 
     private var shouldShowRouteStartControls: Bool {
@@ -1518,6 +1525,13 @@ public struct RouteComparisonView: View {
                 autocompleteController.updateQuery(fromAddressText, for: .from)
             }
         case .to:
+            if liveDriveScreenState == .setup, !isRouteSetupPanelPresented {
+                withAnimation(.snappy(duration: 0.24, extraBounce: 0)) {
+                    isRouteSetupPanelPresented = true
+                }
+                currentLocationResolver.requestCurrentLocationIfNeeded()
+                refreshPassiveMapLayersIfPossible(force: false)
+            }
             autocompleteController.updateQuery(toAddressText, for: .to)
         }
     }
@@ -1639,7 +1653,7 @@ public struct RouteComparisonView: View {
         ZStack(alignment: .top) {
             mapFirstInactiveLayer
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .ignoresSafeArea(edges: .top)
+                .ignoresSafeArea(.container, edges: [.top, .bottom])
 
             VStack(spacing: 0) {
                 HStack {
@@ -1665,22 +1679,25 @@ public struct RouteComparisonView: View {
 
     @ViewBuilder
     private var mapFirstInactiveLayer: some View {
-        if let route = routeSetupMapRoute {
-            fullRouteMapLayer(route: route)
-        } else {
-            inactiveMapLayer
-        }
+        #if os(iOS)
+        LiveDriveHUDMapView(
+            routes: routeSetupMapRoutes,
+            selectedRouteID: routeSetupMapSelectedRouteID,
+            aircraft: mapAircraftMarkers,
+            enforcementAlerts: mapEnforcementAlertMarkers,
+            weatherCheckpoints: mapWeatherCheckpointMarkers,
+            mapMode: selectedMapMode
+        )
+        #else
+        mapPreview(routeSetupMapRoutes, routeSetupMapSelectedRouteID)
+        #endif
     }
 
     @ViewBuilder
     private var mapFirstBottomPanel: some View {
         switch liveDriveScreenState {
         case .setup:
-            if isRouteSetupPanelPresented {
-                routeSetupMapPanel
-            } else {
-                idleMapBottomPanel
-            }
+            inlineRouteEntryMapPanel
         case .tripComplete:
             tripCompleteMapPanel
         case .driving:
@@ -1688,104 +1705,185 @@ public struct RouteComparisonView: View {
         }
     }
 
-    private var routeSetupMapRoute: RouteEstimate? {
-        guard isRouteSetupPanelPresented else { return nil }
-        return liveDriveSetupRoute
+    private var routeSetupMapRoutes: [RouteEstimate] {
+        guard isInlineRouteEntryExpanded || routeSetupHasLoadedResults else { return [] }
+        return liveDriveSetupRouteOptions
     }
 
-    private var idleMapBottomPanel: some View {
-        mapFirstPanel {
+    private var routeSetupMapSelectedRouteID: UUID? {
+        guard isInlineRouteEntryExpanded || routeSetupHasLoadedResults else { return nil }
+        return liveDriveSetupRoute?.id
+    }
+
+    private var inlineRouteEntryMapPanel: some View {
+        mapFirstPanel(maxHeight: routeSetupPanelMaximumHeight) {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .center, spacing: 12) {
-                    Button {
-                        openRouteSetupPanel(focusDestination: true)
-                    } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: "magnifyingglass")
-                                .font(.headline.weight(.bold))
-                                .foregroundStyle(Palette.success)
-                                .frame(width: 28, height: 28)
-                                .background(setupSelectionFill, in: Circle())
-
-                            Text("Where to?")
-                                .font(.headline.weight(.bold))
-                                .foregroundStyle(setupPrimaryText)
-
-                            Spacer(minLength: 8)
-                        }
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 12)
-                        .frame(maxWidth: .infinity)
-                        .background(setupSurfaceMuted, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                .stroke(setupPanelBorder, lineWidth: 1)
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Where to?")
-
+                    inlineDestinationSearchField
                     mapMenuIconButton
                 }
 
-                Button {
-                    startRouteFreeLogging()
-                } label: {
-                    Label("Log Trip", systemImage: "record.circle")
-                        .font(.headline.weight(.bold))
-                        .foregroundStyle(setupPrimaryText)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(setupSurfaceMuted, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .stroke(setupPanelBorder, lineWidth: 1)
+                if isInlineRouteEntryExpanded {
+                    ScrollView(.vertical, showsIndicators: routeSetupHasSearchActivity || routeSetupHasLoadedResults) {
+                        VStack(alignment: .leading, spacing: 10) {
+                            currentLocationOriginField
+                            routeAutocompleteList(suggestions: toSuggestions, field: .to)
+
+                            if shouldShowRouteStatus {
+                                routeStatusView
+                            }
+
+                            if routeSetupHasLoadedResults, let route = liveDriveSetupRoute {
+                                inlineRouteResultsPanel(route: route)
+                            }
                         }
+                        .padding(.bottom, 2)
+                    }
+                    .frame(maxHeight: routeSetupScrollMaximumHeight)
+                } else {
+                    inlineLogTripButton
                 }
-                .buttonStyle(.plain)
-                .disabled(tracker.permissionState == .denied || tracker.permissionState == .restricted)
-                .opacity((tracker.permissionState == .denied || tracker.permissionState == .restricted) ? 0.55 : 1)
             }
         }
     }
 
-    private var routeSetupMapPanel: some View {
-        mapFirstPanel(maxHeight: routeSetupPanelMaximumHeight) {
-            VStack(alignment: .leading, spacing: 12) {
-                mapPanelGrabber
+    private var inlineDestinationSearchField: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .font(.headline.weight(.bold))
+                .foregroundStyle(Palette.success)
+                .frame(width: 28, height: 28)
+                .background(setupSelectionFill, in: Circle())
 
-                HStack(spacing: 10) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("Choose Route")
-                            .font(.title3.weight(.bold))
-                            .foregroundStyle(setupPrimaryText)
-
-                        Text(routeSetupHasLoadedResults ? "Pick a route and start driving." : "Enter a destination.")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(setupSecondaryText)
-                    }
-
-                    Spacer(minLength: 8)
-
-                    mapMenuIconButton
-
-                    Button("Done") {
-                        closeRouteSetupPanel()
-                    }
-                    .font(.subheadline.weight(.bold))
-                    .foregroundStyle(setupPrimaryText)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 9)
-                    .background(setupSurfaceMuted, in: Capsule())
-                    .buttonStyle(.plain)
-                }
-
-                ScrollView(.vertical, showsIndicators: routeSetupHasSearchActivity || routeSetupHasLoadedResults) {
-                    liveDriveSetupSection
-                        .padding(.bottom, 2)
-                }
-                .frame(maxHeight: routeSetupScrollMaximumHeight)
+            TextField(
+                "",
+                text: $toAddressText,
+                prompt: Text("Where to?")
+                    .foregroundStyle(setupTertiaryText)
+            )
+            .focused($focusedRouteAddressField, equals: .to)
+            .textFieldStyle(.plain)
+            .font(.headline.weight(.bold))
+            .foregroundStyle(setupPrimaryText)
+            .textInputAutocapitalization(.words)
+            .autocorrectionDisabled(true)
+            .submitLabel(.search)
+            .onSubmit {
+                handleAddressFieldSubmit(.to)
             }
+
+            if !toAddressText.isEmpty {
+                Button {
+                    clearDestinationField()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(setupSecondaryText.opacity(0.85))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Clear destination")
+            }
+
+            if isInlineRouteEntryExpanded {
+                Button("Done") {
+                    closeRouteSetupPanel()
+                }
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(setupPrimaryText)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 7)
+                .background(setupSurfaceRaised, in: Capsule())
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity)
+        .background(setupSurfaceMuted, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(routeInputBorder(for: .to), lineWidth: 1)
+        }
+        .accessibilityLabel("Where to?")
+    }
+
+    private var inlineLogTripButton: some View {
+        Button {
+            startRouteFreeLogging()
+        } label: {
+            Label("Log Trip", systemImage: "record.circle")
+                .font(.headline.weight(.bold))
+                .foregroundStyle(setupPrimaryText)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(setupSurfaceMuted, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(setupPanelBorder, lineWidth: 1)
+                }
+        }
+        .buttonStyle(.plain)
+        .disabled(tracker.permissionState == .denied || tracker.permissionState == .restricted)
+        .opacity((tracker.permissionState == .denied || tracker.permissionState == .restricted) ? 0.55 : 1)
+    }
+
+    private func inlineRouteResultsPanel(route: RouteEstimate) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            routeOptionsPanel(routes: liveDriveSetupRouteOptions, selectedRoute: route)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    StatPill(title: "Selected route", value: "\(Self.milesString(route.distanceMiles)) mi", foreground: setupPrimaryText, background: setupSurfaceMuted, compact: true, titleColor: setupSecondaryText, borderColor: setupPanelBorder)
+                    StatPill(title: "Apple ETA", value: Self.durationString(route.expectedTravelMinutes), foreground: setupPrimaryText, background: setupSurfaceMuted, compact: true, titleColor: setupSecondaryText, borderColor: setupPanelBorder)
+                    StatPill(title: "Options", value: "\(liveDriveSetupRouteOptions.count)", foreground: setupPrimaryText, background: setupSurfaceMuted, compact: true, titleColor: setupSecondaryText, borderColor: setupPanelBorder)
+                }
+            }
+
+            liveDriveNavigationProviderSection
+
+            if let liveDriveNavigationHandoffMessage {
+                liveDriveHelperNote(liveDriveNavigationHandoffMessage)
+            }
+
+            if let liveDriveBackgroundContinuityMessage {
+                liveDriveHelperNote(
+                    liveDriveBackgroundContinuityMessage,
+                    showsSettingsAction: liveDriveShowsBackgroundContinuitySettingsAction,
+                    actionTitle: "Always Location"
+                )
+            }
+
+            if let liveDrivePermissionMessage {
+                liveDriveStatusBanner(
+                    title: "Location access needed",
+                    message: liveDrivePermissionMessage,
+                    showsSettingsAction: liveDriveShowsSettingsAction
+                )
+            }
+
+            Button {
+                startLiveDrive()
+            } label: {
+                Label("Start Drive", systemImage: "location.fill")
+                    .font(.headline)
+                    .foregroundStyle(Color.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 13)
+                    .background(Palette.success, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .shadow(color: Palette.success.opacity(0.28), radius: 6, y: 3)
+            }
+            .buttonStyle(.plain)
+            .opacity(isStartLiveDriveDisabled ? 0.55 : 1)
+            .disabled(isStartLiveDriveDisabled)
+
+            liveDriveLegalityNote
+        }
+        .padding(12)
+        .background(setupSurfaceRaised, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(setupPanelBorder, lineWidth: 1)
         }
     }
 
@@ -1926,7 +2024,7 @@ public struct RouteComparisonView: View {
         ZStack(alignment: .top) {
             inactiveMapLayer
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .ignoresSafeArea(edges: .top)
+                .ignoresSafeArea(.container, edges: [.top, .bottom])
 
             VStack(spacing: 0) {
                 freeDriveStatusOverlay
@@ -1960,7 +2058,7 @@ public struct RouteComparisonView: View {
         ZStack(alignment: .top) {
             inactiveMapLayer
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .ignoresSafeArea(edges: .top)
+                .ignoresSafeArea(.container, edges: [.top, .bottom])
 
             VStack(spacing: 0) {
                 HStack {
@@ -2210,7 +2308,7 @@ public struct RouteComparisonView: View {
         ZStack(alignment: .top) {
             fullRouteMapLayer(route: route)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .ignoresSafeArea(edges: .top)
+                .ignoresSafeArea(.container, edges: [.top, .bottom])
 
             VStack(spacing: 0) {
                 fullRouteMapGuidanceOverlay(route: route)

@@ -26,11 +26,12 @@ TimeThrottle now adds in-app guidance and route intelligence on top of the Apple
 
 ## What's New in v2.0
 
-Build 27 polishes TimeThrottle's map-first shell:
+Build 28 polishes TimeThrottle's map-first route entry:
 - the app opens directly to the full-screen map with no former four-tab navigation bar
-- the idle route entry is now a `Where to?` search-style field instead of a large Choose Route button
-- tapping `Where to?` opens route setup and focuses the destination field
-- route setup stays compact when empty and expands for typing, route options, route preview, and Start Drive
+- the idle `Where to?` entry is now the actual destination field
+- autocomplete and route results expand inside the same bottom panel
+- route preview now lives on the full-screen map instead of an embedded thumbnail
+- route options, Navigation App, and Start Drive stay in the continuous bottom panel
 - Trip Complete can be dismissed back to the idle map with Done
 - shared trip images include the TimeThrottle logo-only mark
 - Current Weather is shown by default and can be hidden from Menu
@@ -42,8 +43,9 @@ Use this block for GitHub releases, TestFlight notes, and App Store Connect:
 > **TimeThrottle 2.0**
 >
 > - Opens directly to a full-screen map with no bottom tab bar
-> - Uses a `Where to?` map entry that opens focused route setup
-> - Expands route setup for route options and Start Drive
+> - Uses an inline `Where to?` destination field on the map
+> - Expands autocomplete and route results in the same bottom panel
+> - Shows route preview on the full-screen map behind the controls
 > - Adds route-free Log Trip for destination-free drive tracking
 > - Shows Current Weather by default with a Hide preference
 > - Opens Trip History and Scanner from Menu sheets
@@ -59,7 +61,7 @@ It supports:
 - Apple Maps route lookup and ETA baseline
 - Current Location as the default start
 - Apple Maps-style address autocomplete
-- route options and route preview
+- route options and full-screen map route preview
 - map-first route setup in a bottom panel
 - live GPS tracking
 - pause, resume, and end trip controls
