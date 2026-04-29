@@ -5,6 +5,9 @@ import TimeThrottleCore
 
 struct ScannerTabView: View {
     @ObservedObject var viewModel: ScannerViewModel
+    var showsCloseButton = true
+
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
@@ -24,6 +27,15 @@ struct ScannerTabView: View {
             }
             .navigationTitle("Scanner")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                if showsCloseButton {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("Done") {
+                            dismiss()
+                        }
+                    }
+                }
+            }
         }
         .task {
             await viewModel.loadSystemsIfNeeded()

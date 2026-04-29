@@ -26,22 +26,21 @@ TimeThrottle now adds in-app guidance and route intelligence on top of the Apple
 
 ## What's New in v2.0
 
-Build 25 adds Cannonball-style Menu and route-free Log Trips cleanup:
-- Menu replaces Map Options while keeping route weather, alerts, audio, display, pace, Trip History, and Scanner routing available
-- Log Trips lets the Map tab track and save a Free Drive without a destination or Apple Maps ETA comparison
-- Map follow now uses heading-up behavior, with manual pan exit and recenter restore
-- ADS-B aircraft voice cues use shorter copy while on-screen disclaimers remain unchanged
-- Simulator packaging defaults to the direct simulator-build path; use `TIMETHROTTLE_FORCE_XCODEBUILD=1 ./dist-ios` only to force the old xcodebuild-first path
+Build 26 moves TimeThrottle to a map-first shell:
+- the app opens directly to the full-screen map with no former four-tab navigation bar
+- route setup now lives in an Apple Maps-style bottom panel over the map
+- idle map actions are Choose Route, Log Trip, and Menu
+- Trip History and Scanner open from Menu sheets while Scanner stays independent from Live Drive
+- the TimeThrottle logo now belongs to the iOS launch screen instead of the in-app first screen
 
 Use this block for GitHub releases, TestFlight notes, and App Store Connect:
 
 > **TimeThrottle 2.0**
 >
-> - Keeps Drive / Map / Trips / Scanner navigation with Scanner independent from Live Drive
-> - Adds a cleaner Menu sheet for map, alerts, audio, display, trip data, and settings
-> - Adds route-free Log Trips for destination-free drive tracking
-> - Updates Map follow to heading-up behavior
-> - Shortens ADS-B aircraft spoken cues while keeping aircraft disclaimers on screen
+> - Opens directly to a full-screen map with no bottom tab bar
+> - Moves route setup into an Apple Maps-style bottom panel
+> - Adds route-free Log Trip for destination-free drive tracking
+> - Opens Trip History and Scanner from Menu sheets
 > - Keeps Scanner independent and preserves Apple Maps ETA baseline mode
 
 ## Core Product
@@ -55,9 +54,10 @@ It supports:
 - Current Location as the default start
 - Apple Maps-style address autocomplete
 - route options and route preview
+- map-first route setup in a bottom panel
 - live GPS tracking
 - pause, resume, and end trip controls
-- a map-first active driving HUD in the Map tab
+- a map-first active driving HUD
 - in-app guidance based on Apple Maps route steps
 - route weather checkpoints expected around arrival time
 - OpenStreetMap speed limit estimates where available
@@ -67,11 +67,11 @@ It supports:
 - Trip History for completed drives
 - shareable finished-trip summaries
 - optional navigation handoff to Apple Maps, Google Maps, or Waze
-- bottom navigation for Drive, Map, Trips, and Scanner
+- Menu access to Trip History, Scanner, route intelligence, display, and audio settings
 
 ### Scanner
 
-Scanner is separate from Live Drive.
+Scanner is separate from Live Drive and opens from Menu.
 
 It supports:
 - public scanner listening
@@ -85,9 +85,9 @@ It supports:
 
 Scanner uses an OpenMHz-style API client with a configurable base URL for Latest Calls and a bundled approved-direct-stream config for optional Live Feed playback. It can point to a hosted OpenMHz endpoint, a self-hosted OpenMHz endpoint, or a compatible backend later. Scanner is listening only: TimeThrottle does not scrape Broadcastify, does not record scanner audio, does not upload scanner feeds, and does not use scanner audio for Live Drive, route warnings, incident prediction, or driving recommendations.
 
-### Map Tab Driving HUD
+### Map-First Driving HUD
 
-The Map tab is the primary active driving view built from real TimeThrottle trip state.
+The map-first shell is the primary driving view built from real TimeThrottle trip state.
 
 It shows:
 - a full-width live map with route polyline, current location, route weather checkpoint markers, aircraft markers, enforcement alert markers when available, and recenter control
@@ -101,10 +101,10 @@ It shows:
 - Arrive as projected arrival in the destination's local time when available
 - remaining route distance
 - distance driven
-- Pause / Resume and End Trip controls without opening Options
-- Options for route intelligence details
+- Pause / Resume and End Trip controls without opening Menu
+- Menu access for route intelligence details
 
-The Map Options sheet holds:
+The Menu sheet holds:
 - route weather status and forecast checkpoints
 - optional Nearby Low Aircraft status, details, and audio cue control
 - optional passive Enforcement Alerts, red-light camera filtering, enforcement-report filtering, and camera audio cue control when configured
@@ -191,8 +191,8 @@ For the full policy, see [privacy-policy.md](privacy-policy.md).
 - `LiveDriveHUDView.swift` — legacy compact driving-view component retained internally while Map is the primary driving HUD
 - `LiveDriveHUDMapView_iOS.swift` — Map follow, route polyline, route weather checkpoint markers, user location, aircraft markers, enforcement alert markers, and recenter behavior
 - `NavigationHandoffService.swift` — Apple Maps / Google Maps / Waze handoff behavior
-- `ScannerViewModel.swift` — Scanner tab systems, Nearby/Browse, selected system, Live Feed availability, latest calls, and player state
-- `ScannerTabView.swift` — Scanner tab UI, system lists, selected-system Live Feed card, latest calls, and player controls
+- `ScannerViewModel.swift` — Scanner systems, Nearby/Browse, selected system, Live Feed availability, latest calls, and player state
+- `ScannerTabView.swift` — Scanner sheet UI, system lists, selected-system Live Feed card, latest calls, and player controls
 
 ## Repository Layout
 

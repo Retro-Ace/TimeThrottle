@@ -4,11 +4,22 @@ All notable release-facing changes to **TimeThrottle** should be documented in t
 
 ## v2.0 - April 26, 2026
 
-### Build 25 Cannonball-Style Menu and Route-Free Log Trips Cleanup
+### Build 26 Map-First Shell and No Bottom Tabs
+
+- Keeps marketing version at 2.0 and bumps the build to 26.
+- Replaces the former four-tab shell with one full-screen map-first root surface.
+- Moves route setup into an Apple Maps-style bottom panel with Current Location, destination autocomplete, route options, route preview, navigation app selection, and Start Drive still intact.
+- Adds idle map quick actions for Choose Route, Log Trip, and Menu.
+- Keeps active drive map-first with guidance, route polyline, weather checkpoints, aircraft markers, camera/enforcement markers, Pause / Resume, End Trip, and a compact non-wrapping Menu control.
+- Moves Trip History and Scanner into Menu-presented sheets while keeping Scanner listening-only and independent from Live Drive.
+- Moves the TimeThrottle logo to the real iOS launch screen instead of the in-app first screen.
+- Updates docs for the map-first shell without changing privacy, scanner/audio behavior, location use, or external services.
+
+### Build 25 Cannonball-Style Menu and Route-Free Log Trip Cleanup
 
 - Keeps marketing version at 2.0 and bumps the build to 25.
 - Replaces Map Options with a cleaner Menu sheet while keeping route weather, camera/enforcement reports, ADS-B, audio, map mode, pace, Trip History, and Scanner routing available.
-- Adds route-free Log Trips from the Map dock so a drive can be tracked and saved without choosing a destination or inventing an Apple Maps ETA comparison.
+- Adds route-free Log Trip from the Map dock so a drive can be tracked and saved without choosing a destination or inventing an Apple Maps ETA comparison.
 - Updates the Map follow behavior to heading-up follow with manual pan exit and recenter returning to heading follow.
 - Shortens the ADS-B spoken cue to `Low aircraft nearby...` and removes the spoken `informational only` tail while keeping on-screen disclaimers.
 - Documents the direct simulator-build fallback workflow so agents do not wait for repeated local `xcodebuild` clang-discovery timeouts.
@@ -25,8 +36,8 @@ All notable release-facing changes to **TimeThrottle** should be documented in t
 ### Build 23 Map Always-On and Route-Intelligence Cleanup
 
 - Keeps marketing version at 2.0 and bumps the build to 23.
-- Keeps the Map tab available without an active route, with a clean inactive map state and passive nearby layers when location and data are available.
-- Clears the active route, guidance, ETA values, and trip controls after End Trip while keeping the Map tab usable.
+- Keeps the map available without an active route, with a clean inactive state and passive nearby layers when location and data are available.
+- Clears the active route, guidance, ETA values, and trip controls after End Trip while keeping the map usable.
 - Raises the visible Enforcement Alerts cap to 50, keeps the 3.5-mile route-active distance cap, and uses a 50-alert nearby fallback within 3.0 miles when no route is active.
 - Refreshes Enforcement Alerts conservatively by route context, elapsed time, and meaningful movement while keeping raw provider results out of rendered map/list UI.
 - Removes the detailed Enforcement Alerts list from Map Options so the map markers carry the visual workload.
@@ -78,15 +89,15 @@ Use this block for GitHub releases, TestFlight notes, or App Store Connect:
 
 > **TimeThrottle 2.0**
 >
-> - Adds a cleaner Menu sheet for Map, alerts, audio, display, trip data, and settings
-> - Adds route-free Log Trips for destination-free drive tracking
-> - Updates the Map to heading-follow behavior with recenter restore
-> - Shortens the ADS-B aircraft spoken cue while keeping disclaimers on screen
+> - Opens directly to a full-screen map with no bottom tab bar
+> - Moves route setup into an Apple Maps-style bottom panel
+> - Adds route-free Log Trip for destination-free drive tracking
+> - Opens Trip History and Scanner from Menu sheets
 > - Keeps Scanner independent and preserves Apple Maps ETA baseline mode
 
 ### Release Notes
 
-- Bottom navigation is now Drive / Map / Trips / Scanner.
+- The app now uses one map-first shell instead of bottom tabs.
 - Scanner is independent from Live Drive and does not affect driving calculations, route intelligence, or trip results.
 - Scanner supports public scanner systems, optional configured Live Feed playback, latest calls, simple play / pause / next-call controls, and graceful unavailable states.
 - Camera/enforcement and aircraft layers remain passive and informational; coverage varies by source and region.
@@ -97,7 +108,7 @@ Use this block for GitHub releases, TestFlight notes, or App Store Connect:
 
 ### Release Positioning
 
-TimeThrottle 2.0 adds public scanner listening as a separate informational tab while preserving the Map-first Live Drive product model. Apple Maps remains the route lookup and ETA-baseline layer, and Scanner remains a listening-only feature outside Live Drive.
+TimeThrottle 2.0 uses a map-first Live Drive product model with public scanner listening available from Menu. Apple Maps remains the route lookup and ETA-baseline layer, and Scanner remains a listening-only feature outside Live Drive.
 
 ## v1.5.9 - April 26, 2026
 
@@ -154,7 +165,7 @@ Use this block for GitHub releases, TestFlight notes, or App Store Connect:
 
 > **TimeThrottle 1.5.7**
 >
-> - Adds an always-visible floating Recenter control on the Map tab
+> - Adds an always-visible floating Recenter control on the map
 > - Adds a compact floating weather chip below the route guidance card for quick-glance route conditions
 
 ### Release Notes
@@ -165,7 +176,7 @@ Use this block for GitHub releases, TestFlight notes, or App Store Connect:
 
 ### Release Positioning
 
-TimeThrottle 1.5.7 is a focused Map polish release. It keeps Drive / Map / Trips intact while making the active Map driving HUD easier to recenter and quicker to scan for weather.
+TimeThrottle 1.5.7 is a focused Map polish release. It keeps the core drive, map, and trip-history flows intact while making the active driving HUD easier to recenter and quicker to scan for weather.
 
 ## v1.5.6 - April 26, 2026
 
@@ -176,7 +187,7 @@ Use this block for GitHub releases, TestFlight notes, or App Store Connect:
 > **TimeThrottle 1.5.6**
 >
 > - Simplifies bottom navigation to Drive / Map / Trips
-> - Makes the Map tab the primary active driving HUD with direct Pause / Resume and End Trip controls
+> - Makes the map the primary active driving HUD with direct Pause / Resume and End Trip controls
 > - Keeps route intelligence details in Map Options for weather, aircraft, enforcement alerts, voice, speed limit, pace, map mode, average speed, and top speed
 > - Cleans up Trips rows and Trip Detail around speed-limit-based results, distance, average speed, and top speed
 
@@ -223,8 +234,8 @@ Use this block for GitHub releases, TestFlight notes, or App Store Connect:
 
 > **TimeThrottle 1.5.4**
 >
-> - Polishes Map tab layout so the map fills the available lower screen area more cleanly
-> - Adds a Map tab Options panel for route forecast, Nearby Low Aircraft, voice guidance, speed-limit, and pace details
+> - Polishes map layout so the map fills the available lower screen area more cleanly
+> - Adds a Map Options panel for route forecast, Nearby Low Aircraft, voice guidance, speed-limit, and pace details
 > - Refreshes optional OpenSky Nearby Low Aircraft data on a conservative interval and removes stale markers
 > - Fixes voice picker scrolling by moving selection into a dedicated sheet
 > - Persists selected local iOS voice, mute state, and speech speed across launches
