@@ -83,9 +83,9 @@ Scope: Plain-English explanation of repo-specific working rules and workflow for
 
 ## Current Maintenance And Release Workflow Supported By Files
 
-- The current docs consistently reference release `v1.4.3` and build `7`.
-- `CHANGELOG.md` provides release-facing notes for `v1.4.3` and `v1.4.2`.
-- `README.md` includes a reusable `What's New in v1.4.3` block for GitHub releases, TestFlight notes, and App Store Connect.
+- The current docs reference release `v2.0` and build `25`.
+- `CHANGELOG.md` provides release-facing notes for current and prior TimeThrottle releases.
+- `README.md` includes a reusable `What's New in v2.0` block for GitHub releases, TestFlight notes, and App Store Connect.
 - `TimeThrottle.xcodeproj/project.pbxproj` stores the active app version/build values.
 - `scripts/build_ios_sim.sh` creates a simulator app in `dist/iOSSimulator/TimeThrottle.app`.
 - `build/export-appstore/TimeThrottle.ipa` and related export files show that the repo has been used for archive/export output as well.
