@@ -19,6 +19,7 @@ public struct CompletedTripRecord: Identifiable, Codable, Equatable, Sendable {
     public var netTimeGain: Double
     public var speedLimitMeasuredMinutes: Double
     public var speedLimitUnavailableMinutes: Double
+    public var trackedPathCoordinates: [GuidanceCoordinate]
 
     public var speedLimitCoverageRatio: Double? {
         let total = speedLimitMeasuredMinutes + speedLimitUnavailableMinutes
@@ -47,7 +48,8 @@ public struct CompletedTripRecord: Identifiable, Codable, Equatable, Sendable {
         timeLostBelowTargetPace: Double,
         netTimeGain: Double,
         speedLimitMeasuredMinutes: Double = 0,
-        speedLimitUnavailableMinutes: Double = 0
+        speedLimitUnavailableMinutes: Double = 0,
+        trackedPathCoordinates: [GuidanceCoordinate] = []
     ) {
         self.id = id
         self.completedAt = completedAt
@@ -66,6 +68,7 @@ public struct CompletedTripRecord: Identifiable, Codable, Equatable, Sendable {
         self.netTimeGain = netTimeGain
         self.speedLimitMeasuredMinutes = speedLimitMeasuredMinutes
         self.speedLimitUnavailableMinutes = speedLimitUnavailableMinutes
+        self.trackedPathCoordinates = trackedPathCoordinates
     }
 
     public var displayRouteTitle: String {
@@ -90,6 +93,7 @@ public struct CompletedTripRecord: Identifiable, Codable, Equatable, Sendable {
         case netTimeGain
         case speedLimitMeasuredMinutes
         case speedLimitUnavailableMinutes
+        case trackedPathCoordinates
     }
 
     public init(from decoder: Decoder) throws {
@@ -111,6 +115,7 @@ public struct CompletedTripRecord: Identifiable, Codable, Equatable, Sendable {
         netTimeGain = try container.decode(Double.self, forKey: .netTimeGain)
         speedLimitMeasuredMinutes = try container.decodeIfPresent(Double.self, forKey: .speedLimitMeasuredMinutes) ?? 0
         speedLimitUnavailableMinutes = try container.decodeIfPresent(Double.self, forKey: .speedLimitUnavailableMinutes) ?? 0
+        trackedPathCoordinates = try container.decodeIfPresent([GuidanceCoordinate].self, forKey: .trackedPathCoordinates) ?? []
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -134,6 +139,9 @@ public struct CompletedTripRecord: Identifiable, Codable, Equatable, Sendable {
         try container.encode(netTimeGain, forKey: .netTimeGain)
         try container.encode(speedLimitMeasuredMinutes, forKey: .speedLimitMeasuredMinutes)
         try container.encode(speedLimitUnavailableMinutes, forKey: .speedLimitUnavailableMinutes)
+        if !trackedPathCoordinates.isEmpty {
+            try container.encode(trackedPathCoordinates, forKey: .trackedPathCoordinates)
+        }
     }
 }
 

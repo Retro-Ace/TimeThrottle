@@ -30,10 +30,15 @@ Build 28 polishes TimeThrottle's map-first route entry:
 - the app opens directly to the full-screen map with no former four-tab navigation bar
 - the idle `Where to?` entry is now the actual destination field
 - autocomplete and route results expand inside the same bottom panel
+- bottom panels are anchored to the bottom edge in an Apple Maps-style sheet
 - route preview now lives on the full-screen map instead of an embedded thumbnail
 - route options, Navigation App, and Start Drive stay in the continuous bottom panel
 - Trip Complete can be dismissed back to the idle map with Done
-- shared trip images include the TimeThrottle logo-only mark
+- the expanded destination field has a Done control so users can return to Log Trip when no route is selected
+- live projected pace waits until the drive is moving faster than 7 mph before collecting pace
+- Trip History can show a compact tracked map for trips with saved sampled coordinates
+- shared trip images include the full TimeThrottle logo at the top
+- the simulator/app icon uses the red TimeThrottle gauge artwork
 - Current Weather is shown by default and can be hidden from Menu
 - Trip History and Scanner open from Menu sheets while Scanner stays independent from Live Drive
 - the TimeThrottle logo now belongs to the iOS launch screen instead of the in-app first screen
@@ -47,6 +52,8 @@ Use this block for GitHub releases, TestFlight notes, and App Store Connect:
 > - Expands autocomplete and route results in the same bottom panel
 > - Shows route preview on the full-screen map behind the controls
 > - Adds route-free Log Trip for destination-free drive tracking
+> - Shows compact tracked maps in Trip History when sampled track data is available
+> - Shares trip results with TimeThrottle branding
 > - Shows Current Weather by default with a Hide preference
 > - Opens Trip History and Scanner from Menu sheets
 > - Keeps Scanner independent and preserves Apple Maps ETA baseline mode
@@ -73,6 +80,7 @@ It supports:
 - optional passive enforcement alerts when a configured source is available
 - optional spoken camera-report and nearby-low-aircraft cues that respect global voice mute
 - Trip History for completed drives
+- compact tracked maps for completed drives when sampled track points are available
 - shareable finished-trip summaries
 - optional navigation handoff to Apple Maps, Google Maps, or Waze
 - Menu access to Trip History, Scanner, route intelligence, display, and audio settings

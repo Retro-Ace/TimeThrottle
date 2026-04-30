@@ -105,6 +105,7 @@ public final class LiveDriveTracker: NSObject, ObservableObject {
     @Published public private(set) var didFinishTrip = false
     @Published public private(set) var permissionState: LiveDrivePermissionState
     @Published public private(set) var currentCoordinate: GuidanceCoordinate?
+    @Published public private(set) var trackedPathCoordinates: [GuidanceCoordinate] = []
 
     public var configuration: LiveDriveConfiguration {
         didSet {
@@ -123,6 +124,10 @@ public final class LiveDriveTracker: NSObject, ObservableObject {
     private var accumulatedActiveDuration: TimeInterval = 0
     private var currentActiveIntervalStartedAt: Date?
     private var elapsedTimer: Timer?
+    private var hasReachedProjectedPaceSpeed = false
+
+    private static let projectedPaceStartSpeedMPH: Double = 7
+    private static let maximumTrackedPathCoordinateCount = 700
 
     public init(configuration: LiveDriveConfiguration = LiveDriveConfiguration()) {
         self.configuration = configuration
@@ -228,8 +233,10 @@ public final class LiveDriveTracker: NSObject, ObservableObject {
         analysisState = TripAnalysisState()
         lastAcceptedLocation = nil
         currentCoordinate = nil
+        trackedPathCoordinates = []
         lastAcceptedSampleTimestamp = nil
         lastSummaryComputation = nil
+        hasReachedProjectedPaceSpeed = false
         acceptedLocationCount = 0
         accumulatedActiveDuration = 0
         currentActiveIntervalStartedAt = nil
@@ -359,8 +366,15 @@ public final class LiveDriveTracker: NSObject, ObservableObject {
 
         let speedMilesPerHour = resolvedSpeedMilesPerHour(for: location)
         let previousLocation = lastAcceptedLocation
+        let hadReachedProjectedPaceSpeed = hasReachedProjectedPaceSpeed
+        let shouldIncludePaceSegment = configuration.baselineRouteDistanceMiles <= 0 ||
+            hadReachedProjectedPaceSpeed
 
-        if let previousLocation {
+        if speedMilesPerHour > Self.projectedPaceStartSpeedMPH {
+            hasReachedProjectedPaceSpeed = true
+        }
+
+        if let previousLocation, shouldIncludePaceSegment {
             let elapsedMinutes = max(location.timestamp.timeIntervalSince(previousLocation.timestamp) / 60, 0)
             let distanceIncrementMiles = max(previousLocation.distance(from: location) / 1_609.344, 0)
 
@@ -386,14 +400,28 @@ public final class LiveDriveTracker: NSObject, ObservableObject {
         }
         updateTripDuration(now: location.timestamp)
         lastAcceptedLocation = location
-        currentCoordinate = GuidanceCoordinate(
+        let acceptedCoordinate = GuidanceCoordinate(
             latitude: location.coordinate.latitude,
             longitude: location.coordinate.longitude
         )
+        currentCoordinate = acceptedCoordinate
+        appendTrackedPathCoordinate(acceptedCoordinate)
         lastAcceptedSampleTimestamp = location.timestamp
         acceptedLocationCount += 1
 
         recomputeSummary(force: false)
+    }
+
+    private func appendTrackedPathCoordinate(_ coordinate: GuidanceCoordinate) {
+        if let lastCoordinate = trackedPathCoordinates.last,
+           lastCoordinate.location.distance(from: coordinate.location) < 6 {
+            return
+        }
+
+        trackedPathCoordinates.append(coordinate)
+        if trackedPathCoordinates.count > Self.maximumTrackedPathCoordinateCount {
+            trackedPathCoordinates.removeFirst(trackedPathCoordinates.count - Self.maximumTrackedPathCoordinateCount)
+        }
     }
 
     private func resolvedSpeedMilesPerHour(for location: CLLocation) -> Double {

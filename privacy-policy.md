@@ -1,8 +1,8 @@
 # Privacy Policy for TimeThrottle
 
-**Effective date:** April 27, 2026
+**Effective date:** April 30, 2026
 
-TimeThrottle is an iPhone Live Drive pace-analysis app with a separate Scanner tab for informational public scanner listening. It uses Apple Maps route planning as the route and ETA baseline layer and, when enabled by the user, iPhone location services for live trip tracking, guidance based on route steps, route intelligence features, and nearby scanner discovery.
+TimeThrottle is an iPhone Live Drive pace-analysis app with Scanner available from Menu for informational public scanner listening. It uses Apple Maps route planning as the route and ETA baseline layer and, when enabled by the user, iPhone location services for live trip tracking, guidance based on route steps, route intelligence features, and nearby scanner discovery.
 
 This policy describes what the current app build uses, how that information is used, and what choices users have.
 
@@ -22,7 +22,8 @@ Location is used to:
 - check OpenStreetMap speed-limit estimates near the current road
 - check nearby low aircraft when the optional aircraft layer is enabled
 - check optional camera/enforcement reports near the current location when Enforcement Alerts are enabled and a source is configured; fresh installs enable this passive layer by default, and you can turn it off
-- keep the Map tab centered on the current drive when follow mode is active
+- keep the map centered on the current drive when follow mode is active
+- save a sampled track path with completed trips so Trip History can show a compact map
 - find nearby public scanner systems when you use Scanner Nearby
 
 If you choose external navigation handoff during Live Drive, the app may request **Always Location** so tracking can continue while Apple Maps, Google Maps, or Waze is open.
@@ -50,7 +51,7 @@ This currently includes:
 - your selected local iOS guidance voice, mute state, and speech speed
 - your selected map mode
 - whether optional aircraft and Enforcement Alerts layers are shown
-- completed Live Drive trip history
+- completed Live Drive trip history, including sampled track coordinates for trips completed after this feature is enabled
 
 These local records support handoff selection, local voice guidance preferences, scanner system location caching for Nearby, and Trip History review after a Live Drive ends.
 
@@ -96,7 +97,7 @@ Enforcement Alerts are enabled by default on fresh installs and can be turned of
 
 ### Public Scanner Feed Providers
 
-The Scanner tab may request public scanner system lists, latest call metadata, talkgroup metadata, and scanner audio URLs from a configured OpenMHz-style or compatible public scanner feed provider. Scanner may also play a configured direct Live Feed stream when a permitted public or third-party stream URL is bundled for a selected scanner system. Scanner is listening only and independent from Live Drive.
+The Scanner feature may request public scanner system lists, latest call metadata, talkgroup metadata, and scanner audio URLs from a configured OpenMHz-style or compatible public scanner feed provider. Scanner may also play a configured direct Live Feed stream when a permitted public or third-party stream URL is bundled for a selected scanner system. Scanner is listening only and independent from Live Drive.
 
 Scanner audio comes from configured third-party or public scanner feed providers. TimeThrottle does not scrape Broadcastify, does not record scanner audio, does not save scanner audio files locally except for normal system playback caching that iOS may perform, does not upload scanner feeds, and does not support user-uploaded scanner feeds. TimeThrottle does not use scanner audio for Live Drive, route warnings, route intelligence, incident prediction, or driving recommendations. Coverage, freshness, metadata, live stream availability, and audio availability vary by provider and system. Scanner playback can continue in the background if the user starts audio.
 
@@ -138,7 +139,7 @@ The verified on-device data currently stored by the app includes:
 - selected Standard / Satellite map mode
 - optional aircraft and Enforcement Alerts visibility choices
 - cached approximate scanner system locations used for Scanner Nearby
-- completed Live Drive trip history
+- completed Live Drive trip history, including sampled track coordinates for trips completed after this feature is enabled
 
 Route calculations and Live Drive comparisons are otherwise performed in the app during normal use.
 

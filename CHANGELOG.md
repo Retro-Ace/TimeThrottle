@@ -12,6 +12,18 @@ All notable release-facing changes to **TimeThrottle** should be documented in t
 - Moves route preview to the full-screen map behind the panel and removes the embedded route-preview thumbnail from the route-entry panel.
 - Preserves Log Trip, Menu, Scanner, Trip History, routed Live Drive, Apple Maps ETA baseline, weather, aircraft, camera/enforcement, audio, and navigation handoff behavior.
 
+### Build 28 Follow-Up Map and Sharing Polish
+
+- Keeps marketing version at 2.0 and keeps the build at 28 for this follow-up polish pass.
+- Converts the map-first collapsed, route-results, and trip-complete panels into bottom-edge Apple Maps-style sheets.
+- Adds a Done control to the expanded inline route-entry field so users can return to the idle map with Log Trip when no destination or route result is active.
+- Delays first live projected pace collection until the drive is moving faster than 7 mph to avoid parked or startup noise in the pace comparison.
+- Saves sampled completed-trip track coordinates on device and shows a compact tracked map in Trip Detail when track points are available.
+- Tightens route-results and Trip Complete spacing so route options, Start Drive, Share Trip Result, Trip History, and New Trip fit more naturally.
+- Uses the full TimeThrottle logo in generated shared trip result cards.
+- Updates the app icon set to the red TimeThrottle gauge artwork and ensures the direct simulator dist includes app icon metadata plus opaque icon fallback files.
+- Updates privacy wording for on-device sampled track coordinates without changing scanner/audio provider behavior or external services.
+
 ### Build 27 Apple Maps-Style Entry Polish
 
 - Keeps marketing version at 2.0 and bumps the build to 27.
@@ -112,6 +124,8 @@ Use this block for GitHub releases, TestFlight notes, or App Store Connect:
 > - Expands autocomplete and route results in the same bottom panel
 > - Shows route preview on the full-screen map behind the controls
 > - Adds route-free Log Trip for destination-free drive tracking
+> - Shows compact tracked maps in Trip History when sampled track data is available
+> - Shares trip results with TimeThrottle branding
 > - Shows Current Weather by default with a Hide preference
 > - Opens Trip History and Scanner from Menu sheets
 > - Keeps Scanner independent and preserves Apple Maps ETA baseline mode
@@ -122,7 +136,8 @@ Use this block for GitHub releases, TestFlight notes, or App Store Connect:
 - Autocomplete and route results expand in the same bottom panel so route options and Start Drive are easier to reach.
 - Route preview appears on the full-screen map instead of an embedded route thumbnail.
 - Trip Complete can dismiss back to the idle map with Done while saved trips remain in Trip History.
-- Shared trip images include the TimeThrottle logo-only mark.
+- Trip Detail can show a compact tracked map for completed trips with sampled track coordinates.
+- Shared trip images include TimeThrottle branding.
 - Current Weather shows by default and can be hidden from Menu.
 - Scanner is independent from Live Drive and does not affect driving calculations, route intelligence, or trip results.
 - Scanner supports public scanner systems, optional configured Live Feed playback, latest calls, simple play / pause / next-call controls, and graceful unavailable states.

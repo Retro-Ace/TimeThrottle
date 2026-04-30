@@ -49,6 +49,9 @@ compile_launch_screen() {
 }
 
 compile_asset_catalog() {
+    local partial_info_plist="$IOS_DIST_DIR/assetcatalog-partial-info.plist"
+
+    rm -f "$partial_info_plist"
     xcrun actool \
         "$ROOT_DIR/Assets.xcassets" \
         --compile "$APP_BUNDLE" \
@@ -56,7 +59,18 @@ compile_asset_catalog() {
         --minimum-deployment-target 17.0 \
         --target-device iphone \
         --app-icon AppIcon \
+        --output-partial-info-plist "$partial_info_plist" \
         >/dev/null
+
+    if [[ -f "$partial_info_plist" ]]; then
+        /usr/libexec/PlistBuddy -c "Merge $partial_info_plist" "$APP_BUNDLE/Info.plist" >/dev/null
+    fi
+}
+
+copy_app_icon_fallback() {
+    cp "$ROOT_DIR/Assets.xcassets/AppIcon.appiconset/AppIcon-60@2x.png" "$APP_BUNDLE/AppIcon60x60@2x.png"
+    cp "$ROOT_DIR/Assets.xcassets/AppIcon.appiconset/AppIcon-60@3x.png" "$APP_BUNDLE/AppIcon60x60@3x.png"
+    plutil -replace CFBundleIcons -json '{"CFBundlePrimaryIcon":{"CFBundleIconFiles":["AppIcon60x60"],"CFBundleIconName":"AppIcon"}}' "$APP_BUNDLE/Info.plist"
 }
 
 build_with_xcodebuild() {
@@ -108,6 +122,7 @@ build_with_swiftc_fallback() {
     copy_bundle_metadata
     compile_launch_screen
     compile_asset_catalog || true
+    copy_app_icon_fallback
     if [[ -d "$ROOT_DIR/Resources/TimeThrottleLogo" ]]; then
         mkdir -p "$APP_BUNDLE/TimeThrottleLogo"
         cp "$ROOT_DIR/Resources/TimeThrottleLogo/"*.png "$APP_BUNDLE/TimeThrottleLogo/"

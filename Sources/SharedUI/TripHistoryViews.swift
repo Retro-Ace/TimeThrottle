@@ -1,4 +1,7 @@
 import SwiftUI
+#if os(iOS)
+import MapKit
+#endif
 
 private let tripHistoryBackgroundTop = Color(red: 0.05, green: 0.07, blue: 0.11)
 private let tripHistoryBackgroundBottom = Color(red: 0.09, green: 0.12, blue: 0.18)
@@ -158,20 +161,21 @@ private struct TripHistoryDetailView: View {
                                     .resizable()
                                     .interpolation(.high)
                                     .scaledToFit()
-                                    .frame(width: 70, height: 70)
+                                    .frame(width: 50, height: 50)
                             } else {
                                 Image(systemName: "gauge.with.needle")
-                                    .font(.system(size: 34, weight: .semibold))
+                                    .font(.system(size: 28, weight: .semibold))
                                     .foregroundStyle(Palette.success)
                             }
 
                             VStack(alignment: .leading, spacing: 6) {
                                 Text(trip.displayRouteTitle)
-                                    .font(.title3.weight(.bold))
+                                    .font(.headline.weight(.bold))
                                     .foregroundStyle(tripHistoryPrimaryText)
+                                    .lineLimit(2)
 
                                 Text(trip.routeLabel)
-                                    .font(.subheadline.weight(.medium))
+                                    .font(.footnote.weight(.medium))
                                     .foregroundStyle(tripHistorySecondaryText)
 
                                 Text(trip.completedAt.formatted(date: .abbreviated, time: .shortened))
@@ -179,6 +183,18 @@ private struct TripHistoryDetailView: View {
                                     .foregroundStyle(tripHistorySecondaryText)
                             }
                         }
+
+                        #if os(iOS)
+                        if trip.trackedPathCoordinates.count >= 2 {
+                            TripHistoryTrackMapView(coordinates: trip.trackedPathCoordinates)
+                                .frame(height: 170)
+                                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                        .stroke(tripHistoryBorder, lineWidth: 1)
+                                }
+                        }
+                        #endif
 
                         LazyVGrid(
                             columns: [
@@ -230,6 +246,106 @@ private struct TripHistoryDetailView: View {
     }
 
 }
+
+#if os(iOS)
+private struct TripHistoryTrackMapView: UIViewRepresentable {
+    let coordinates: [GuidanceCoordinate]
+
+    func makeUIView(context: Context) -> MKMapView {
+        let mapView = MKMapView()
+        mapView.delegate = context.coordinator
+        mapView.mapType = .mutedStandard
+        mapView.showsCompass = false
+        mapView.showsScale = false
+        mapView.isScrollEnabled = false
+        mapView.isZoomEnabled = false
+        mapView.isPitchEnabled = false
+        mapView.isRotateEnabled = false
+        mapView.pointOfInterestFilter = .excludingAll
+        return mapView
+    }
+
+    func updateUIView(_ mapView: MKMapView, context: Context) {
+        context.coordinator.parent = self
+        context.coordinator.render(on: mapView)
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(parent: self)
+    }
+
+    final class Coordinator: NSObject, MKMapViewDelegate {
+        var parent: TripHistoryTrackMapView
+        private var renderedSignature = ""
+
+        init(parent: TripHistoryTrackMapView) {
+            self.parent = parent
+        }
+
+        func render(on mapView: MKMapView) {
+            let signature = parent.coordinates
+                .map { "\(String(format: "%.5f", $0.latitude)),\(String(format: "%.5f", $0.longitude))" }
+                .joined(separator: "|")
+            guard signature != renderedSignature else { return }
+            renderedSignature = signature
+
+            mapView.removeOverlays(mapView.overlays)
+            mapView.removeAnnotations(mapView.annotations)
+
+            let mapCoordinates = parent.coordinates.map(\.clLocationCoordinate)
+            guard mapCoordinates.count >= 2 else { return }
+
+            let polyline = MKPolyline(coordinates: mapCoordinates, count: mapCoordinates.count)
+            mapView.addOverlay(polyline)
+
+            if let start = mapCoordinates.first {
+                let annotation = MKPointAnnotation()
+                annotation.coordinate = start
+                annotation.title = "Start"
+                mapView.addAnnotation(annotation)
+            }
+
+            if let end = mapCoordinates.last {
+                let annotation = MKPointAnnotation()
+                annotation.coordinate = end
+                annotation.title = "End"
+                mapView.addAnnotation(annotation)
+            }
+
+            mapView.setVisibleMapRect(
+                polyline.boundingMapRect,
+                edgePadding: UIEdgeInsets(top: 26, left: 24, bottom: 26, right: 24),
+                animated: false
+            )
+        }
+
+        func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
+            guard let polyline = overlay as? MKPolyline else {
+                return MKOverlayRenderer(overlay: overlay)
+            }
+
+            let renderer = MKPolylineRenderer(polyline: polyline)
+            renderer.strokeColor = UIColor.systemGreen.withAlphaComponent(0.92)
+            renderer.lineWidth = 5
+            renderer.lineCap = .round
+            renderer.lineJoin = .round
+            return renderer
+        }
+
+        func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
+            guard !(annotation is MKUserLocation) else { return nil }
+            let identifier = "TripHistoryTrackMarker"
+            let marker = mapView.dequeueReusableAnnotationView(withIdentifier: identifier) as? MKMarkerAnnotationView
+                ?? MKMarkerAnnotationView(annotation: annotation, reuseIdentifier: identifier)
+            marker.annotation = annotation
+            marker.markerTintColor = annotation.title == "Start" ? UIColor.systemGreen : UIColor.systemRed
+            marker.glyphImage = UIImage(systemName: annotation.title == "Start" ? "flag.fill" : "flag.checkered")
+            marker.displayPriority = .required
+            return marker
+        }
+    }
+}
+#endif
 
 private func durationString(_ minutes: Double) -> String {
     let roundedSeconds = Int((minutes * 60).rounded())

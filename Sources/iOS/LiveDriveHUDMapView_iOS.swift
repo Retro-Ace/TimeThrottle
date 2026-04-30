@@ -16,6 +16,8 @@ struct LiveDriveHUDMapView: View {
     var enforcementAlerts: [EnforcementAlert] = []
     var weatherCheckpoints: [RouteWeatherMapCheckpoint] = []
     var mapMode: LiveDriveMapMode = .standard
+    var prefersRouteOverview = false
+    var routeEdgePadding = UIEdgeInsets(top: 28, left: 24, bottom: 28, right: 24)
 
     @State private var isFollowingUser = true
     @State private var recenterToken = UUID()
@@ -29,6 +31,8 @@ struct LiveDriveHUDMapView: View {
                 enforcementAlerts: enforcementAlerts,
                 weatherCheckpoints: weatherCheckpoints,
                 mapMode: mapMode,
+                prefersRouteOverview: prefersRouteOverview,
+                routeEdgePadding: routeEdgePadding,
                 isFollowingUser: $isFollowingUser,
                 recenterToken: recenterToken
             )
@@ -83,6 +87,8 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
     let enforcementAlerts: [EnforcementAlert]
     let weatherCheckpoints: [RouteWeatherMapCheckpoint]
     let mapMode: LiveDriveMapMode
+    let prefersRouteOverview: Bool
+    let routeEdgePadding: UIEdgeInsets
     @Binding var isFollowingUser: Bool
     let recenterToken: UUID
 
@@ -133,6 +139,7 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
         var parent: LiveDriveHUDTrackingMap
 
         private var lastRouteSignature = ""
+        private var lastRouteEdgePaddingSignature = ""
         private var lastAircraftSignature = ""
         private var lastEnforcementAlertSignature = ""
         private var lastWeatherCheckpointSignature = ""
@@ -182,11 +189,19 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
             }
 
             let signature = routeSignature(routes: parent.routes, selectedRouteID: parent.selectedRouteID)
+            let edgePaddingSignature = routeEdgePaddingSignature(parent.routeEdgePadding)
 
             if signature != lastRouteSignature {
                 lastRouteSignature = signature
                 syncRouteContext(on: mapView)
-                if !hasResolvedUserCoordinate(on: mapView) {
+                if parent.prefersRouteOverview || !hasResolvedUserCoordinate(on: mapView) {
+                    fitRouteContext(on: mapView)
+                }
+            }
+
+            if edgePaddingSignature != lastRouteEdgePaddingSignature {
+                lastRouteEdgePaddingSignature = edgePaddingSignature
+                if !parent.routes.isEmpty {
                     fitRouteContext(on: mapView)
                 }
             }
@@ -274,6 +289,17 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
                 ].joined(separator: "|")
             }
             .joined(separator: "||") + "::" + (selectedRouteID?.uuidString ?? "none")
+        }
+
+        private func routeEdgePaddingSignature(_ padding: UIEdgeInsets) -> String {
+            [
+                padding.top,
+                padding.left,
+                padding.bottom,
+                padding.right
+            ]
+            .map { String(format: "%.1f", $0) }
+            .joined(separator: ":")
         }
 
         private func syncRouteContext(on mapView: MKMapView) {
@@ -417,6 +443,15 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
         }
 
         private func syncFollowState(on mapView: MKMapView, forceRecenter: Bool) {
+            if parent.prefersRouteOverview && parent.isFollowingUser && !parent.routes.isEmpty {
+                if mapView.userTrackingMode != .none {
+                    mapView.setUserTrackingMode(.none, animated: false)
+                }
+                fitRouteContext(on: mapView)
+                hasAppliedInitialFollowRegion = true
+                return
+            }
+
             if parent.isFollowingUser {
                 if let coordinate = resolvedUserCoordinate(on: mapView) {
                     if forceRecenter || !hasAppliedInitialFollowRegion {
@@ -470,7 +505,7 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
 
             mapView.setVisibleMapRect(
                 visibleMapRect,
-                edgePadding: UIEdgeInsets(top: 28, left: 24, bottom: 28, right: 24),
+                edgePadding: parent.routeEdgePadding,
                 animated: false
             )
         }
