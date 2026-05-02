@@ -26,14 +26,27 @@ TimeThrottle now adds in-app guidance and route intelligence on top of the Apple
 
 ## What's New in v2.0
 
-Build 28 polishes TimeThrottle's map-first route entry:
+Build 36 tightens TimeThrottle's Live Drive reroute behavior, speed-limit continuity, map-first route entry, setup current-location handling, and passive camera/enforcement loading:
 - the app opens directly to the full-screen map with no former four-tab navigation bar
 - the idle `Where to?` entry is now the actual destination field
+- setup now auto-updates the Current Location origin while the app is foregrounded, without the old manual Current Location / Refresh card
+- the first focused `Where to?` drawer stays compact above the keyboard until suggestions or route results exist
+- the search drawer now moves above the iOS keyboard so the search row and suggestions stay visible
+- passive camera/enforcement lookups now use a tighter 2-mile radius with fewer rendered map markers
+- camera/enforcement refreshes now require meaningful movement, with a shorter high-speed movement threshold at 65 mph and above
+- speed limits now hold the last good OpenStreetMap estimate through short lookup misses while the app is still plausibly on the same road
+- the Nearby Low Aircraft menu card now uses the same compact Hide/Show styling and bounded scroll behavior as route weather rows
+- Live Drive now confirms sustained off-route movement before showing `Reroute ready`
+- route matching uses the active route polyline instead of one raw GPS point against route vertices
+- the original Apple Maps ETA baseline stays protected when a confirmed reroute refreshes the active route
+- the route search drawer resets stale focus, keyboard, autocomplete, and previous route results after trips
+- the map now recenters to the resolved user location after the temporary broad fallback view
+- the route search sheet stays bottom-drawer anchored while the destination field is focused
 - autocomplete and route results expand inside the same bottom panel
 - bottom panels are anchored to the bottom edge in an Apple Maps-style sheet
-- route preview now lives on the full-screen map instead of an embedded thumbnail
+- route preview lives on the full-screen map with extra room above the route-options sheet
 - route options, Navigation App, and Start Drive stay in the continuous bottom panel
-- Trip Complete can be dismissed back to the idle map with Done
+- Trip Complete can be dismissed back to the idle map with Done and now shows the TimeThrottle logo above the trip summary
 - the expanded destination field has a Done control so users can return to Log Trip when no route is selected
 - live projected pace waits until the drive is moving faster than 7 mph before collecting pace
 - Trip History can show a compact tracked map for trips with saved sampled coordinates
@@ -49,6 +62,9 @@ Use this block for GitHub releases, TestFlight notes, and App Store Connect:
 >
 > - Opens directly to a full-screen map with no bottom tab bar
 > - Uses an inline `Where to?` destination field on the map
+> - Auto-updates the setup Current Location origin in the foreground without showing the old Refresh card
+> - Holds the last good speed-limit estimate through short OpenStreetMap misses on the same likely road
+> - Keeps Nearby Low Aircraft rows scrollable inside the alerts card
 > - Expands autocomplete and route results in the same bottom panel
 > - Shows route preview on the full-screen map behind the controls
 > - Adds route-free Log Trip for destination-free drive tracking
@@ -143,7 +159,7 @@ Finished trips focus on the pace story:
 - **Time Below Speed Limit** = measured time spent below available OpenStreetMap speed-limit estimates
 - **Overall vs Apple ETA baseline** = the finished trip result against the Apple Maps ETA baseline
 
-Speed-limit analysis only includes route segments where an OpenStreetMap speed-limit estimate was available.
+Speed-limit analysis includes route segments with a fresh OpenStreetMap estimate or a still-valid last-confirmed estimate held for the same likely road; unavailable time resumes after that holdover expires.
 
 ## Navigation Handoff
 

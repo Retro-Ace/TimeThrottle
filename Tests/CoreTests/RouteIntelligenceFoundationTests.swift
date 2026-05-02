@@ -4,41 +4,106 @@ import XCTest
 final class RouteIntelligenceFoundationTests: XCTestCase {
     @MainActor
     func testGuidanceEngineTracksProgressAndOffRouteFoundation() {
-        let steps = [
-            RouteManeuverStep(
-                instruction: "Turn right onto Main St",
-                distanceMeters: 100,
-                geometry: [
-                    GuidanceCoordinate(latitude: 41.0, longitude: -87.0),
-                    GuidanceCoordinate(latitude: 41.0005, longitude: -87.0)
-                ],
-                transportType: .automobile
-            ),
-            RouteManeuverStep(
-                instruction: "Continue on I-90",
-                distanceMeters: 900,
-                geometry: [
-                    GuidanceCoordinate(latitude: 41.0005, longitude: -87.0),
-                    GuidanceCoordinate(latitude: 41.01, longitude: -87.0)
-                ],
-                transportType: .automobile
-            )
-        ]
+        let steps = Self.guidanceTestSteps()
         let engine = TurnByTurnGuidanceEngine(offRouteThresholdMeters: 50)
         engine.setMuted(true)
         engine.loadRoute(
             steps: steps,
             routeDistanceMeters: 1_000,
-            destination: GuidanceCoordinate(latitude: 41.01, longitude: -87.0)
+            destination: GuidanceCoordinate(latitude: 41.01, longitude: -87.0),
+            routeGeometry: Self.guidanceTestRouteGeometry
         )
 
         engine.update(progressDistanceMeters: 150)
         XCTAssertEqual(engine.state.nextInstruction, "Continue on I-90")
         XCTAssertEqual(engine.state.routeProgress, 0.15, accuracy: 0.0001)
 
-        engine.update(currentLocation: GuidanceCoordinate(latitude: 42.0, longitude: -88.0))
+        engine.update(
+            sample: Self.guidanceSample(
+                coordinate: GuidanceCoordinate(latitude: 41.006, longitude: -87.00004)
+            )
+        )
+        XCTAssertFalse(engine.state.isOffRoute)
+        XCTAssertGreaterThan(engine.state.routeProgress, 0.45)
+        XCTAssertEqual(engine.state.nextInstruction, "Continue on I-90")
+    }
+
+    @MainActor
+    func testGuidanceEngineDoesNotRerouteFromOneGPSDriftPoint() {
+        let engine = Self.guidanceEngineForTestRoute()
+
+        engine.update(
+            sample: Self.guidanceSample(
+                coordinate: GuidanceCoordinate(latitude: 41.003, longitude: -87.0018)
+            )
+        )
+
+        XCTAssertFalse(engine.state.isOffRoute)
+        XCTAssertNil(engine.makeRerouteRequest(from: GuidanceCoordinate(latitude: 41.003, longitude: -87.0018)))
+        XCTAssertEqual(engine.lastRouteMatchDiagnostics?.offRouteSampleCount, 1)
+    }
+
+    @MainActor
+    func testGuidanceEngineConfirmsSustainedMovingOffRoute() {
+        let engine = Self.guidanceEngineForTestRoute()
+        let startDate = Date()
+        let offRouteCoordinate = GuidanceCoordinate(latitude: 41.003, longitude: -87.0022)
+
+        [0.0, 3.0, 6.0, 9.0].forEach { offset in
+            engine.update(
+                sample: Self.guidanceSample(
+                    coordinate: offRouteCoordinate,
+                    timestamp: startDate.addingTimeInterval(offset)
+                )
+            )
+        }
+
         XCTAssertTrue(engine.state.isOffRoute)
-        XCTAssertNotNil(engine.makeRerouteRequest(from: GuidanceCoordinate(latitude: 42.0, longitude: -88.0)))
+        XCTAssertNotNil(engine.makeRerouteRequest(from: offRouteCoordinate))
+        XCTAssertEqual(engine.lastRouteMatchDiagnostics?.rerouteDecision, "allowed: sustained off-route confirmed")
+    }
+
+    @MainActor
+    func testGuidanceEngineSuppressesOffRouteWhileCreeping() {
+        let engine = Self.guidanceEngineForTestRoute()
+        let startDate = Date()
+        let offRouteCoordinate = GuidanceCoordinate(latitude: 41.003, longitude: -87.0022)
+
+        [0.0, 3.0, 6.0, 9.0, 12.0].forEach { offset in
+            engine.update(
+                sample: Self.guidanceSample(
+                    coordinate: offRouteCoordinate,
+                    timestamp: startDate.addingTimeInterval(offset),
+                    speedMetersPerSecond: 1.5
+                )
+            )
+        }
+
+        XCTAssertFalse(engine.state.isOffRoute)
+        XCTAssertNil(engine.makeRerouteRequest(from: offRouteCoordinate))
+        XCTAssertEqual(engine.lastRouteMatchDiagnostics?.rerouteDecision, "blocked: vehicle below off-route speed threshold")
+    }
+
+    @MainActor
+    func testGuidanceEngineDoesNotLockProgressForwardFromOneOffRouteJump() {
+        let engine = Self.guidanceEngineForTestRoute()
+
+        engine.update(
+            sample: Self.guidanceSample(
+                coordinate: GuidanceCoordinate(latitude: 41.009, longitude: -87.0022)
+            )
+        )
+        XCTAssertFalse(engine.state.isOffRoute)
+
+        engine.update(
+            sample: Self.guidanceSample(
+                coordinate: GuidanceCoordinate(latitude: 41.002, longitude: -87.00002),
+                timestamp: Date().addingTimeInterval(2)
+            )
+        )
+
+        XCTAssertFalse(engine.state.isOffRoute)
+        XCTAssertLessThan(engine.state.routeProgress, 0.35)
     }
 
     func testWeatherRouteProviderSamplesCheckpointsByArrivalProgress() throws {
@@ -134,6 +199,7 @@ final class RouteIntelligenceFoundationTests: XCTestCase {
                 { "lat": 41.001, "lon": -87.0 }
               ],
               "tags": {
+                "highway": "motorway",
                 "name": "I-90",
                 "maxspeed": "70 mph"
               }
@@ -147,7 +213,17 @@ final class RouteIntelligenceFoundationTests: XCTestCase {
         XCTAssertEqual(result?.source, "OpenStreetMap")
         XCTAssertEqual(result?.roadName, "I-90")
         XCTAssertEqual(result?.wayId, 123456)
+        XCTAssertEqual(result?.roadClass, .major)
+        XCTAssertEqual(result?.highwayTag, "motorway")
         XCTAssertEqual(result?.confidence ?? 0, 0.95, accuracy: 0.0001)
+    }
+
+    func testSpeedLimitParsingDecodesHighwayRoadClasses() {
+        XCTAssertEqual(SpeedLimitRoadClass(highwayTag: "primary"), .major)
+        XCTAssertEqual(SpeedLimitRoadClass(highwayTag: "secondary_link"), .major)
+        XCTAssertEqual(SpeedLimitRoadClass(highwayTag: "residential"), .minor)
+        XCTAssertEqual(SpeedLimitRoadClass(highwayTag: "service"), .minor)
+        XCTAssertEqual(SpeedLimitRoadClass(highwayTag: nil), .unknown)
     }
 
     func testOSMSpeedLimitServiceCachesWayAndCoordinateResults() async {
@@ -157,7 +233,9 @@ final class RouteIntelligenceFoundationTests: XCTestCase {
             currentSpeedLimitMPH: 35,
             confidence: 0.9,
             roadName: "Main St",
-            wayId: 987
+            wayId: 987,
+            roadClass: .minor,
+            highwayTag: "residential"
         )
 
         await service.storeCachedResult(result, for: coordinate, timestamp: Date())
@@ -168,6 +246,158 @@ final class RouteIntelligenceFoundationTests: XCTestCase {
         let cachedWayResult = await service.cachedResult(for: wayKey)
         XCTAssertEqual(cachedCoordinateResult, result)
         XCTAssertEqual(cachedWayResult, result)
+    }
+
+    func testSpeedLimitHoldoverKeepsMajorRoadLimitLonger() {
+        let now = Date(timeIntervalSince1970: 1_000)
+        let coordinate = GuidanceCoordinate(latitude: 42.0, longitude: -87.0)
+        let snapshot = SpeedLimitHoldoverPolicy.Snapshot(
+            speedLimitMPH: 45,
+            confidence: 0.95,
+            coordinate: coordinate,
+            timestamp: now,
+            roadName: "Touhy Ave",
+            roadClass: .major,
+            highwayTag: "secondary"
+        )
+
+        let resolution = SpeedLimitHoldoverPolicy.resolve(
+            freshResult: nil,
+            previousSnapshot: snapshot,
+            coordinate: self.coordinate(coordinate, milesNorth: 1.9),
+            now: now.addingTimeInterval(299)
+        )
+
+        XCTAssertEqual(resolution.speedLimitMPH, 45)
+        guard case .holdover(let heldSnapshot) = resolution else {
+            return XCTFail("Expected held major-road speed limit.")
+        }
+        XCTAssertEqual(heldSnapshot.roadName, "Touhy Ave")
+    }
+
+    func testSpeedLimitHoldoverExpiresMajorRoadAfterPolicyWindow() {
+        let now = Date(timeIntervalSince1970: 1_000)
+        let coordinate = GuidanceCoordinate(latitude: 42.0, longitude: -87.0)
+        let snapshot = SpeedLimitHoldoverPolicy.Snapshot(
+            speedLimitMPH: 45,
+            coordinate: coordinate,
+            timestamp: now,
+            roadClass: .major
+        )
+
+        XCTAssertEqual(
+            SpeedLimitHoldoverPolicy.resolve(
+                freshResult: nil,
+                previousSnapshot: snapshot,
+                coordinate: self.coordinate(coordinate, milesNorth: 2.1),
+                now: now.addingTimeInterval(120)
+            ),
+            .unavailable
+        )
+        XCTAssertEqual(
+            SpeedLimitHoldoverPolicy.resolve(
+                freshResult: nil,
+                previousSnapshot: snapshot,
+                coordinate: self.coordinate(coordinate, milesNorth: 1.0),
+                now: now.addingTimeInterval(301)
+            ),
+            .unavailable
+        )
+    }
+
+    func testSpeedLimitHoldoverUsesShortMinorRoadWindow() {
+        let now = Date(timeIntervalSince1970: 1_000)
+        let coordinate = GuidanceCoordinate(latitude: 42.0, longitude: -87.0)
+        let snapshot = SpeedLimitHoldoverPolicy.Snapshot(
+            speedLimitMPH: 25,
+            coordinate: coordinate,
+            timestamp: now,
+            roadName: "Side St",
+            roadClass: .minor,
+            highwayTag: "residential"
+        )
+
+        XCTAssertEqual(
+            SpeedLimitHoldoverPolicy.resolve(
+                freshResult: nil,
+                previousSnapshot: snapshot,
+                coordinate: self.coordinate(coordinate, milesNorth: 0.24),
+                now: now.addingTimeInterval(89)
+            ).speedLimitMPH,
+            25
+        )
+        XCTAssertEqual(
+            SpeedLimitHoldoverPolicy.resolve(
+                freshResult: nil,
+                previousSnapshot: snapshot,
+                coordinate: self.coordinate(coordinate, milesNorth: 0.26),
+                now: now.addingTimeInterval(60)
+            ),
+            .unavailable
+        )
+    }
+
+    func testSpeedLimitHoldoverUsesMiddleUnknownRoadWindow() {
+        let now = Date(timeIntervalSince1970: 1_000)
+        let coordinate = GuidanceCoordinate(latitude: 42.0, longitude: -87.0)
+        let snapshot = SpeedLimitHoldoverPolicy.Snapshot(
+            speedLimitMPH: 35,
+            coordinate: coordinate,
+            timestamp: now,
+            roadClass: .unknown
+        )
+
+        XCTAssertEqual(
+            SpeedLimitHoldoverPolicy.resolve(
+                freshResult: nil,
+                previousSnapshot: snapshot,
+                coordinate: self.coordinate(coordinate, milesNorth: 0.7),
+                now: now.addingTimeInterval(179)
+            ).speedLimitMPH,
+            35
+        )
+        XCTAssertEqual(
+            SpeedLimitHoldoverPolicy.resolve(
+                freshResult: nil,
+                previousSnapshot: snapshot,
+                coordinate: self.coordinate(coordinate, milesNorth: 0.76),
+                now: now.addingTimeInterval(120)
+            ),
+            .unavailable
+        )
+    }
+
+    func testSpeedLimitHoldoverReplacesImmediatelyOnFreshLookup() {
+        let now = Date(timeIntervalSince1970: 1_000)
+        let coordinate = GuidanceCoordinate(latitude: 42.0, longitude: -87.0)
+        let previous = SpeedLimitHoldoverPolicy.Snapshot(
+            speedLimitMPH: 45,
+            coordinate: coordinate,
+            timestamp: now,
+            roadClass: .major
+        )
+        let freshResult = OSMSpeedLimitResult(
+            currentSpeedLimitMPH: 30,
+            confidence: 0.9,
+            roadName: "Residential St",
+            wayId: 55,
+            roadClass: .minor,
+            highwayTag: "residential"
+        )
+
+        let resolution = SpeedLimitHoldoverPolicy.resolve(
+            freshResult: freshResult,
+            previousSnapshot: previous,
+            coordinate: self.coordinate(coordinate, milesNorth: 0.1),
+            now: now.addingTimeInterval(30)
+        )
+
+        XCTAssertEqual(resolution.speedLimitMPH, 30)
+        guard case .fresh(let freshSnapshot) = resolution else {
+            return XCTFail("Expected fresh speed-limit replacement.")
+        }
+        XCTAssertEqual(freshSnapshot.roadClass, .minor)
+        XCTAssertEqual(freshSnapshot.roadName, "Residential St")
     }
 
     func testDanielVoiceResolverPrefersDanielWhenAvailable() {
@@ -244,7 +474,7 @@ final class RouteIntelligenceFoundationTests: XCTestCase {
     func testLocalEnforcementAlertProviderFiltersByRadiusAndStaleness() async throws {
         let now = Date()
         let center = GuidanceCoordinate(latitude: 41.0, longitude: -87.0)
-        XCTAssertEqual(EnforcementAlertSearchRegion(center: center).radiusMiles, 3.0)
+        XCTAssertEqual(EnforcementAlertSearchRegion(center: center).radiusMiles, 2.0)
         let provider = LocalEnforcementAlertProvider(
             alerts: [
                 EnforcementAlert(
@@ -375,7 +605,7 @@ final class RouteIntelligenceFoundationTests: XCTestCase {
         XCTAssertTrue(alerts.allSatisfy { $0.source == "OpenStreetMap Overpass" })
     }
 
-    func testEnforcementVisibilityCapsNoRouteAlertsToClosestThirty() {
+    func testEnforcementVisibilityCapsNoRouteAlertsToClosestTwenty() {
         let center = GuidanceCoordinate(latitude: 41.0, longitude: -87.0)
         let alerts = (0..<80).map { index in
             enforcementAlert(
@@ -393,7 +623,7 @@ final class RouteIntelligenceFoundationTests: XCTestCase {
 
         XCTAssertEqual(visibleAlerts.count, EnforcementAlertVisibilityPolicy.noRouteVisibleLimit)
         XCTAssertEqual(visibleAlerts.first?.id, "nearby-00")
-        XCTAssertEqual(visibleAlerts.last?.id, "nearby-29")
+        XCTAssertEqual(visibleAlerts.last?.id, "nearby-19")
         XCTAssertTrue(visibleAlerts.allSatisfy {
             ($0.distanceMiles ?? .greatestFiniteMagnitude) <= EnforcementAlertVisibilityPolicy.noRouteDistanceCapMiles
         })
@@ -402,11 +632,11 @@ final class RouteIntelligenceFoundationTests: XCTestCase {
                 visibleAlertCount: visibleAlerts.count,
                 hasActiveRoute: false
             ),
-            "Showing 30 camera/enforcement reports nearby"
+            "Showing 20 camera/enforcement reports nearby"
         )
     }
 
-    func testEnforcementVisibilityPrioritizesAheadRouteAlertsAndCapsToThirty() {
+    func testEnforcementVisibilityPrioritizesAheadRouteAlertsAndCapsToTwenty() {
         let routeGeometry = (0...130).map { index in
             GuidanceCoordinate(latitude: 41.0 + (Double(index) * 0.0005), longitude: -87.0)
         }
@@ -461,7 +691,89 @@ final class RouteIntelligenceFoundationTests: XCTestCase {
                 visibleAlertCount: visibleAlerts.count,
                 hasActiveRoute: true
             ),
-            "Showing 30 route-relevant alerts within 3.0 mi"
+            "Showing 20 route-relevant alerts within 2.0 mi"
+        )
+    }
+
+    func testEnforcementRefreshPolicyRequiresMovementAfterInitialLookup() {
+        let now = Date()
+        let center = GuidanceCoordinate(latitude: 41.0, longitude: -87.0)
+        let routeContextID = "no-route"
+
+        XCTAssertTrue(
+            EnforcementAlertRefreshPolicy.shouldRefresh(
+                force: false,
+                routeContextID: routeContextID,
+                lastRouteContextID: nil,
+                lastLookupAt: now.addingTimeInterval(-120),
+                lastCoordinate: center,
+                currentCoordinate: center,
+                hasActiveRoute: false,
+                currentSpeedMPH: 0,
+                now: now
+            )
+        )
+
+        XCTAssertFalse(
+            EnforcementAlertRefreshPolicy.shouldRefresh(
+                force: false,
+                routeContextID: routeContextID,
+                lastRouteContextID: routeContextID,
+                lastLookupAt: now.addingTimeInterval(-120),
+                lastCoordinate: center,
+                currentCoordinate: coordinate(center, milesNorth: 0.2),
+                hasActiveRoute: false,
+                currentSpeedMPH: 0,
+                now: now
+            )
+        )
+
+        XCTAssertTrue(
+            EnforcementAlertRefreshPolicy.shouldRefresh(
+                force: false,
+                routeContextID: routeContextID,
+                lastRouteContextID: routeContextID,
+                lastLookupAt: now.addingTimeInterval(-120),
+                lastCoordinate: center,
+                currentCoordinate: coordinate(center, milesNorth: 1.1),
+                hasActiveRoute: false,
+                currentSpeedMPH: 30,
+                now: now
+            )
+        )
+    }
+
+    func testEnforcementRefreshPolicyUsesHighSpeedMovementThreshold() {
+        let now = Date()
+        let center = GuidanceCoordinate(latitude: 41.0, longitude: -87.0)
+        let routeContextID = "route"
+
+        XCTAssertFalse(
+            EnforcementAlertRefreshPolicy.shouldRefresh(
+                force: false,
+                routeContextID: routeContextID,
+                lastRouteContextID: routeContextID,
+                lastLookupAt: now.addingTimeInterval(-30),
+                lastCoordinate: center,
+                currentCoordinate: coordinate(center, milesNorth: 0.55),
+                hasActiveRoute: false,
+                currentSpeedMPH: 64,
+                now: now
+            )
+        )
+
+        XCTAssertTrue(
+            EnforcementAlertRefreshPolicy.shouldRefresh(
+                force: false,
+                routeContextID: routeContextID,
+                lastRouteContextID: routeContextID,
+                lastLookupAt: now.addingTimeInterval(-30),
+                lastCoordinate: center,
+                currentCoordinate: coordinate(center, milesNorth: 0.55),
+                hasActiveRoute: false,
+                currentSpeedMPH: 65,
+                now: now
+            )
         )
     }
 
@@ -570,6 +882,59 @@ final class RouteIntelligenceFoundationTests: XCTestCase {
         )
     }
 
+    @MainActor
+    private static func guidanceEngineForTestRoute() -> TurnByTurnGuidanceEngine {
+        let engine = TurnByTurnGuidanceEngine(offRouteThresholdMeters: 50)
+        engine.setMuted(true)
+        engine.loadRoute(
+            steps: guidanceTestSteps(),
+            routeDistanceMeters: 1_000,
+            destination: GuidanceCoordinate(latitude: 41.01, longitude: -87.0),
+            routeGeometry: guidanceTestRouteGeometry
+        )
+        return engine
+    }
+
+    private static var guidanceTestRouteGeometry: [GuidanceCoordinate] {
+        [
+            GuidanceCoordinate(latitude: 41.0, longitude: -87.0),
+            GuidanceCoordinate(latitude: 41.0005, longitude: -87.0),
+            GuidanceCoordinate(latitude: 41.01, longitude: -87.0)
+        ]
+    }
+
+    private static func guidanceTestSteps() -> [RouteManeuverStep] {
+        [
+            RouteManeuverStep(
+                instruction: "Turn right onto Main St",
+                distanceMeters: 100,
+                geometry: Array(guidanceTestRouteGeometry.prefix(2)),
+                transportType: .automobile
+            ),
+            RouteManeuverStep(
+                instruction: "Continue on I-90",
+                distanceMeters: 900,
+                geometry: Array(guidanceTestRouteGeometry.suffix(2)),
+                transportType: .automobile
+            )
+        ]
+    }
+
+    private static func guidanceSample(
+        coordinate: GuidanceCoordinate,
+        timestamp: Date = Date(),
+        speedMetersPerSecond: Double = 13
+    ) -> GuidanceLocationSample {
+        GuidanceLocationSample(
+            coordinate: coordinate,
+            timestamp: timestamp,
+            horizontalAccuracyMeters: 10,
+            speedMetersPerSecond: speedMetersPerSecond,
+            courseDegrees: 0,
+            courseAccuracyDegrees: 12
+        )
+    }
+
     private func enforcementAlert(
         id: String,
         latitude: Double,
@@ -592,6 +957,13 @@ final class RouteIntelligenceFoundationTests: XCTestCase {
             coordinate: GuidanceCoordinate(latitude: latitude, longitude: longitude),
             source: "Test",
             confidence: confidence
+        )
+    }
+
+    private func coordinate(_ coordinate: GuidanceCoordinate, milesNorth miles: Double) -> GuidanceCoordinate {
+        GuidanceCoordinate(
+            latitude: coordinate.latitude + (miles / 69.0),
+            longitude: coordinate.longitude
         )
     }
 }

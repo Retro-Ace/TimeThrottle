@@ -53,6 +53,8 @@ public actor OSMSpeedLimitService: SpeedLimitProvider {
             confidence: result.confidence,
             roadName: result.roadName,
             wayId: result.wayId,
+            roadClass: result.roadClass,
+            highwayTag: result.highwayTag,
             source: result.source
         )
         cache[coordinateKey] = entry
@@ -81,6 +83,8 @@ public actor OSMSpeedLimitService: SpeedLimitProvider {
             confidence: result.confidence,
             roadName: result.roadName,
             wayId: result.wayId,
+            roadClass: result.roadClass,
+            highwayTag: result.highwayTag,
             source: result.source,
             timestamp: timestamp
         )
@@ -140,7 +144,9 @@ public actor OSMSpeedLimitService: SpeedLimitProvider {
             currentSpeedLimitMPH: best.speedLimitMPH,
             confidence: best.confidence,
             roadName: best.element.tags?.name,
-            wayId: best.element.id
+            wayId: best.element.id,
+            roadClass: SpeedLimitRoadClass(highwayTag: best.element.tags?.highway),
+            highwayTag: best.element.tags?.highway
         )
     }
 
@@ -211,6 +217,7 @@ private struct OSMElement: Decodable {
 private struct OSMTags: Decodable {
     var name: String?
     var maxspeed: String?
+    var highway: String?
 }
 
 private struct OSMCoordinate: Decodable {

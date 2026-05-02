@@ -64,7 +64,7 @@ public struct EnforcementAlertSearchRegion: Equatable, Sendable {
     public var center: GuidanceCoordinate
     public var radiusMiles: Double
 
-    public init(center: GuidanceCoordinate, radiusMiles: Double = 3) {
+    public init(center: GuidanceCoordinate, radiusMiles: Double = 2) {
         self.center = center
         self.radiusMiles = min(max(radiusMiles, 1), 20)
     }
@@ -122,11 +122,60 @@ public struct EnforcementAlertVisibilityContext: Sendable {
     }
 }
 
+public enum EnforcementAlertRefreshPolicy {
+    public static let minimumRefreshIntervalSeconds: TimeInterval = 10
+    public static let highSpeedThresholdMPH: Double = 65
+    public static let highSpeedMovementThresholdMiles: Double = 0.5
+    public static let routeActiveMovementThresholdMiles: Double = 0.75
+    public static let noRouteMovementThresholdMiles: Double = 1.0
+
+    public static func movementThresholdMiles(
+        hasActiveRoute: Bool,
+        currentSpeedMPH: Double
+    ) -> Double {
+        if currentSpeedMPH >= highSpeedThresholdMPH {
+            return highSpeedMovementThresholdMiles
+        }
+
+        return hasActiveRoute ? routeActiveMovementThresholdMiles : noRouteMovementThresholdMiles
+    }
+
+    public static func shouldRefresh(
+        force: Bool,
+        routeContextID: String,
+        lastRouteContextID: String?,
+        lastLookupAt: Date?,
+        lastCoordinate: GuidanceCoordinate?,
+        currentCoordinate: GuidanceCoordinate,
+        hasActiveRoute: Bool,
+        currentSpeedMPH: Double,
+        now: Date
+    ) -> Bool {
+        guard !force else { return true }
+
+        if lastRouteContextID != routeContextID {
+            return true
+        }
+
+        guard let lastLookupAt else { return true }
+        let elapsed = now.timeIntervalSince(lastLookupAt)
+        guard elapsed >= minimumRefreshIntervalSeconds else { return false }
+        guard let lastCoordinate else { return true }
+
+        let movedMiles = currentCoordinate.location.distance(from: lastCoordinate.location) / 1_609.344
+        let movementThreshold = movementThresholdMiles(
+            hasActiveRoute: hasActiveRoute,
+            currentSpeedMPH: currentSpeedMPH
+        )
+        return movedMiles >= movementThreshold
+    }
+}
+
 public enum EnforcementAlertVisibilityPolicy {
-    public static let routeActiveVisibleLimit = 30
-    public static let routeActiveDistanceCapMiles = 3.0
-    public static let noRouteVisibleLimit = 30
-    public static let noRouteDistanceCapMiles = 3.0
+    public static let routeActiveVisibleLimit = 20
+    public static let routeActiveDistanceCapMiles = 2.0
+    public static let noRouteVisibleLimit = 20
+    public static let noRouteDistanceCapMiles = 2.0
     public static let nearRouteThresholdMiles = 0.35
 
     public static func filteredAlerts(
@@ -647,7 +696,7 @@ public actor EnforcementAlertService {
         self.provider = provider
     }
 
-    public func alerts(near coordinate: GuidanceCoordinate, radiusMiles: Double = 3) async throws -> [EnforcementAlert] {
+    public func alerts(near coordinate: GuidanceCoordinate, radiusMiles: Double = 2) async throws -> [EnforcementAlert] {
         try await provider.enforcementAlerts(
             in: EnforcementAlertSearchRegion(center: coordinate, radiusMiles: radiusMiles)
         )

@@ -4,6 +4,69 @@ All notable release-facing changes to **TimeThrottle** should be documented in t
 
 ## v2.0 - April 26, 2026
 
+### Build 36 Aircraft Alerts Menu Scrolling
+
+- Keeps marketing version at 2.0 and bumps the build to 36.
+- Makes the Nearby Low Aircraft list scroll inside its Alerts card instead of stretching the full options sheet.
+- Matches the aircraft Hide/Show control styling to the Weather card control.
+- Shows all returned aircraft in the bounded list rather than truncating the menu card to the first five.
+
+### Build 35 Sticky Speed Limit Holdover
+
+- Keeps marketing version at 2.0 and bumps the build to 35.
+- Keeps the last good OpenStreetMap speed-limit estimate active for display and trip math when a later lookup briefly misses or errors.
+- Uses the OSM `highway` class to hold major-road estimates longer than minor, residential, service, or unknown-road estimates.
+- Marks held values as `Last confirmed` in the speed-limit detail so they do not look like brand-new lookup data.
+- Clears the held speed limit once its road-class distance or time window expires.
+
+### Build 34 Auto-Updating Current Location Setup
+
+- Keeps marketing version at 2.0 and bumps the build to 34.
+- Replaces the persistent `Current Location / Refresh` setup card with foreground-only automatic current-location updates.
+- Keeps the route setup drawer focused on `Where to?`, compact status, suggestions, route results, and Start Drive.
+- Refreshes passive map layers and recalculates a stale setup route from the updated current-location origin before Start Drive.
+- Stops setup current-location updates when Live Drive starts or the app leaves active setup, leaving LiveDriveTracker in charge during trips.
+
+### Build 33 Enforcement Camera Refresh Tuning
+
+- Keeps marketing version at 2.0 and bumps the build to 33.
+- Reduces passive camera/enforcement lookup and visibility radius from 3.0 miles to 2.0 miles.
+- Reduces rendered camera/enforcement markers from 30 to 20 so the map stays lighter.
+- Removes the normal 90-second time-only enforcement refresh and requires meaningful movement after the initial or forced lookup.
+- Refreshes camera/enforcement data sooner after 0.5 miles when current speed is at least 65 mph while keeping camera warning distances unchanged.
+
+### Build 32 Compact Empty Search Drawer
+
+- Keeps marketing version at 2.0 and bumps the build to 32.
+- Keeps the first focused `Where to?` drawer compact above the keyboard when there are no suggestions, route status, or route results yet.
+- Adds the scrollable drawer body only when autocomplete suggestions, route status, or route results need the extra space.
+- Preserves the Build 31 keyboard-aware drawer placement and existing Done, Menu, Log Trip, and route-result behavior.
+
+### Build 31 Keyboard-Aware Search Drawer
+
+- Keeps marketing version at 2.0 and bumps the build to 31.
+- Moves the map-first `Where to?` drawer itself above the iOS keyboard while searching instead of only changing map padding.
+- Keeps the search row, Current Location, and autocomplete suggestions visible in the custom bottom drawer while the keyboard is open.
+- Keeps the drawer bottom-attached when the keyboard is hidden and preserves route-result, Done, Log Trip, and Menu behavior.
+
+### Build 30 Reroute Reliability and Search Drawer Cleanup
+
+- Keeps marketing version at 2.0 and bumps the build to 30.
+- Adds route-polyline matching and sustained off-route confirmation so minor GPS drift does not immediately show `Reroute ready` or request a reroute.
+- Uses location accuracy, speed, course metadata, repeated samples, elapsed time, and reroute cooldown logging before allowing Live Drive reroutes.
+- Keeps the original Apple Maps ETA baseline protected when an active route is refreshed after a confirmed reroute.
+- Resets destination search focus, keyboard lift state, autocomplete, stale route results, and reroute HUD text when trips start, end, or reset.
+- Keeps the `Where to?` route-entry surface bottom-drawer anchored instead of lifting the whole panel like a floating card.
+
+### Build 29 Map Search and Trip Result Polish
+
+- Keeps marketing version at 2.0 and bumps the build to 29.
+- Recenters the map to the resolved user location after the temporary broad fallback view instead of staying zoomed out.
+- Lifts the inline `Where to?` route-entry panel above the keyboard while the destination field is focused.
+- Gives route previews more full-map space above the route-options bottom sheet.
+- Adds the TimeThrottle logo to the in-app Trip Complete result card above the trip summary.
+- Tightens Trip Complete spacing and removes the visible grabber from that result card while keeping Done and drag-down dismissal.
+
 ### Build 28 Inline Apple Maps-Style Route Entry
 
 - Keeps marketing version at 2.0 and bumps the build to 28.

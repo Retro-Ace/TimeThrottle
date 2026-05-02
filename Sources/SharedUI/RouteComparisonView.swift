@@ -21,6 +21,12 @@ private enum LiveDriveScreenState: Equatable {
     case tripComplete
 }
 
+private enum RouteSetupDrawerState: Equatable {
+    case collapsed
+    case searching
+    case results
+}
+
 private enum LiveDriveSheetDestination: String, Identifiable {
     case tripHistory
     case scanner
@@ -188,13 +194,10 @@ public struct RouteComparisonView: View {
     private let enforcementAlertService = EnforcementAlertService()
     private let aircraftRefreshPublisher = Timer.publish(every: 15, on: .main, in: .common).autoconnect()
     private let aircraftProjectionPublisher = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
-    private let enforcementAlertRefreshPublisher = Timer.publish(every: 10, on: .main, in: .common).autoconnect()
+    private let enforcementAlertRefreshPublisher = Timer.publish(every: EnforcementAlertRefreshPolicy.minimumRefreshIntervalSeconds, on: .main, in: .common).autoconnect()
     private let aircraftRefreshIntervalSeconds: TimeInterval = 15
     private let aircraftStaleTimeoutSeconds: TimeInterval = 90
-    private let enforcementAlertRefreshIntervalSeconds: TimeInterval = 10
-    private let enforcementAlertMaximumRefreshIntervalSeconds: TimeInterval = 90
-    private let routeActiveEnforcementRefreshMovementMiles: Double = 0.75
-    private let noRouteEnforcementRefreshMovementMiles: Double = 1.0
+    private let setupCurrentLocationRouteRefreshMovementMiles: Double = 0.1
     private static let guidanceVoiceIdentifierStorageKey = "timethrottle.voice.selectedVoiceIdentifier"
     #if canImport(OSLog)
     private static let routeIntelligenceLogger = Logger(subsystem: "com.timethrottle.app", category: "RouteIntelligence")
@@ -202,6 +205,9 @@ public struct RouteComparisonView: View {
 
     @Environment(\.scenePhase) private var scenePhase
     @FocusState private var focusedRouteAddressField: RouteAddressField?
+    #if os(iOS)
+    @State private var keyboardHeight: CGFloat = 0
+    #endif
     @State private var routeOriginInputMode: RouteOriginInputMode = .currentLocation
     @State private var fromAddressText = ""
     @State private var fromResolvedPlace: ResolvedRoutePlace?
@@ -235,6 +241,7 @@ public struct RouteComparisonView: View {
     @State private var speedLimitDisplayText = "Unavailable"
     @State private var speedLimitDetailText = "OpenStreetMap estimate"
     @State private var lastSpeedLimitLookupAt: Date?
+    @State private var speedLimitHoldoverSnapshot: SpeedLimitHoldoverPolicy.Snapshot?
     @AppStorage("timethrottle.voice.selectedVoiceIdentifier") private var storedGuidanceVoiceIdentifier = ""
     @AppStorage("timethrottle.voice.speechRate") private var storedGuidanceSpeechRate = Double(VoiceGuidanceSettings.defaultSpeechRate)
     @AppStorage("timethrottle.voice.volume") private var storedGuidanceVolume = Double(VoiceGuidanceSettings.defaultVolume)
@@ -487,26 +494,6 @@ public struct RouteComparisonView: View {
         routeDestinationEndpoint?.signature ?? ""
     }
 
-    private var currentLocationFieldLabel: String {
-        if currentLocationResolver.isResolving && currentLocationResolver.currentPlace == nil {
-            return "Finding Current Location..."
-        }
-
-        return currentLocationResolver.currentPlace?.title ?? "Current Location"
-    }
-
-    private var currentLocationDetailText: String {
-        if let subtitle = currentLocationResolver.currentPlace?.subtitle, !subtitle.isEmpty {
-            return subtitle
-        }
-
-        if let errorMessage = currentLocationResolver.errorMessage {
-            return errorMessage
-        }
-
-        return "Use your live position as the route start."
-    }
-
     private var fromSuggestions: [AppleMapsAutocompleteController.Suggestion] {
         autocompleteController.activeField == .from ? autocompleteController.suggestions : []
     }
@@ -600,36 +587,85 @@ public struct RouteComparisonView: View {
         !activeRouteOptions.isEmpty || liveDriveSetupRoute != nil
     }
 
-    private var isInlineRouteEntryExpanded: Bool {
-        isRouteSetupPanelPresented ||
-        focusedRouteAddressField == .to ||
-        routeSetupHasSearchActivity ||
+    private var routeSetupHasSearchSuggestions: Bool {
+        !toSuggestions.isEmpty
+    }
+
+    private var routeSetupHasExpandableDrawerContent: Bool {
+        routeSetupHasSearchSuggestions ||
+        shouldShowRouteStatus ||
         routeSetupHasLoadedResults
     }
 
-    private var routeSetupPanelMaximumHeight: CGFloat {
+    private var routeSetupDrawerState: RouteSetupDrawerState {
         if routeSetupHasLoadedResults {
+            return .results
+        }
+
+        if isRouteSetupPanelPresented || focusedRouteAddressField == .to || routeSetupHasSearchActivity {
+            return .searching
+        }
+
+        return .collapsed
+    }
+
+    private var isInlineRouteEntryExpanded: Bool {
+        routeSetupDrawerState != .collapsed
+    }
+
+    private var routeSetupPanelMaximumHeight: CGFloat {
+        switch routeSetupDrawerState {
+        case .results:
             return liveDriveSetupRouteOptions.count >= 3 ? 590 : 560
-        }
+        case .searching:
+            if routeSetupHasSearchSuggestions {
+                return 410
+            }
 
-        if routeSetupHasSearchActivity {
-            return 410
+            return shouldShowRouteStatus ? 180 : 96
+        case .collapsed:
+            return 164
         }
-
-        return 164
     }
 
     private var routeSetupScrollMaximumHeight: CGFloat {
-        if routeSetupHasLoadedResults {
-            return liveDriveSetupRouteOptions.count >= 3 ? 492 : 462
-        }
+        switch routeSetupDrawerState {
+        case .results:
+            return liveDriveSetupRouteOptions.count >= 3 ? 430 : 400
+        case .searching:
+            if routeSetupHasSearchSuggestions {
+                return 258
+            }
 
-        if routeSetupHasSearchActivity {
-            return 312
+            return shouldShowRouteStatus ? 82 : 0
+        case .collapsed:
+            return 76
         }
-
-        return 76
     }
+
+    #if os(iOS)
+    private var routeDrawerKeyboardOffset: CGFloat {
+        guard liveDriveScreenState == .setup,
+              routeSetupDrawerState == .searching,
+              focusedRouteAddressField == .to,
+              keyboardHeight > 0 else {
+            return 0
+        }
+
+        return keyboardHeight
+    }
+
+    private var routeDrawerExtendsToBottom: Bool {
+        routeDrawerKeyboardOffset == 0
+    }
+
+    private var routeDrawerReservedMapHeight: CGFloat {
+        let baseHeight = routeSetupPanelMaximumHeight + 80
+        return baseHeight + routeDrawerKeyboardOffset
+    }
+    #else
+    private var routeDrawerExtendsToBottom: Bool { true }
+    #endif
 
     private var shouldShowRouteStartControls: Bool {
         routeSetupHasSearchActivity || routeSetupHasLoadedResults
@@ -638,11 +674,11 @@ public struct RouteComparisonView: View {
     #if os(iOS)
     private var routeSetupMapEdgePadding: UIEdgeInsets {
         if routeSetupHasLoadedResults {
-            return UIEdgeInsets(top: 118, left: 32, bottom: 590, right: 32)
+            return UIEdgeInsets(top: 90, left: 32, bottom: 690, right: 32)
         }
 
         if routeSetupHasSearchActivity || isInlineRouteEntryExpanded {
-            return UIEdgeInsets(top: 104, left: 28, bottom: 415, right: 28)
+            return UIEdgeInsets(top: 90, left: 28, bottom: routeDrawerReservedMapHeight, right: 28)
         }
 
         return UIEdgeInsets(top: 78, left: 24, bottom: 220, right: 24)
@@ -1273,7 +1309,7 @@ public struct RouteComparisonView: View {
             return "Calculating route..."
         }
 
-        if routeOriginInputMode == .currentLocation {
+        if routeOriginInputMode == .currentLocation, currentLocationResolver.currentPlace == nil {
             if currentLocationResolver.isResolving && currentLocationResolver.currentPlace == nil {
                 return "Finding your current location..."
             }
@@ -1293,6 +1329,23 @@ public struct RouteComparisonView: View {
         }
 
         return ""
+    }
+
+    private var isWaitingForCurrentLocation: Bool {
+        routeOriginInputMode == .currentLocation &&
+            currentLocationResolver.currentPlace == nil &&
+            currentLocationResolver.isResolving
+    }
+
+    private var hasCurrentLocationStatusIssue: Bool {
+        routeOriginInputMode == .currentLocation &&
+            currentLocationResolver.currentPlace == nil &&
+            currentLocationResolver.errorMessage != nil
+    }
+
+    private var routeStatusShowsLocationSettingsAction: Bool {
+        routeOriginInputMode == .currentLocation &&
+            currentLocationResolver.authorizationStatus == .denied
     }
 
     private var routeStatusForeground: Color {
@@ -1384,7 +1437,11 @@ public struct RouteComparisonView: View {
     }
 
     private var shouldShowRouteStatus: Bool {
-        isCalculatingRoute || activeRouteEstimate != nil || routeErrorMessage != nil
+        isCalculatingRoute ||
+            activeRouteEstimate != nil ||
+            routeErrorMessage != nil ||
+            isWaitingForCurrentLocation ||
+            hasCurrentLocationStatusIssue
     }
 
     private var isStartLiveDriveDisabled: Bool {
@@ -1409,6 +1466,14 @@ public struct RouteComparisonView: View {
         .task {
             handleInitialViewTask()
         }
+        #if os(iOS)
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { notification in
+            handleKeyboardFrameChanged(notification)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            handleKeyboardHidden()
+        }
+        #endif
         .onChange(of: routeOriginInputMode) { _, newMode in
             handleRouteOriginInputModeChanged(newMode)
         }
@@ -1451,8 +1516,8 @@ public struct RouteComparisonView: View {
         .onChange(of: liveDriveScreenState) { _, newState in
             handleLiveDriveScreenStateChanged(newState)
         }
-        .onChange(of: currentLocationResolver.currentPlace) { _, _ in
-            handleCurrentLocationPlaceChanged()
+        .onChange(of: currentLocationResolver.currentPlace) { oldPlace, newPlace in
+            handleCurrentLocationPlaceChanged(from: oldPlace, to: newPlace)
         }
         .onChange(of: tracker.permissionState) { _, newState in
             handleTrackerPermissionStateChanged(newState)
@@ -1543,23 +1608,37 @@ public struct RouteComparisonView: View {
         applyStoredVoiceSettings()
         migrateNavigationProviderPreferenceIfNeeded()
 
-        if routeOriginInputMode == .currentLocation {
-            currentLocationResolver.requestCurrentLocationIfNeeded()
-        }
+        syncSetupCurrentLocationUpdates()
 
         guard shouldRunCaptureBootstrap, !didRunCaptureBootstrap else { return }
         didRunCaptureBootstrap = true
         calculateAppleMapsRoute()
     }
 
+    #if os(iOS)
+    private func handleKeyboardFrameChanged(_ notification: Notification) {
+        guard let frame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else {
+            return
+        }
+
+        let overlap = max(0, UIScreen.main.bounds.height - frame.minY)
+        withAnimation(.easeOut(duration: 0.22)) {
+            keyboardHeight = overlap
+        }
+    }
+
+    private func handleKeyboardHidden() {
+        withAnimation(.easeOut(duration: 0.18)) {
+            keyboardHeight = 0
+        }
+    }
+    #endif
+
     private func handleRouteOriginInputModeChanged(_ newMode: RouteOriginInputMode) {
         focusedRouteAddressField = nil
         autocompleteController.clear()
         resetCalculatedRouteState()
-
-        if newMode == .currentLocation {
-            currentLocationResolver.requestCurrentLocationIfNeeded()
-        }
+        syncSetupCurrentLocationUpdates()
     }
 
     private func handleFocusedRouteAddressFieldChanged(_ newField: RouteAddressField?) {
@@ -1578,7 +1657,7 @@ public struct RouteComparisonView: View {
                 withAnimation(.snappy(duration: 0.24, extraBounce: 0)) {
                     isRouteSetupPanelPresented = true
                 }
-                currentLocationResolver.requestCurrentLocationIfNeeded()
+                syncSetupCurrentLocationUpdates()
                 refreshPassiveMapLayersIfPossible(force: false)
             }
             autocompleteController.updateQuery(toAddressText, for: .to)
@@ -1601,14 +1680,25 @@ public struct RouteComparisonView: View {
     private func handleDistanceTraveledChanged(_ newDistance: Double) {
         guidanceEngine.update(progressDistanceMeters: newDistance * 1_609.344)
 
-        if let currentCoordinate = tracker.currentCoordinate {
+        if let currentSample = tracker.currentLocationSample {
+            guidanceEngine.update(sample: currentSample)
+            logGuidanceRouteMatchIfNeeded()
+        } else if let currentCoordinate = tracker.currentCoordinate {
             guidanceEngine.update(currentLocation: currentCoordinate)
         }
     }
 
     private func handleCurrentCoordinateChanged(_ newCoordinate: GuidanceCoordinate?) {
         guard let newCoordinate else { return }
-        guidanceEngine.update(currentLocation: newCoordinate)
+        if let currentSample = tracker.currentLocationSample, currentSample.coordinate == newCoordinate {
+            guidanceEngine.update(sample: currentSample)
+            logGuidanceRouteMatchIfNeeded()
+        } else {
+            guidanceEngine.update(currentLocation: newCoordinate)
+        }
+        if !guidanceEngine.state.isOffRoute, guidanceRerouteMessage == "Reroute ready" {
+            guidanceRerouteMessage = nil
+        }
         refreshSpeedLimitIfNeeded(near: newCoordinate)
         refreshAircraftIfNeeded(near: newCoordinate)
         refreshEnforcementAlertsIfNeeded(near: newCoordinate)
@@ -1649,6 +1739,8 @@ public struct RouteComparisonView: View {
     }
 
     private func handleLiveDriveScreenStateChanged(_ newState: LiveDriveScreenState) {
+        syncSetupCurrentLocationUpdates()
+
         switch newState {
         case .driving:
             isRouteSetupPanelPresented = false
@@ -1657,8 +1749,12 @@ public struct RouteComparisonView: View {
         }
     }
 
-    private func handleCurrentLocationPlaceChanged() {
+    private func handleCurrentLocationPlaceChanged(
+        from oldPlace: ResolvedRoutePlace?,
+        to newPlace: ResolvedRoutePlace?
+    ) {
         refreshPassiveMapLayersIfPossible(force: false)
+        autoRefreshSetupRouteForCurrentLocationChange(from: oldPlace, to: newPlace)
     }
 
     private func handleTrackerPermissionStateChanged(_ newState: LiveDrivePermissionState) {
@@ -1671,16 +1767,66 @@ public struct RouteComparisonView: View {
     }
 
     private func handleScenePhaseChanged(_ newPhase: ScenePhase) {
-        guard newPhase == .active else { return }
         tracker.refreshAuthorizationState()
         currentLocationResolver.refreshAuthorizationState()
+        syncSetupCurrentLocationUpdates()
 
-        currentLocationResolver.requestCurrentLocationIfNeeded()
+        guard newPhase == .active else { return }
         refreshPassiveMapLayersIfPossible(force: false)
 
         if tracker.isTracking {
             processLiveDriveNavigationHandoffIfNeeded()
         }
+    }
+
+    private var shouldRunSetupCurrentLocationUpdates: Bool {
+        scenePhase == .active &&
+            liveDriveScreenState == .setup &&
+            routeOriginInputMode == .currentLocation
+    }
+
+    private func syncSetupCurrentLocationUpdates() {
+        if shouldRunSetupCurrentLocationUpdates {
+            currentLocationResolver.startAutomaticUpdates()
+        } else {
+            currentLocationResolver.stopAutomaticUpdates()
+        }
+    }
+
+    private func autoRefreshSetupRouteForCurrentLocationChange(
+        from _: ResolvedRoutePlace?,
+        to newPlace: ResolvedRoutePlace?
+    ) {
+        guard liveDriveScreenState == .setup,
+              routeOriginInputMode == .currentLocation,
+              newPlace != nil,
+              routeDestinationEndpoint != nil,
+              !isCalculatingRoute else {
+            return
+        }
+
+        if routeOptions.isEmpty {
+            calculateAppleMapsRoute()
+            return
+        }
+
+        guard routeNeedsRefresh,
+              let route = routeOptions.first,
+              let newPlace else {
+            return
+        }
+
+        let routeSource = GuidanceCoordinate(
+            latitude: route.sourceCoordinate.latitude,
+            longitude: route.sourceCoordinate.longitude
+        )
+        let updatedSource = GuidanceCoordinate(
+            latitude: newPlace.coordinate.latitude,
+            longitude: newPlace.coordinate.longitude
+        )
+        let movedMiles = routeSource.location.distance(from: updatedSource.location) / 1_609.344
+        guard movedMiles >= setupCurrentLocationRouteRefreshMovementMiles else { return }
+        calculateAppleMapsRoute()
     }
 
     private var mapFirstRoot: some View {
@@ -1720,12 +1866,22 @@ public struct RouteComparisonView: View {
 
             mapFirstBottomPanel
                 .padding(.horizontal, 8)
+                #if os(iOS)
+                .padding(.bottom, routeDrawerKeyboardOffset)
+                #endif
                 .frame(maxHeight: .infinity, alignment: .bottom)
+                #if os(iOS)
+                .ignoresSafeArea(.container, edges: routeDrawerExtendsToBottom ? .bottom : [])
+                #else
                 .ignoresSafeArea(.container, edges: .bottom)
+                #endif
                 .transition(.move(edge: .bottom).combined(with: .opacity))
                 .animation(.snappy(duration: 0.32, extraBounce: 0.06), value: liveDriveScreenState)
                 .animation(.snappy(duration: 0.32, extraBounce: 0.06), value: isInlineRouteEntryExpanded)
                 .animation(.snappy(duration: 0.32, extraBounce: 0.06), value: routeSetupHasLoadedResults)
+                #if os(iOS)
+                .animation(.snappy(duration: 0.28, extraBounce: 0.02), value: keyboardHeight)
+                #endif
         }
         .background(setupBackgroundTop.ignoresSafeArea())
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -1772,7 +1928,7 @@ public struct RouteComparisonView: View {
     }
 
     private var inlineRouteEntryMapPanel: some View {
-        mapFirstPanel(maxHeight: routeSetupPanelMaximumHeight) {
+        mapFirstPanel(maxHeight: routeSetupPanelMaximumHeight, extendsToBottom: routeDrawerExtendsToBottom) {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .center, spacing: 10) {
                     inlineDestinationSearchField
@@ -1783,22 +1939,23 @@ public struct RouteComparisonView: View {
                 }
 
                 if isInlineRouteEntryExpanded {
-                    ScrollView(.vertical, showsIndicators: routeSetupHasSearchActivity || routeSetupHasLoadedResults) {
-                        VStack(alignment: .leading, spacing: 8) {
-                            currentLocationOriginField
-                            routeAutocompleteList(suggestions: toSuggestions, field: .to)
+                    if routeSetupHasExpandableDrawerContent {
+                        ScrollView(.vertical, showsIndicators: routeSetupHasExpandableDrawerContent) {
+                            VStack(alignment: .leading, spacing: 8) {
+                                routeAutocompleteList(suggestions: toSuggestions, field: .to)
 
-                            if shouldShowRouteStatus {
-                                routeStatusView
-                            }
+                                if shouldShowRouteStatus {
+                                    routeStatusView
+                                }
 
-                            if routeSetupHasLoadedResults, let route = liveDriveSetupRoute {
-                                inlineRouteResultsPanel(route: route)
+                                if routeSetupHasLoadedResults, let route = liveDriveSetupRoute {
+                                    inlineRouteResultsPanel(route: route)
+                                }
                             }
+                            .padding(.bottom, 2)
                         }
-                        .padding(.bottom, 2)
+                        .frame(maxHeight: routeSetupScrollMaximumHeight)
                     }
-                    .frame(maxHeight: routeSetupScrollMaximumHeight)
                 } else {
                     inlineLogTripButton
                 }
@@ -1951,10 +2108,8 @@ public struct RouteComparisonView: View {
     }
 
     private var tripCompleteMapPanel: some View {
-        mapFirstPanel(maxHeight: 620) {
+        mapFirstPanel {
             VStack(alignment: .leading, spacing: 10) {
-                tripCompletePanelGrabber
-
                 HStack(spacing: 10) {
                     VStack(alignment: .leading, spacing: 3) {
                         Text("Trip Complete")
@@ -1985,12 +2140,16 @@ public struct RouteComparisonView: View {
                 tripCompleteMapActions
             }
         }
+        .contentShape(Rectangle())
+        .gesture(tripCompleteDismissDragGesture)
     }
 
     @ViewBuilder
     private var tripCompleteCompactResultSection: some View {
         if let completedTrip = liveDriveFinishedTrip {
             VStack(alignment: .leading, spacing: 10) {
+                tripCompleteBrandLogo
+
                 VStack(alignment: .leading, spacing: 4) {
                     Text(completedTrip.displayRouteTitle)
                         .font(.subheadline.weight(.bold))
@@ -2063,6 +2222,23 @@ public struct RouteComparisonView: View {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .stroke(setupPanelBorder, lineWidth: 1)
             }
+        }
+    }
+
+    @ViewBuilder
+    private var tripCompleteBrandLogo: some View {
+        if let brandLogo {
+            brandLogo
+                .resizable()
+                .interpolation(.high)
+                .scaledToFit()
+                .frame(maxWidth: 210, maxHeight: 48, alignment: .leading)
+        } else if let resultBrandLogo {
+            resultBrandLogo
+                .resizable()
+                .interpolation(.high)
+                .scaledToFit()
+                .frame(width: 48, height: 48, alignment: .leading)
         }
     }
 
@@ -2165,6 +2341,7 @@ public struct RouteComparisonView: View {
 
     private func mapFirstPanel<Content: View>(
         maxHeight: CGFloat? = nil,
+        extendsToBottom: Bool = true,
         @ViewBuilder content: () -> Content
     ) -> some View {
         let sheetShape = MapBottomEdgeSheetShape(topRadius: 26, bottomRadius: 5)
@@ -2174,16 +2351,26 @@ public struct RouteComparisonView: View {
             .padding(.horizontal, 12)
             .padding(.bottom, 24)
             .frame(maxWidth: .infinity)
-            .frame(maxHeight: maxHeight)
+            .frame(maxHeight: maxHeight, alignment: .top)
             .background {
-                sheetShape
-                    .fill(setupSurface.opacity(0.95))
-                    .ignoresSafeArea(.container, edges: .bottom)
+                if extendsToBottom {
+                    sheetShape
+                        .fill(setupSurface.opacity(0.95))
+                        .ignoresSafeArea(.container, edges: .bottom)
+                } else {
+                    sheetShape
+                        .fill(setupSurface.opacity(0.95))
+                }
             }
             .overlay {
-                sheetShape
-                    .stroke(setupPanelBorder, lineWidth: 1)
-                    .ignoresSafeArea(.container, edges: .bottom)
+                if extendsToBottom {
+                    sheetShape
+                        .stroke(setupPanelBorder, lineWidth: 1)
+                        .ignoresSafeArea(.container, edges: .bottom)
+                } else {
+                    sheetShape
+                        .stroke(setupPanelBorder, lineWidth: 1)
+                }
             }
             .shadow(color: setupShadowColor, radius: 24, y: -4)
     }
@@ -3049,7 +3236,7 @@ public struct RouteComparisonView: View {
                     }
 
                     mapOptionsSection(title: "Alerts", systemImage: "airplane", accent: Color(red: 0.82, green: 0.20, blue: 0.95)) {
-                        HStack(spacing: 10) {
+                        HStack(alignment: .top, spacing: 10) {
                             VStack(alignment: .leading, spacing: 3) {
                                 Text("Nearby Low Aircraft")
                                     .font(.headline.weight(.semibold))
@@ -3058,17 +3245,21 @@ public struct RouteComparisonView: View {
                                 Text(aircraftOptionsStatusText)
                                     .font(.subheadline.weight(.medium))
                                     .foregroundStyle(setupSecondaryText)
+                                    .lineLimit(2)
                             }
 
                             Spacer(minLength: 8)
 
                             Button(action: toggleAircraftLayer) {
                                 Text(showsAircraftLayer ? "Hide" : "Show")
-                                    .font(.subheadline.weight(.bold))
+                                    .font(.caption.weight(.bold))
                                     .foregroundStyle(setupPrimaryText)
-                                    .padding(.horizontal, 14)
-                                    .padding(.vertical, 8)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 7)
                                     .background(setupSurfaceMuted, in: Capsule())
+                                    .overlay {
+                                        Capsule().stroke(setupPanelBorder, lineWidth: 1)
+                                    }
                             }
                             .buttonStyle(.plain)
                         }
@@ -3077,16 +3268,29 @@ public struct RouteComparisonView: View {
                             .font(.caption.weight(.medium))
                             .foregroundStyle(setupTertiaryText)
 
-                        if !aircraftLayer.aircraft.isEmpty {
-                            VStack(spacing: 8) {
-                                ForEach(aircraftLayer.aircraft.prefix(5)) { aircraft in
-                                    mapOptionsDetailRow(
-                                        title: aircraft.callsign,
-                                        value: aircraft.distanceMiles.map { "\(String(format: "%.1f", $0)) mi away" } ?? "Nearby",
-                                        detail: aircraftOptionsDetailText(for: aircraft)
-                                    )
+                        if !showsAircraftLayer {
+                            Text("Hidden")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(setupSecondaryText)
+                                .padding(.top, 2)
+                        } else if aircraftLayer.aircraft.isEmpty {
+                            Text(aircraftOptionsStatusText)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(setupSecondaryText)
+                                .padding(.top, 2)
+                        } else {
+                            ScrollView(.vertical, showsIndicators: aircraftLayer.aircraft.count > 2) {
+                                VStack(spacing: 8) {
+                                    ForEach(aircraftLayer.aircraft) { aircraft in
+                                        mapOptionsDetailRow(
+                                            title: aircraft.callsign,
+                                            value: aircraft.distanceMiles.map { "\(String(format: "%.1f", $0)) mi away" } ?? "Nearby",
+                                            detail: aircraftOptionsDetailText(for: aircraft)
+                                        )
+                                    }
                                 }
                             }
+                            .frame(maxHeight: aircraftLayer.aircraft.count > 2 ? 178 : nil)
                         }
                     }
 
@@ -4081,8 +4285,6 @@ public struct RouteComparisonView: View {
 
     private var appleMapsRouteInputs: some View {
         VStack(alignment: .leading, spacing: isPolishedLiveDriveSetup ? 6 : 12) {
-            currentLocationOriginField
-
             routeAddressInputField(
                 text: $toAddressText,
                 placeholder: "Destination address",
@@ -4166,56 +4368,6 @@ public struct RouteComparisonView: View {
         }
 
         return isPolishedLiveDriveSetup ? setupFieldBorder : Palette.surfaceBorder
-    }
-
-    private var currentLocationOriginField: some View {
-        HStack(alignment: .center, spacing: 10) {
-            Image(systemName: currentLocationResolver.errorMessage == nil ? "location.fill" : "location.slash.fill")
-                .font(.caption.weight(.bold))
-                .foregroundStyle(currentLocationResolver.errorMessage == nil ? Palette.success : Palette.danger)
-                .frame(width: 28, height: 28)
-                .background((isPolishedLiveDriveSetup ? setupSelectionFill : Palette.panelAlt), in: Circle())
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(currentLocationFieldLabel)
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(isPolishedLiveDriveSetup ? setupSecondaryText : Palette.cocoa)
-
-                Text(currentLocationDetailText)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(currentLocationResolver.errorMessage == nil ? (isPolishedLiveDriveSetup ? setupPrimaryText : Palette.ink) : Palette.danger)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.78)
-            }
-
-            Spacer(minLength: 8)
-
-            if currentLocationResolver.isResolving {
-                ProgressView()
-                    .tint(Palette.success)
-            } else if currentLocationResolver.authorizationStatus == .denied {
-                Button("Settings") {
-                    openLiveDriveSettings()
-                }
-                .buttonStyle(.borderless)
-                .font(.caption.weight(.bold))
-                .foregroundStyle(Palette.success)
-            } else {
-                Button("Refresh") {
-                    currentLocationResolver.requestCurrentLocation()
-                }
-                .buttonStyle(.borderless)
-                .font(.caption.weight(.bold))
-                .foregroundStyle(Palette.success)
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(isPolishedLiveDriveSetup ? setupFieldFill : Palette.panelAlt, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(isPolishedLiveDriveSetup ? setupFieldBorder : Palette.surfaceBorder, lineWidth: 1)
-        }
     }
 
     private func routeAddressInputField(
@@ -4360,7 +4512,7 @@ public struct RouteComparisonView: View {
 
     private var routeStatusView: some View {
         HStack(spacing: 12) {
-            if isCalculatingRoute {
+            if isCalculatingRoute || isWaitingForCurrentLocation {
                 ProgressView()
                     .tint(isPolishedLiveDriveSetup ? setupSecondaryText : Palette.cocoa)
             }
@@ -4369,6 +4521,15 @@ public struct RouteComparisonView: View {
                 .font(routeStatusFont)
                 .foregroundStyle(routeStatusForeground)
                 .frame(maxWidth: .infinity, alignment: .leading)
+
+            if routeStatusShowsLocationSettingsAction {
+                Button("Settings") {
+                    openLiveDriveSettings()
+                }
+                .buttonStyle(.borderless)
+                .font(.caption.weight(.bold))
+                .foregroundStyle(Palette.success)
+            }
         }
         .padding(.horizontal, isMobileLayout ? 12 : 13)
         .padding(.vertical, isMobileLayout ? 7 : 10)
@@ -5424,7 +5585,7 @@ public struct RouteComparisonView: View {
         withAnimation(.snappy(duration: 0.24, extraBounce: 0)) {
             isRouteSetupPanelPresented = true
         }
-        currentLocationResolver.requestCurrentLocationIfNeeded()
+        syncSetupCurrentLocationUpdates()
         refreshPassiveMapLayersIfPossible(force: false)
 
         if focusDestination {
@@ -5433,22 +5594,38 @@ public struct RouteComparisonView: View {
     }
 
     private func closeRouteSetupPanel() {
-        shouldFocusDestinationOnRoutePanelOpen = false
-        focusedRouteAddressField = nil
+        clearRouteEntryFocus()
         withAnimation(.snappy(duration: 0.24, extraBounce: 0)) {
             isRouteSetupPanelPresented = false
         }
     }
 
     private func finishInlineRouteEntryEditing() {
-        shouldFocusDestinationOnRoutePanelOpen = false
-        focusedRouteAddressField = nil
+        clearRouteEntryFocus()
 
         guard !routeSetupHasDestinationInput, !routeSetupHasLoadedResults else { return }
 
         withAnimation(.snappy(duration: 0.24, extraBounce: 0)) {
             isRouteSetupPanelPresented = false
         }
+    }
+
+    private func clearRouteEntryFocus() {
+        shouldFocusDestinationOnRoutePanelOpen = false
+        focusedRouteAddressField = nil
+        autocompleteController.clear()
+        #if os(iOS)
+        keyboardHeight = 0
+        #endif
+    }
+
+    private func clearRouteEntryInteraction(clearDestination: Bool) {
+        clearRouteEntryFocus()
+
+        guard clearDestination else { return }
+        toAddressText = ""
+        toResolvedPlace = nil
+        resetCalculatedRouteState()
     }
 
     private func focusDestinationAddressFieldSoon() {
@@ -5607,10 +5784,9 @@ public struct RouteComparisonView: View {
         liveDriveNavigationHandoffMessage = nil
         liveDriveNavigationProviderPending = preferredNavigationProvider
         tracker.configuration = configuration
-        speedLimitDisplayText = "Unavailable"
-        speedLimitDetailText = "OpenStreetMap estimate"
-        tracker.updateSpeedLimitEstimate(nil)
+        clearSpeedLimitEstimate()
         guidanceRerouteMessage = nil
+        lastGuidanceRerouteAt = nil
         aircraftStatusText = showsAircraftLayer ? "Checking" : "Off"
         enforcementAlerts = []
         enforcementAlertsLastUpdatedAt = nil
@@ -5623,9 +5799,12 @@ public struct RouteComparisonView: View {
             destination: GuidanceCoordinate(
                 latitude: selectedRoute.destinationCoordinate.latitude,
                 longitude: selectedRoute.destinationCoordinate.longitude
-            )
+            ),
+            routeGeometry: Self.guidanceCoordinates(from: selectedRoute.routeCoordinates)
         )
         applyStoredVoiceSettings()
+        currentLocationResolver.stopAutomaticUpdates()
+        clearRouteEntryInteraction(clearDestination: false)
         withAnimation(.snappy(duration: 0.28, extraBounce: 0)) {
             tracker.startTrip(requiresBackgroundContinuation: true)
             isRouteSetupPanelPresented = false
@@ -5650,11 +5829,10 @@ public struct RouteComparisonView: View {
         isNavigationProviderChoicePresented = false
         isRouteFreeLoggingMode = true
         tracker.configuration = LiveDriveConfiguration()
-        speedLimitDisplayText = "Unavailable"
-        speedLimitDetailText = "OpenStreetMap estimate"
-        tracker.updateSpeedLimitEstimate(nil)
+        clearSpeedLimitEstimate()
         guidanceEngine.reset()
         guidanceRerouteMessage = nil
+        lastGuidanceRerouteAt = nil
         aircraftStatusText = showsAircraftLayer ? "Checking" : "Off"
         enforcementAlerts = []
         enforcementAlertsLastUpdatedAt = nil
@@ -5662,6 +5840,8 @@ public struct RouteComparisonView: View {
         spokenCameraAlertThresholds = [:]
         spokenAircraftAlertHistory = [:]
         applyStoredVoiceSettings()
+        currentLocationResolver.stopAutomaticUpdates()
+        clearRouteEntryInteraction(clearDestination: true)
 
         withAnimation(.snappy(duration: 0.28, extraBounce: 0)) {
             tracker.startTrip(requiresBackgroundContinuation: true)
@@ -5703,11 +5883,10 @@ public struct RouteComparisonView: View {
             routeWeatherEntries = []
             routeWeatherMessage = "Forecast unavailable"
             isRouteWeatherLoading = false
-            speedLimitDisplayText = "Unavailable"
-            speedLimitDetailText = "OpenStreetMap estimate"
-            tracker.updateSpeedLimitEstimate(nil)
+            clearSpeedLimitEstimate()
             guidanceRerouteMessage = nil
             isGuidanceRerouting = false
+            lastGuidanceRerouteAt = nil
             enforcementAlerts = []
             enforcementAlertsLastUpdatedAt = nil
             lastEnforcementAlertLookupAt = nil
@@ -5716,6 +5895,7 @@ public struct RouteComparisonView: View {
             enforcementAlertStatusText = areEnforcementAlertsEnabled ? "Checking" : "Off"
             spokenCameraAlertThresholds = [:]
             isRouteSetupPanelPresented = false
+            clearRouteEntryInteraction(clearDestination: true)
 
             if areEnforcementAlertsEnabled, let finalCoordinate {
                 refreshEnforcementAlerts(near: finalCoordinate, force: true)
@@ -5746,11 +5926,10 @@ public struct RouteComparisonView: View {
         isNavigationProviderChoicePresented = false
         tracker.resetTrip()
         guidanceEngine.reset()
-        speedLimitDisplayText = "Unavailable"
-        speedLimitDetailText = "OpenStreetMap estimate"
-        tracker.updateSpeedLimitEstimate(nil)
+        clearSpeedLimitEstimate()
         guidanceRerouteMessage = nil
         isGuidanceRerouting = false
+        lastGuidanceRerouteAt = nil
         aircraftLayer = AircraftLayerState(isVisible: showsAircraftLayer)
         aircraftStatusText = showsAircraftLayer ? "Checking" : "Off"
         enforcementAlerts = []
@@ -5761,6 +5940,7 @@ public struct RouteComparisonView: View {
         enforcementAlertStatusText = areEnforcementAlertsEnabled ? "Checking" : "Off"
         spokenCameraAlertThresholds = [:]
         spokenAircraftAlertHistory = [:]
+        clearRouteEntryInteraction(clearDestination: true)
         shouldFocusDestinationOnRoutePanelOpen = openRouteSetup
         isRouteSetupPanelPresented = openRouteSetup
     }
@@ -5775,13 +5955,13 @@ public struct RouteComparisonView: View {
             isNavigationProviderChoicePresented = false
             tracker.resetTrip()
             guidanceEngine.reset()
-            speedLimitDisplayText = "Unavailable"
-            speedLimitDetailText = "OpenStreetMap estimate"
-            tracker.updateSpeedLimitEstimate(nil)
+            clearSpeedLimitEstimate()
             guidanceRerouteMessage = nil
             isGuidanceRerouting = false
+            lastGuidanceRerouteAt = nil
             isMapOptionsPresented = false
             isRouteSetupPanelPresented = false
+            clearRouteEntryInteraction(clearDestination: true)
         }
     }
 
@@ -6270,7 +6450,7 @@ public struct RouteComparisonView: View {
         } else if let coordinate = passiveMapCoordinate {
             refreshCurrentWeather(near: coordinate, force: true)
         } else {
-            currentLocationResolver.requestCurrentLocationIfNeeded()
+            syncSetupCurrentLocationUpdates()
             currentWeatherMessage = "Waiting for current location."
         }
     }
@@ -6372,7 +6552,7 @@ public struct RouteComparisonView: View {
     private func prepareInactiveMapIfNeeded(forceRefresh: Bool) {
         guard liveDriveScreenState != .driving else { return }
 
-        currentLocationResolver.requestCurrentLocationIfNeeded()
+        syncSetupCurrentLocationUpdates()
         refreshPassiveMapLayersIfPossible(force: forceRefresh)
     }
 
@@ -6403,24 +6583,51 @@ public struct RouteComparisonView: View {
             do {
                 let result = try await speedLimitProvider.currentSpeedLimitResult(near: coordinate)
                 await MainActor.run {
-                    if let result {
-                        speedLimitDisplayText = "\(result.currentSpeedLimitMPH) mph"
-                        speedLimitDetailText = Self.speedLimitDetailText(from: result)
-                        tracker.updateSpeedLimitEstimate(result.currentSpeedLimitMPH)
-                    } else {
-                        speedLimitDisplayText = "Unavailable"
-                        speedLimitDetailText = "OpenStreetMap estimate"
-                        tracker.updateSpeedLimitEstimate(nil)
-                    }
+                    applySpeedLimitResolution(
+                        SpeedLimitHoldoverPolicy.resolve(
+                            freshResult: result,
+                            previousSnapshot: speedLimitHoldoverSnapshot,
+                            coordinate: coordinate,
+                            now: Date()
+                        )
+                    )
                 }
             } catch {
                 await MainActor.run {
-                    speedLimitDisplayText = "Unavailable"
-                    speedLimitDetailText = "OpenStreetMap estimate"
-                    tracker.updateSpeedLimitEstimate(nil)
+                    applySpeedLimitResolution(
+                        SpeedLimitHoldoverPolicy.resolve(
+                            freshResult: nil,
+                            previousSnapshot: speedLimitHoldoverSnapshot,
+                            coordinate: coordinate,
+                            now: Date()
+                        )
+                    )
                 }
             }
         }
+    }
+
+    private func applySpeedLimitResolution(_ resolution: SpeedLimitHoldoverPolicy.Resolution) {
+        switch resolution {
+        case .fresh(let snapshot):
+            speedLimitHoldoverSnapshot = snapshot
+            speedLimitDisplayText = "\(snapshot.speedLimitMPH) mph"
+            speedLimitDetailText = Self.speedLimitDetailText(from: snapshot)
+            tracker.updateSpeedLimitEstimate(snapshot.speedLimitMPH)
+        case .holdover(let snapshot):
+            speedLimitDisplayText = "\(snapshot.speedLimitMPH) mph"
+            speedLimitDetailText = Self.speedLimitHoldoverDetailText(from: snapshot)
+            tracker.updateSpeedLimitEstimate(snapshot.speedLimitMPH)
+        case .unavailable:
+            clearSpeedLimitEstimate()
+        }
+    }
+
+    private func clearSpeedLimitEstimate() {
+        speedLimitDisplayText = "Unavailable"
+        speedLimitDetailText = "OpenStreetMap estimate"
+        speedLimitHoldoverSnapshot = nil
+        tracker.updateSpeedLimitEstimate(nil)
     }
 
     private func refreshAircraftIfNeeded(near coordinate: GuidanceCoordinate) {
@@ -6595,28 +6802,18 @@ public struct RouteComparisonView: View {
         context visibilityContext: EnforcementAlertVisibilityContext,
         force: Bool
     ) -> Bool {
-        guard !force else { return true }
-
-        let now = Date()
         let routeContextID = enforcementAlertRouteContextID(for: visibilityContext)
-        if lastEnforcementAlertRouteContextID != routeContextID {
-            return true
-        }
-
-        guard let lastLookupAt = lastEnforcementAlertLookupAt else { return true }
-        let elapsed = now.timeIntervalSince(lastLookupAt)
-        if elapsed >= enforcementAlertMaximumRefreshIntervalSeconds {
-            return true
-        }
-
-        guard elapsed >= enforcementAlertRefreshIntervalSeconds else { return false }
-        guard let lastCoordinate = lastEnforcementAlertLookupCoordinate else { return true }
-
-        let movedMiles = coordinate.location.distance(from: lastCoordinate.location) / 1_609.344
-        let movementThreshold = visibilityContext.hasActiveRoute
-            ? routeActiveEnforcementRefreshMovementMiles
-            : noRouteEnforcementRefreshMovementMiles
-        return movedMiles >= movementThreshold
+        return EnforcementAlertRefreshPolicy.shouldRefresh(
+            force: force,
+            routeContextID: routeContextID,
+            lastRouteContextID: lastEnforcementAlertRouteContextID,
+            lastLookupAt: lastEnforcementAlertLookupAt,
+            lastCoordinate: lastEnforcementAlertLookupCoordinate,
+            currentCoordinate: coordinate,
+            hasActiveRoute: visibilityContext.hasActiveRoute,
+            currentSpeedMPH: tracker.currentSpeed,
+            now: Date()
+        )
     }
 
     private func enforcementAlertRouteContextID(
@@ -6724,6 +6921,20 @@ public struct RouteComparisonView: View {
         AircraftSpeechCueFormatter.spokenCue(for: aircraft)
     }
 
+    private func logGuidanceRouteMatchIfNeeded() {
+        guard let diagnostics = guidanceEngine.lastRouteMatchDiagnostics else { return }
+        guard diagnostics.offRouteSampleCount > 0 || guidanceEngine.state.isOffRoute else { return }
+
+        let distanceText = diagnostics.distanceToRouteMeters.map { String(format: "%.1f", $0) } ?? "n/a"
+        let progressText = diagnostics.snappedRouteProgressMeters.map { String(format: "%.1f", $0) } ?? "n/a"
+        let speedText = diagnostics.speedMilesPerHour.map { String(format: "%.1f", $0) } ?? "n/a"
+        let courseText = diagnostics.courseDegrees.map { String(format: "%.0f", $0) } ?? "n/a"
+        let courseAccuracyText = diagnostics.courseAccuracyDegrees.map { String(format: "%.0f", $0) } ?? "n/a"
+        Self.logRouteIntelligence(
+            "route-match raw=\(Self.roundedCoordinateText(diagnostics.rawCoordinate)) hAcc=\(String(format: "%.1f", diagnostics.horizontalAccuracyMeters)) speed=\(speedText) course=\(courseText) courseAcc=\(courseAccuracyText) distanceToRoute=\(distanceText) snappedProgress=\(progressText) offCount=\(diagnostics.offRouteSampleCount) elapsed=\(String(format: "%.1f", diagnostics.offRouteElapsedSeconds)) threshold=\(String(format: "%.1f", diagnostics.rerouteThresholdMeters)) decision=\(diagnostics.rerouteDecision)"
+        )
+    }
+
     private static func logRouteIntelligence(_ message: String) {
         #if canImport(OSLog)
         routeIntelligenceLogger.debug("\(message, privacy: .public)")
@@ -6755,6 +6966,12 @@ public struct RouteComparisonView: View {
         return parts.joined(separator: " ")
     }
 
+    private static func guidanceCoordinates(from routeCoordinates: [RouteCoordinate]) -> [GuidanceCoordinate] {
+        routeCoordinates.map {
+            GuidanceCoordinate(latitude: $0.latitude, longitude: $0.longitude)
+        }
+    }
+
     private static func roundedCoordinateText(_ coordinate: GuidanceCoordinate) -> String {
         "\(String(format: "%.4f", coordinate.latitude)),\(String(format: "%.4f", coordinate.longitude))"
     }
@@ -6767,20 +6984,27 @@ public struct RouteComparisonView: View {
             return
         }
 
+        guard let rerouteRequest = guidanceEngine.makeRerouteRequest(from: coordinate) else {
+            return
+        }
+
         let now = Date()
         if let lastGuidanceRerouteAt, now.timeIntervalSince(lastGuidanceRerouteAt) < 60 {
+            let remaining = 60 - now.timeIntervalSince(lastGuidanceRerouteAt)
+            Self.logRouteIntelligence("reroute blocked: cooldown remaining=\(String(format: "%.1f", remaining))")
             return
         }
         lastGuidanceRerouteAt = now
         isGuidanceRerouting = true
         guidanceRerouteMessage = nil
         guidanceEngine.speakSystemPrompt("Rerouting.")
+        Self.logRouteIntelligence("reroute allowed: \(rerouteRequest.reason)")
 
         let sourcePlace = ResolvedRoutePlace(
             title: "Current Location",
             subtitle: "Drive position",
             query: "Current Location",
-            coordinate: RouteCoordinate(latitude: coordinate.latitude, longitude: coordinate.longitude),
+            coordinate: RouteCoordinate(latitude: rerouteRequest.currentLocation.latitude, longitude: rerouteRequest.currentLocation.longitude),
             isCurrentLocation: true
         )
         let destinationPlace = ResolvedRoutePlace(
@@ -6818,7 +7042,8 @@ public struct RouteComparisonView: View {
                         destination: GuidanceCoordinate(
                             latitude: selectedRoute.destinationCoordinate.latitude,
                             longitude: selectedRoute.destinationCoordinate.longitude
-                        )
+                        ),
+                        routeGeometry: Self.guidanceCoordinates(from: selectedRoute.routeCoordinates)
                     )
                     applyStoredVoiceSettings()
                     isGuidanceRerouting = false
@@ -6924,19 +7149,30 @@ public struct RouteComparisonView: View {
         return "\(String(format: "%.1f", feet / 5_280)) mi to next maneuver"
     }
 
-    private static func speedLimitDetailText(from result: OSMSpeedLimitResult) -> String {
+    private static func speedLimitDetailText(from snapshot: SpeedLimitHoldoverPolicy.Snapshot) -> String {
         var parts = ["OpenStreetMap estimate"]
 
-        if let roadName = result.roadName, !roadName.isEmpty {
+        if let roadName = snapshot.roadName, !roadName.isEmpty {
             parts.append(roadName)
         }
 
-        parts.append("Confidence \(Int((result.confidence * 100).rounded()))%")
+        parts.append("Confidence \(Int((snapshot.confidence * 100).rounded()))%")
 
-        if let wayId = result.wayId {
+        if let wayId = snapshot.wayId {
             parts.append("Way \(wayId)")
         }
 
+        return parts.joined(separator: " • ")
+    }
+
+    private static func speedLimitHoldoverDetailText(from snapshot: SpeedLimitHoldoverPolicy.Snapshot) -> String {
+        var parts = ["Last confirmed"]
+
+        if let roadName = snapshot.roadName, !roadName.isEmpty {
+            parts.append(roadName)
+        }
+
+        parts.append("\(snapshot.source) estimate")
         return parts.joined(separator: " • ")
     }
 

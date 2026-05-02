@@ -105,6 +105,7 @@ public final class LiveDriveTracker: NSObject, ObservableObject {
     @Published public private(set) var didFinishTrip = false
     @Published public private(set) var permissionState: LiveDrivePermissionState
     @Published public private(set) var currentCoordinate: GuidanceCoordinate?
+    @Published public private(set) var currentLocationSample: GuidanceLocationSample?
     @Published public private(set) var trackedPathCoordinates: [GuidanceCoordinate] = []
 
     public var configuration: LiveDriveConfiguration {
@@ -233,6 +234,7 @@ public final class LiveDriveTracker: NSObject, ObservableObject {
         analysisState = TripAnalysisState()
         lastAcceptedLocation = nil
         currentCoordinate = nil
+        currentLocationSample = nil
         trackedPathCoordinates = []
         lastAcceptedSampleTimestamp = nil
         lastSummaryComputation = nil
@@ -403,6 +405,14 @@ public final class LiveDriveTracker: NSObject, ObservableObject {
         let acceptedCoordinate = GuidanceCoordinate(
             latitude: location.coordinate.latitude,
             longitude: location.coordinate.longitude
+        )
+        currentLocationSample = GuidanceLocationSample(
+            coordinate: acceptedCoordinate,
+            timestamp: location.timestamp,
+            horizontalAccuracyMeters: location.horizontalAccuracy,
+            speedMetersPerSecond: location.speed >= 0 ? location.speed : nil,
+            courseDegrees: location.course >= 0 ? location.course : nil,
+            courseAccuracyDegrees: location.courseAccuracy >= 0 ? location.courseAccuracy : nil
         )
         currentCoordinate = acceptedCoordinate
         appendTrackedPathCoordinate(acceptedCoordinate)

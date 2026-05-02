@@ -145,6 +145,8 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
         private var lastWeatherCheckpointSignature = ""
         private var lastRecenterToken: UUID?
         private var hasAppliedInitialFollowRegion = false
+        private var hasAppliedFallbackRegion = false
+        private var hasScheduledInitialLocationSnap = false
         private var userInitiatedMapChange = false
 
         #if canImport(OSLog)
@@ -464,7 +466,10 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
                 } else if forceRecenter {
                     fitRouteContext(on: mapView)
                 } else if parent.routes.isEmpty && !hasAppliedInitialFollowRegion {
-                    applyFallbackRegion(on: mapView)
+                    scheduleInitialLocationSnapIfNeeded(on: mapView)
+                    if !hasAppliedFallbackRegion {
+                        applyFallbackRegion(on: mapView)
+                    }
                 }
             } else if mapView.userTrackingMode != .none {
                 mapView.setUserTrackingMode(.none, animated: false)
@@ -483,6 +488,7 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
             )
             mapView.setRegion(region, animated: animated)
             hasAppliedInitialFollowRegion = true
+            hasAppliedFallbackRegion = false
         }
 
         private func applyFallbackRegion(on mapView: MKMapView) {
@@ -492,7 +498,26 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
                 longitudinalMeters: 4_500_000
             )
             mapView.setRegion(region, animated: false)
-            hasAppliedInitialFollowRegion = true
+            hasAppliedFallbackRegion = true
+        }
+
+        private func scheduleInitialLocationSnapIfNeeded(on mapView: MKMapView) {
+            guard !hasScheduledInitialLocationSnap else { return }
+            hasScheduledInitialLocationSnap = true
+
+            [0.15, 0.45, 0.9, 1.6].forEach { delay in
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self, weak mapView] in
+                    guard let self, let mapView else { return }
+                    guard !self.hasAppliedInitialFollowRegion, !self.userInitiatedMapChange else { return }
+                    guard let coordinate = self.resolvedUserCoordinate(on: mapView) else { return }
+
+                    self.parent.isFollowingUser = true
+                    self.applyDrivingRegion(on: mapView, coordinate: coordinate, animated: delay > 0.15)
+                    if mapView.userTrackingMode != .followWithHeading {
+                        mapView.setUserTrackingMode(.followWithHeading, animated: delay > 0.15)
+                    }
+                }
+            }
         }
 
         private func fitRouteContext(on mapView: MKMapView) {
@@ -604,10 +629,12 @@ private struct LiveDriveHUDTrackingMap: UIViewRepresentable {
         }
 
         func mapView(_ mapView: MKMapView, didUpdate userLocation: MKUserLocation) {
-            guard parent.isFollowingUser, let coordinate = userLocation.location?.coordinate else { return }
+            guard parent.isFollowingUser || (!userInitiatedMapChange && !hasAppliedInitialFollowRegion),
+                  let coordinate = userLocation.location?.coordinate else { return }
             guard CLLocationCoordinate2DIsValid(coordinate) else { return }
 
             if !hasAppliedInitialFollowRegion {
+                parent.isFollowingUser = true
                 applyDrivingRegion(on: mapView, coordinate: coordinate, animated: false)
             }
 

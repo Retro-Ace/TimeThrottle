@@ -274,6 +274,19 @@ final class CurrentLocationResolver: NSObject, ObservableObject {
     private let geocoder = CLGeocoder()
     private let locationManager: CLLocationManager
     private var hasPendingRequest = false
+    private var isAutomaticallyUpdating = false
+    private var lastAcceptedLocation: CLLocation?
+    private var lastReverseGeocodedLocation: CLLocation?
+    private var lastReverseGeocodeAt: Date?
+    private var reverseGeocodeTask: Task<Void, Never>?
+    private var updateGeneration = 0
+
+    private static let maximumLocationAgeSeconds: TimeInterval = 60
+    private static let maximumHorizontalAccuracyMeters: CLLocationAccuracy = 200
+    private static let minimumAcceptedMovementMeters: CLLocationDistance = 75
+    private static let minimumAccuracyImprovementMeters: CLLocationAccuracy = 25
+    private static let minimumReverseGeocodeMovementMeters: CLLocationDistance = 150
+    private static let minimumReverseGeocodeIntervalSeconds: TimeInterval = 45
 
     override init() {
         let manager = CLLocationManager()
@@ -282,6 +295,43 @@ final class CurrentLocationResolver: NSObject, ObservableObject {
         super.init()
         manager.delegate = self
         manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+        manager.distanceFilter = 50
+        manager.activityType = .automotiveNavigation
+        manager.pausesLocationUpdatesAutomatically = true
+    }
+
+    func startAutomaticUpdates() {
+        errorMessage = nil
+        isAutomaticallyUpdating = true
+
+        switch authorizationStatus {
+        case .authorizedAlways, .authorizedWhenInUse:
+            isResolving = currentPlace == nil
+            locationManager.startUpdatingLocation()
+        case .notDetermined:
+            hasPendingRequest = true
+            isResolving = currentPlace == nil
+            locationManager.requestWhenInUseAuthorization()
+        case .denied:
+            stopAutomaticUpdates()
+            errorMessage = "Location access is off. Enable Location Access in Settings to use Current Location."
+        case .restricted:
+            stopAutomaticUpdates()
+            errorMessage = "Current Location is unavailable because location access is restricted."
+        @unknown default:
+            stopAutomaticUpdates()
+            errorMessage = "Current Location is unavailable right now."
+        }
+    }
+
+    func stopAutomaticUpdates() {
+        isAutomaticallyUpdating = false
+        hasPendingRequest = false
+        locationManager.stopUpdatingLocation()
+
+        if currentPlace == nil {
+            isResolving = false
+        }
     }
 
     func requestCurrentLocationIfNeeded() {
@@ -301,10 +351,11 @@ final class CurrentLocationResolver: NSObject, ObservableObject {
             isResolving = true
             locationManager.requestLocation()
         case .notDetermined:
+            isResolving = currentPlace == nil
             locationManager.requestWhenInUseAuthorization()
         case .denied:
             isResolving = false
-            errorMessage = "Location access is off. Enable location access in Settings to use Current Location."
+            errorMessage = "Location access is off. Enable Location Access in Settings to use Current Location."
         case .restricted:
             isResolving = false
             errorMessage = "Current Location is unavailable because location access is restricted."
@@ -316,16 +367,102 @@ final class CurrentLocationResolver: NSObject, ObservableObject {
 
     func refreshAuthorizationState() {
         authorizationStatus = locationManager.authorizationStatus
+        if authorizationStatus == .denied {
+            stopAutomaticUpdates()
+            errorMessage = "Location access is off. Enable Location Access in Settings to use Current Location."
+        } else if authorizationStatus == .restricted {
+            stopAutomaticUpdates()
+            errorMessage = "Current Location is unavailable because location access is restricted."
+        }
     }
 
-    private func update(with location: CLLocation) {
-        Task {
-            let place = await reverseGeocodedPlace(for: location)
-            currentPlace = place
+    private func update(with location: CLLocation, force: Bool) {
+        guard isUsableLocation(location) else { return }
+        guard shouldAcceptLocation(location, force: force) else { return }
+
+        lastAcceptedLocation = location
+
+        if shouldReverseGeocode(location, force: force || currentPlace == nil) {
+            resolvePlace(for: location)
+        } else {
+            currentPlace = coordinateOnlyPlace(for: location)
             isResolving = false
             errorMessage = nil
             hasPendingRequest = false
         }
+    }
+
+    private func isUsableLocation(_ location: CLLocation) -> Bool {
+        guard location.horizontalAccuracy >= 0,
+              location.horizontalAccuracy <= Self.maximumHorizontalAccuracyMeters else {
+            return false
+        }
+
+        return abs(location.timestamp.timeIntervalSinceNow) <= Self.maximumLocationAgeSeconds
+    }
+
+    private func shouldAcceptLocation(_ location: CLLocation, force: Bool) -> Bool {
+        guard !force, currentPlace != nil, let lastAcceptedLocation else {
+            return true
+        }
+
+        let movedMeters = location.distance(from: lastAcceptedLocation)
+        let accuracyImprovement = lastAcceptedLocation.horizontalAccuracy - location.horizontalAccuracy
+        return movedMeters >= Self.minimumAcceptedMovementMeters ||
+            accuracyImprovement >= Self.minimumAccuracyImprovementMeters
+    }
+
+    private func shouldReverseGeocode(_ location: CLLocation, force: Bool) -> Bool {
+        guard !force,
+              let lastReverseGeocodedLocation,
+              let lastReverseGeocodeAt else {
+            return true
+        }
+
+        let movedMeters = location.distance(from: lastReverseGeocodedLocation)
+        let elapsed = Date().timeIntervalSince(lastReverseGeocodeAt)
+        return movedMeters >= Self.minimumReverseGeocodeMovementMeters &&
+            elapsed >= Self.minimumReverseGeocodeIntervalSeconds
+    }
+
+    private func resolvePlace(for location: CLLocation) {
+        reverseGeocodeTask?.cancel()
+        geocoder.cancelGeocode()
+        updateGeneration += 1
+        let generation = updateGeneration
+
+        if currentPlace == nil {
+            isResolving = true
+        }
+
+        reverseGeocodeTask = Task { [weak self] in
+            guard let self else { return }
+            let place = await self.reverseGeocodedPlace(for: location)
+            guard !Task.isCancelled, self.updateGeneration == generation else { return }
+
+            self.currentPlace = place
+            self.lastReverseGeocodedLocation = location
+            self.lastReverseGeocodeAt = Date()
+            self.isResolving = false
+            self.errorMessage = nil
+            self.hasPendingRequest = false
+        }
+    }
+
+    private func coordinateOnlyPlace(for location: CLLocation) -> ResolvedRoutePlace {
+        let coordinate = RouteCoordinate(
+            latitude: location.coordinate.latitude,
+            longitude: location.coordinate.longitude
+        )
+
+        return ResolvedRoutePlace(
+            id: currentPlace?.id ?? UUID(),
+            title: "Current Location",
+            subtitle: currentPlace?.subtitle ?? "",
+            query: "Current Location",
+            coordinate: coordinate,
+            isCurrentLocation: true
+        )
     }
 
     private func reverseGeocodedPlace(for location: CLLocation) async -> ResolvedRoutePlace {
@@ -375,15 +512,18 @@ extension CurrentLocationResolver: CLLocationManagerDelegate {
 
             switch status {
             case .authorizedAlways, .authorizedWhenInUse:
-                if self.hasPendingRequest {
+                if self.isAutomaticallyUpdating {
+                    self.isResolving = self.currentPlace == nil
+                    self.locationManager.startUpdatingLocation()
+                } else if self.hasPendingRequest {
                     self.isResolving = true
                     self.locationManager.requestLocation()
                 }
             case .denied:
-                self.isResolving = false
-                self.errorMessage = "Location access is off. Enable location access in Settings to use Current Location."
+                self.stopAutomaticUpdates()
+                self.errorMessage = "Location access is off. Enable Location Access in Settings to use Current Location."
             case .restricted:
-                self.isResolving = false
+                self.stopAutomaticUpdates()
                 self.errorMessage = "Current Location is unavailable because location access is restricted."
             case .notDetermined:
                 break
@@ -403,15 +543,19 @@ extension CurrentLocationResolver: CLLocationManagerDelegate {
         }
 
         Task { @MainActor [weak self] in
-            self?.update(with: location)
+            guard let self else { return }
+            self.update(with: location, force: self.hasPendingRequest)
         }
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         Task { @MainActor [weak self] in
-            self?.isResolving = false
-            self?.hasPendingRequest = false
-            self?.errorMessage = "Current Location is unavailable right now. Refresh Current Location or try again."
+            guard let self else { return }
+            self.isResolving = false
+            self.hasPendingRequest = false
+            if self.currentPlace == nil {
+                self.errorMessage = "Current Location is unavailable right now."
+            }
         }
     }
 }
